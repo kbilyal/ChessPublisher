@@ -18,8 +18,18 @@ body{
   margin:0 auto;display:flex;flex-direction:column;position:relative;
   background:#d4d0c8;border-top:2px solid #fff;border-left:2px solid #fff;
   border-right:2px solid #404040;border-bottom:2px solid #404040;
-  box-shadow:3px 3px 6px rgba(0,0,0,.45);resize:both;overflow:hidden
+  box-shadow:3px 3px 6px rgba(0,0,0,.45);resize:none;overflow:hidden
 }
+.app-resize-handle{position:absolute;z-index:50;touch-action:none;user-select:none}
+.app-resize-n{top:0;left:8px;right:8px;height:7px;cursor:ns-resize}
+.app-resize-s{bottom:0;left:8px;right:8px;height:7px;cursor:ns-resize}
+.app-resize-e{top:8px;right:0;bottom:8px;width:7px;cursor:ew-resize}
+.app-resize-w{top:8px;left:0;bottom:8px;width:7px;cursor:ew-resize}
+.app-resize-ne{top:0;right:0;width:12px;height:12px;cursor:nesw-resize}
+.app-resize-nw{top:0;left:0;width:12px;height:12px;cursor:nwse-resize}
+.app-resize-se{right:0;bottom:0;width:12px;height:12px;cursor:nwse-resize}
+.app-resize-sw{bottom:0;left:0;width:12px;height:12px;cursor:nesw-resize}
+body.app-resizing{user-select:none}
 .titlebar{
   height:23px;min-height:23px;display:flex;align-items:center;padding:2px 4px;
   background:linear-gradient(to right,#0a246a,#3a6ea5,#a6caf0);
@@ -1755,6 +1765,14 @@ tr.player-absent .attendance-btn{ text-decoration:none }
 <body>
 
 <div id="appWindow" class="window">
+  <div class="app-resize-handle app-resize-n" data-resize="n" aria-hidden="true"></div>
+  <div class="app-resize-handle app-resize-s" data-resize="s" aria-hidden="true"></div>
+  <div class="app-resize-handle app-resize-e" data-resize="e" aria-hidden="true"></div>
+  <div class="app-resize-handle app-resize-w" data-resize="w" aria-hidden="true"></div>
+  <div class="app-resize-handle app-resize-ne" data-resize="ne" aria-hidden="true"></div>
+  <div class="app-resize-handle app-resize-nw" data-resize="nw" aria-hidden="true"></div>
+  <div class="app-resize-handle app-resize-se" data-resize="se" aria-hidden="true"></div>
+  <div class="app-resize-handle app-resize-sw" data-resize="sw" aria-hidden="true"></div>
   <div class="titlebar">Tournament Manager & Publisher</div>
 
   <div class="tabs">
@@ -10623,7 +10641,103 @@ document.addEventListener("change",(e)=>{
    Start only after the complete HTML document has been parsed and
    every JavaScript declaration/runtime object has been initialized.
 ========================================================= */
+
+function enableAppWindowResizing(){
+  const appWindow=document.getElementById("appWindow");
+  if(!appWindow) return;
+
+  const minWidth=800;
+  const minHeight=560;
+  const viewportMargin=12;
+  let state=null;
+
+  const clamp=(value,min,max)=>Math.min(Math.max(value,min),Math.max(min,max));
+
+  function stopResizing(){
+    if(!state) return;
+    window.removeEventListener("pointermove",moveResize);
+    window.removeEventListener("pointerup",stopResizing);
+    window.removeEventListener("pointercancel",stopResizing);
+    document.body.classList.remove("app-resizing");
+    document.body.style.cursor=state.previousCursor;
+    state=null;
+  }
+
+  function moveResize(event){
+    if(!state) return;
+
+    const direction=state.direction;
+    const dx=event.clientX-state.startX;
+    const dy=event.clientY-state.startY;
+    const right=state.left+state.width;
+    const bottom=state.top+state.height;
+    let left=state.left;
+    let top=state.top;
+    let width=state.width;
+    let height=state.height;
+
+    if(direction.includes("e")){
+      width=clamp(state.width+dx,minWidth,window.innerWidth-viewportMargin-state.left);
+    }
+    if(direction.includes("s")){
+      height=clamp(state.height+dy,minHeight,window.innerHeight-viewportMargin-state.top);
+    }
+    if(direction.includes("w")){
+      left=clamp(state.left+dx,viewportMargin,right-minWidth);
+      width=right-left;
+    }
+    if(direction.includes("n")){
+      top=clamp(state.top+dy,viewportMargin,bottom-minHeight);
+      height=bottom-top;
+    }
+
+    appWindow.style.left=Math.round(left)+"px";
+    appWindow.style.top=Math.round(top)+"px";
+    appWindow.style.width=Math.round(width)+"px";
+    appWindow.style.height=Math.round(height)+"px";
+  }
+
+  function startResizing(event){
+    if(event.pointerType==="mouse" && event.button!==0) return;
+
+    const rect=appWindow.getBoundingClientRect();
+    state={
+      direction:event.currentTarget.dataset.resize||"",
+      startX:event.clientX,
+      startY:event.clientY,
+      left:rect.left,
+      top:rect.top,
+      width:rect.width,
+      height:rect.height,
+      previousCursor:document.body.style.cursor
+    };
+
+    appWindow.style.position="fixed";
+    appWindow.style.left=Math.round(rect.left)+"px";
+    appWindow.style.top=Math.round(rect.top)+"px";
+    appWindow.style.margin="0";
+    appWindow.style.width=Math.round(rect.width)+"px";
+    appWindow.style.height=Math.round(rect.height)+"px";
+    appWindow.style.maxWidth="none";
+    appWindow.style.maxHeight="none";
+
+    document.body.classList.add("app-resizing");
+    document.body.style.cursor=getComputedStyle(event.currentTarget).cursor;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+
+    window.addEventListener("pointermove",moveResize);
+    window.addEventListener("pointerup",stopResizing);
+    window.addEventListener("pointercancel",stopResizing);
+  }
+
+  appWindow.querySelectorAll(".app-resize-handle").forEach(handle=>{
+    handle.addEventListener("pointerdown",startResizing);
+  });
+}
+
 window.addEventListener("DOMContentLoaded",()=>{
+  enableAppWindowResizing();
   bootApplication().catch(err=>{
     console.error("Application startup failed",err);
     try{ setStatus("Startup error: "+(err?.message||String(err))); }catch{}
@@ -10664,3 +10778,4 @@ window.addEventListener("DOMContentLoaded",()=>{
 
 </body>
 </html>
+
