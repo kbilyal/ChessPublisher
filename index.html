@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e1b2a">
+  <meta name="description" content="ChessPublisher is an open-source Windows tournament management and publishing tool for chess organizers and arbiters.">
+  <meta property="og:title" content="ChessPublisher — Tournament management for chess organizers">
+  <meta property="og:description" content="Swiss pairing workflows, independent pairing checks, TRF tools, Chess-Results integration, DGT workflows and FIDE data utilities in one Windows application.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://chess-publisher.org/">
+  <meta property="og:image" content="https://chess-publisher.org/assets/chesspublisher-icon.png">
+  <title>ChessPublisher — Chess tournament management for Windows</title>
+  <link rel="icon" type="image/png" href="assets/chesspublisher-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header" id="top">
+    <div class="nav-shell">
+      <a class="brand" href="#top" aria-label="ChessPublisher home">
+        <img src="assets/chesspublisher-icon.png" alt="" width="42" height="42">
+        <span>ChessPublisher</span>
+      </a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open navigation">
+        <span></span><span></span><span></span>
+      </button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+        <a href="#features">Features</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#open-source">Open source</a>
+        <a href="#download">Download</a>
+        <a href="#docs">Docs</a>
+        <a class="nav-github" href="https://github.com/kbilyal/ChessPublisher" target="_blank" rel="noopener">GitHub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero section">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="status-dot"></span> Open source · Windows</div>
+          <h1>Run chess tournaments with fewer moving parts.</h1>
+          <p class="hero-lead">ChessPublisher brings tournament setup, pairing workflows, validation, publishing and live-board tools together in one desktop application built for organizers and arbiters.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/kbilyal/ChessPublisher/releases" data-latest-release target="_blank" rel="noopener">Download latest release</a>
+            <a class="button button-secondary" href="https://github.com/kbilyal/ChessPublisher" target="_blank" rel="noopener">View source</a>
+          </div>
+          <div class="hero-meta">
+            <span>MIT licensed</span>
+            <span>Local-first</span>
+            <span>Built for tournament day</span>
+          </div>
+        </div>
+
+        <div class="product-stage" aria-label="Illustration of the ChessPublisher interface">
+          <div class="window-card">
+            <div class="window-bar">
+              <div class="window-brand"><img src="assets/chesspublisher-icon.png" alt="" width="24" height="24"><span>ChessPublisher</span></div>
+              <div class="window-controls"><i></i><i></i><i></i></div>
+            </div>
+            <div class="window-body">
+              <aside class="mock-sidebar">
+                <div class="mock-nav active"><span>◫</span> Tournament</div>
+                <div class="mock-nav"><span>♙</span> Players</div>
+                <div class="mock-nav"><span>⇄</span> Pairings</div>
+                <div class="mock-nav"><span>✓</span> Checker</div>
+                <div class="mock-nav"><span>⌁</span> Chess-Results</div>
+                <div class="mock-nav"><span>◉</span> DGT</div>
+              </aside>
+              <div class="mock-content">
+                <div class="mock-topline"><div><small>ACTIVE TOURNAMENT</small><strong>Golden Rhodopes Open</strong></div><span class="pill">Round 4 / 7</span></div>
+                <div class="metrics">
+                  <div class="metric"><span>Players</span><strong>128</strong><em>Ready</em></div>
+                  <div class="metric"><span>Pairing status</span><strong>Valid</strong><em>Independent check passed</em></div>
+                  <div class="metric"><span>Publishing</span><strong>Synced</strong><em>Chess-Results</em></div>
+                </div>
+                <div class="panel mock-table-panel">
+                  <div class="panel-head"><strong>Pairings — Round 4</strong><span>Validation complete</span></div>
+                  <div class="mock-table">
+                    <div class="mock-row header"><span>Bd</span><span>White</span><span>Rtg</span><span>Black</span><span>Rtg</span></div>
+                    <div class="mock-row"><span>1</span><span>Ivan Petrov</span><span>2314</span><span>Martin Kolev</span><span>2288</span></div>
+                    <div class="mock-row"><span>2</span><span>Nikolay Georgiev</span><span>2241</span><span>Daniel Ivanov</span><span>2219</span></div>
+                    <div class="mock-row"><span>3</span><span>Elena Dimitrova</span><span>2198</span><span>Alex Marinov</span><span>2175</span></div>
+                    <div class="mock-row"><span>4</span><span>Viktor Stoyanov</span><span>2157</span><span>Maya Todorova</span><span>2136</span></div>
+                  </div>
+                </div>
+                <div class="mock-log"><span class="log-dot"></span><code>Pairing checker: PASS · No violations detected</code></div>
+              </div>
+            </div>
+          </div>
+          <div class="floating-card fc-one"><span>✓</span><div><strong>Pairing checked</strong><small>Independent validation</small></div></div>
+          <div class="floating-card fc-two"><span>↗</span><div><strong>Published</strong><small>Results are online</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="trust-strip" aria-label="Product highlights">
+      <div>Swiss workflows</div><div>TRF tools</div><div>Pairing validation</div><div>Chess-Results</div><div>DGT workflows</div><div>FIDE data</div>
+    </section>
+
+    <section class="section section-muted" id="features">
+      <div class="section-heading">
+        <div class="eyebrow">Everything in one place</div>
+        <h2>Built around the real tournament workflow.</h2>
+        <p>From registration to publication, ChessPublisher keeps the tools an arbiter needs close together while preserving a local-first desktop workflow.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card feature-card-large">
+          <div class="feature-icon">⇄</div>
+          <h3>Swiss pairing workflow</h3>
+          <p>Prepare rounds, exchange TRF data with pairing engines and keep round history organized inside the tournament.</p>
+          <div class="mini-diagram"><span>Players</span><b>→</b><span>TRF</span><b>→</b><span>Pairing engine</span><b>→</b><span>Round</span></div>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">✓</div>
+          <h3>Independent pairing checks</h3>
+          <p>Validate generated pairings independently with dedicated checker workflows before you publish a round.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">⌁</div>
+          <h3>Chess-Results integration</h3>
+          <p>Keep tournament publishing close to the same workspace instead of switching between unrelated tools.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">◉</div>
+          <h3>DGT workflows</h3>
+          <p>Work with connected digital boards and tournament-day board operations from a dedicated DGT section.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">♙</div>
+          <h3>FIDE player data</h3>
+          <p>Search and update local rating-list data to streamline registration and reduce manual entry.</p>
+        </article>
+        <article class="feature-card feature-card-wide">
+          <div class="feature-icon">▤</div>
+          <h3>Reports, exports and tournament files</h3>
+          <p>Keep tournament setup, schedules, participant data and exchange formats together in a portable tournament folder.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="workflow">
+      <div class="section-heading narrow">
+        <div class="eyebrow">Tournament day</div>
+        <h2>A workflow designed to stay understandable under pressure.</h2>
+      </div>
+      <div class="steps">
+        <article><span class="step-no">01</span><h3>Create the tournament</h3><p>Set the event details, rounds, time control and reporting information.</p></article>
+        <article><span class="step-no">02</span><h3>Build the player list</h3><p>Import or search rating data, review participants and prepare the starting list.</p></article>
+        <article><span class="step-no">03</span><h3>Generate and check</h3><p>Create the next round through the configured pairing workflow, then run an independent validation.</p></article>
+        <article><span class="step-no">04</span><h3>Publish and continue</h3><p>Publish the round, enter results and move to the next stage without rebuilding the tournament elsewhere.</p></article>
+      </div>
+    </section>
+
+    <section class="section open-source-section" id="open-source">
+      <div class="oss-card">
+        <div>
+          <div class="eyebrow light">Open by design</div>
+          <h2>Source code you can inspect, build and improve.</h2>
+          <p>ChessPublisher is released under the MIT License. The project favors reproducible builds, transparent dependencies and a public development history.</p>
+          <div class="oss-actions">
+            <a class="button button-light" href="https://github.com/kbilyal/ChessPublisher" target="_blank" rel="noopener">Browse source on GitHub</a>
+            <a class="text-link light-link" href="https://github.com/kbilyal/ChessPublisher/issues" target="_blank" rel="noopener">Report an issue ↗</a>
+          </div>
+        </div>
+        <div class="code-card" aria-hidden="true">
+          <div class="code-dots"><i></i><i></i><i></i></div>
+          <pre><code><span>$</span> git clone https://github.com/kbilyal/ChessPublisher.git
+<span>$</span> cd ChessPublisher
+
+MIT licensed
+Open source
+Windows desktop</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-muted" id="download">
+      <div class="download-shell">
+        <div class="download-copy">
+          <div class="eyebrow">Get ChessPublisher</div>
+          <h2>Download the latest Windows release.</h2>
+          <p>The latest release page contains the current installer/package and release notes. For integrity-sensitive deployments, verify the published checksum before installation.</p>
+          <div class="download-actions">
+            <a class="button button-primary" href="https://github.com/kbilyal/ChessPublisher/releases" data-latest-release target="_blank" rel="noopener">Latest release</a>
+            <a class="button button-secondary" href="https://github.com/kbilyal/ChessPublisher/releases" target="_blank" rel="noopener">All releases</a>
+          </div>
+        </div>
+        <div class="download-card">
+          <img src="assets/chesspublisher-icon.png" alt="ChessPublisher icon" width="84" height="84">
+          <div><strong>ChessPublisher for Windows</strong><span>64-bit desktop application</span></div>
+          <ul><li>Open source</li><li>Local-first tournament files</li><li>Release checksums</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="docs">
+      <div class="section-heading narrow">
+        <div class="eyebrow">Documentation</div>
+        <h2>Start simple. Go deeper when you need to.</h2>
+      </div>
+      <div class="docs-grid">
+        <a class="doc-card" href="https://github.com/kbilyal/ChessPublisher#readme" target="_blank" rel="noopener"><span>01</span><div><h3>Getting started</h3><p>Installation, first launch and the basic tournament workflow.</p></div><b>↗</b></a>
+        <a class="doc-card" href="https://github.com/kbilyal/ChessPublisher/releases" target="_blank" rel="noopener"><span>02</span><div><h3>Release notes</h3><p>See what changed and which build is current.</p></div><b>↗</b></a>
+        <a class="doc-card" href="https://github.com/kbilyal/ChessPublisher/issues" target="_blank" rel="noopener"><span>03</span><div><h3>Support & bugs</h3><p>Report reproducible problems and track fixes publicly.</p></div><b>↗</b></a>
+      </div>
+    </section>
+
+    <section class="section final-cta">
+      <div>
+        <img src="assets/chesspublisher-icon.png" alt="" width="64" height="64">
+        <h2>One tournament. One workspace.</h2>
+        <p>Keep the essential organizer workflow together with ChessPublisher.</p>
+        <a class="button button-primary" href="https://github.com/kbilyal/ChessPublisher/releases" data-latest-release target="_blank" rel="noopener">Download ChessPublisher</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-grid">
+      <div class="footer-brand"><a class="brand" href="#top"><img src="assets/chesspublisher-icon.png" alt="" width="36" height="36"><span>ChessPublisher</span></a><p>Open-source chess tournament management software for Windows.</p></div>
+      <div><strong>Product</strong><a href="#features">Features</a><a href="#download">Download</a><a href="#docs">Documentation</a></div>
+      <div><strong>Project</strong><a href="https://github.com/kbilyal/ChessPublisher" target="_blank" rel="noopener">GitHub</a><a href="https://github.com/kbilyal/ChessPublisher/releases" target="_blank" rel="noopener">Releases</a><a href="https://github.com/kbilyal/ChessPublisher/issues" target="_blank" rel="noopener">Issues</a></div>
+      <div><strong>Legal</strong><a href="https://github.com/kbilyal/ChessPublisher/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a><a href="privacy.html">Privacy</a></div>
+    </div>
+    <div class="footer-bottom"><span>© <span id="year"></span> ChessPublisher</span><span>chess-publisher.org</span></div>
+  </footer>
+</body>
+</html>
