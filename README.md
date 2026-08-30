@@ -2,29 +2,27 @@
 
 ChessPublisher is an open-source Windows desktop application for managing and publishing chess tournaments. The UI is HTML/CSS/JavaScript hosted in Microsoft WebView2, with a PowerShell local bridge/service. Swiss Dutch pairing is delegated to the upstream **Gacrux 1.9.57** pairing engine rather than reimplemented in JavaScript.
 
-**Current stable distribution:** v1.04.01 (2026-08-30), based on the maintainer-approved RC2 package.
+**Current stable distribution:** v1.04.01 (2026-08-30), promoted from the FINAL-approved RC6 candidate after a complete **36/36 PASS** Runtime & Release Gate.
 
 ## v1.04.01 stable highlights
 
 - Swiss-Manager interoperability provides:
   - **TRF Starting List (.TXT)** for setup/participants only.
-  - **Export Tournament in TXT** for transferring the generated tournament, including players, rounds, entered results and legitimate forfeits/byes, so the event can be continued in Swiss-Manager.
-- Fixed the completed-round persistence gap that could leave corrected results stale in `tournament.json` / `Latest.trf` when Autosave was off.
-- Critical result persistence is serialized and revision-guarded.
-- Fixed the self-triggered export revision error where automatic TRF backup validation could increment the internal state revision during FIDE/Swiss-Manager export preparation.
-- Routine successful `Saved to file` / autosave success text is hidden; only meaningful save/error/read-only states remain visible.
-- Shortened the Round Complete dialog to a single informational sentence.
+  - **Editable Tournament TXT** and **Full Tournament TXT** export paths for transferring tournament state for continuation/interoperability.
+- FIDE TRF16/TRF26 workflows remain validated.
+- Chess-Results TNR lifecycle evidence and XLSX round-import coverage are included in the final release gate.
+- Persistence/autosave, forced managed-file failure handling, rapid correction races, tournament switching, rollback, rename/autosave, restore/reload, stale modal/context, FIDE database atomicity and full-import rollback guards are covered by the RC6 point-fix set P-07–P-27.
 - Gacrux 1.9.57, Swiss Dutch pairing logic, pairing-engine TRF path, BBP independent checker and Tie-Break Checker core remain unchanged.
 
 ## Stable distribution artifacts
 
 - Installer: `chess-publisher-v1.04.01-2026-08-30.exe`
-  - SHA-256: `6162042359a3d24647fd8f250571004dd8ffa4f18a2245cfb90bb7944d0ec0cb`
+  - SHA-256: `5642e611a13b75022578fb245ea325a75e557e14aa36b824c6cb6925ca00e24b`
 - Portable/source package: `chess-publisher-v1.04.01-2026-08-30.zip`
-  - SHA-256: `fe2ac470a6f2cd351139e45043c7b5112006e0bbedadd3f5f932be84b3e84645`
+  - SHA-256: `fbbbffdea456b895ba793e544e688021c1d1b73a024c5f440692274699b53872`
 - Gacrux 1.9.57 SHA-256: `6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb`
 
-The stable ZIP is byte-identical to the accepted RC2 payload; the installer embeds that exact ZIP payload once and was reproduced byte-for-byte in a second deterministic build.
+The stable EXE and ZIP are byte-identical promotions of the candidate that passed the FINAL gate. The installer embeds the exact stable ZIP payload once, and both ZIP and installer deterministic rebuild checks passed byte-for-byte.
 
 ## Main features
 
@@ -51,13 +49,17 @@ ChessPublisher.exe
 
 **No service credential should be embedded in the public source tree.** User-owned credentials such as Telegram tokens remain local. Service-shared production integration material is intentionally not committed to this public repository.
 
-This means the public repository documents the stable distribution version and credential-free source baseline, while the complete production runtime package is distributed separately. Do not commit credentials, tournament backups or signing keys.
+This means the public repository documents the stable distribution version and credential-free source baseline, while the complete production runtime package is distributed separately. Do not commit credentials, tournament backups, signing keys or production shared AES material.
 
 ## Release discipline
 
-The accepted v1.04.01 RC2 package passed targeted JavaScript/export/persistence regression, ZIP CRC/readback, deterministic ZIP reproduction and protected-core hash checks. The stable installer packaging additionally passed deterministic EXE reproduction, exact embedded-ZIP identity, AMD64/PE32+ sanity and a valid `asInvoker` RT_MANIFEST.
+The promoted v1.04.01 RC6 candidate passed the unified FINAL Runtime & Release Gate with **36 PASS / 0 FAIL**. The gate covers exact candidate and Gacrux hashes, V138 WebView/LocalEngine handshake, PowerShell parser validation, LocalEngine `/health`, both runtime startup/shutdown paths, JavaScript 47/47, RC6 regression/dynamic persistence evidence, protected-core 11/11 identity, 85/85 ZIP readback, deterministic ZIP/EXE reproduction, exact embedded-payload identity, AMD64/PE32+ sanity, PE structure/resource checks, valid RT_MANIFEST XML, `asInvoker`, and final EXE/ZIP/SHA256 consistency.
 
-The earlier v1.04.01 Windows runtime gate validated the unchanged V138 WebView/LocalEngine runtime path, including STA in-process runspace startup/shutdown and `System.Diagnostics.Process` fallback startup/shutdown. RC2 changes are confined to the HTML/UI/export persistence layer; the WebView host, LocalEngine and Gacrux hashes are unchanged.
+Final gate result:
+
+`FINAL RESULT: PASS - RELEASE APPROVED`
+
+Full release record: `RELEASE-v1.04.01.md`.
 
 ## Network behavior and privacy
 
