@@ -1,0 +1,24 @@
+{
+  "product": "Chess-Publisher",
+  "version": "1.04.01",
+  "date": "2026-08-30",
+  "channel": "stable",
+  "baseline": "RC2",
+  "installer": {
+    "name": "chess-publisher-v1.04.01-2026-08-30.exe",
+    "sha256": "6162042359a3d24647fd8f250571004dd8ffa4f18a2245cfb90bb7944d0ec0cb",
+    "drive_file_id": "1Ns5jzGUhMGVM9xD5q-l1Nu0icOYG9E0v",
+    "url": "https://drive.google.com/file/d/1Ns5jzGUhMGVM9xD5q-l1Nu0icOYG9E0v/view?usp=drivesdk"
+  },
+  "portable": {
+    "name": "chess-publisher-v1.04.01-2026-08-30.zip",
+    "sha256": "fe2ac470a6f2cd351139e45043c7b5112006e0bbedadd3f5f932be84b3e84645",
+    "drive_file_id": "11vd_I2ASnB6Stbj3-ZQPmzTPEQKmqvGU",
+    "url": "https://drive.google.com/file/d/11vd_I2ASnB6Stbj3-ZQPmzTPEQKmqvGU/view?usp=drivesdk"
+  },
+  "checksums": {
+    "name": "chess-publisher-v1.04.01-2026-08-30-SHA256.txt",
+    "drive_file_id": "1F11i5fmH6x9bNCZs7CaBVHBChQgAQ-Wn",
+    "url": "https://drive.google.com/file/d/1F11i5fmH6x9bNCZs7CaBVHBChQgAQ-Wn/view?usp=drivesdk"
+  }
+}
