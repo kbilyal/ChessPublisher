@@ -1,0 +1,54 @@
+name: Assemble v1.04.01 OSS source
+
+on:
+  push:
+    branches:
+      - 'fix/v1.04.01-oss-source'
+    paths:
+      - '.cp-oss-v10401/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct sanitized stable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .cp-oss-v10401/part-* > /tmp/oss-source-v10401.b64
+          base64 -d /tmp/oss-source-v10401.b64 > /tmp/oss-source-v10401.tar.xz
+          echo '2b3200054f501da07ba66aa6c121e6156306ce919edd60010256d97050e91408  /tmp/oss-source-v10401.tar.xz' | sha256sum -c -
+          mkdir -p /tmp/oss-source-extract
+          tar -xJf /tmp/oss-source-v10401.tar.xz -C /tmp/oss-source-extract
+          cp -a /tmp/oss-source-extract/oss-source-v10401/. .
+
+          echo '21ff798bd67a9f9dda83c29a2af861c2fcce3aa5bcc2a12c3465d361cd56fd36  ChessPublisher.html' | sha256sum -c -
+          echo 'b0e941951102a36ad929064dd157af6bd942a4a598fe854919223f1e2bcef571  ChessPublisher-WebView.ps1' | sha256sum -c -
+          echo '4ea663344678f5ae5e6a536ed35b740e018c8089c225b149d78b6aab48c80a90  ChessPublisher-LocalEngine.ps1' | sha256sum -c -
+          echo 'be0e3253ffd9f44d0027c13d126fb44b73919469ab0506ef7307c70b6244d7f7  FIDE-Update.ps1' | sha256sum -c -
+          echo 'd23af37ce1624fac96b46f62c85d7801ed733a66f7e03bab40f453ce4db67861  webview/WebViewAdapter.js' | sha256sum -c -
+
+          grep -F '__CP_CR_AES_IV_B64__' ChessPublisher-LocalEngine.ps1 >/dev/null
+          grep -F '__CP_CR_AES_KEY_B64__' ChessPublisher-LocalEngine.ps1 >/dev/null
+          grep -F 'data-chesspublisher-version="1.04.01"' ChessPublisher.html >/dev/null
+          grep -F 'cpExportSwissManagerFullTournament' ChessPublisher.html >/dev/null
+
+      - name: Commit verified public source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .cp-oss-v10401
+          rm -f .github/workflows/oss-source-v10401.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Restore sanitized stable v1.04.01 public runtime source'
+          git push origin HEAD:fix/v1.04.01-oss-source
