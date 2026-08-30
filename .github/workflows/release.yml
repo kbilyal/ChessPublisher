@@ -1,17 +1,10 @@
 name: Build and publish release
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - VERSION
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Stable version to release (for example 1.03.96). Leave empty to use VERSION.'
+        description: 'Stable version to release (for example 1.04.01). Leave empty to use VERSION.'
         required: false
         type: string
 
@@ -45,7 +38,7 @@ jobs:
             }
           }
           if ($requested -notmatch '^\d+\.\d+\.\d+$') {
-            throw "Invalid release version '$requested'. Expected a value such as 1.03.96."
+            throw "Invalid release version '$requested'. Expected a value such as 1.04.01."
           }
           $repoVersion = (Get-Content -LiteralPath VERSION -Raw).Trim().TrimStart('v')
           if ($repoVersion -ne $requested) {
