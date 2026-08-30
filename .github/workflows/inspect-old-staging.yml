@@ -1,0 +1,33 @@
+name: Inspect old OSS staging
+
+on:
+  push:
+    branches:
+      - 'fix/v1.04.01-oss-source'
+    paths:
+      - '.cp-inspect-old-ready'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect staged archive
+        shell: bash
+        run: |
+          set -u
+          cat .cp-oss-v10401/part-*.b64 > /tmp/old.b64
+          echo "base64-bytes=$(wc -c </tmp/old.b64)"
+          sha256sum /tmp/old.b64
+          if ! base64 -d /tmp/old.b64 > /tmp/old.tar.xz; then
+            echo 'BASE64_DECODE_FAILED'
+            exit 2
+          fi
+          echo "archive-bytes=$(wc -c </tmp/old.tar.xz)"
+          sha256sum /tmp/old.tar.xz
+          xz -t /tmp/old.tar.xz || { echo 'XZ_TEST_FAILED'; exit 3; }
+          echo '--- ARCHIVE LIST ---'
+          tar -tJf /tmp/old.tar.xz
