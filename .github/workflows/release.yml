@@ -1,6 +1,11 @@
 name: Build and publish release
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
   workflow_dispatch:
     inputs:
       version:
@@ -31,11 +36,7 @@ jobs:
         run: |
           $requested = '${{ inputs.version }}'.Trim()
           if ([string]::IsNullOrWhiteSpace($requested)) {
-            if ($env:GITHUB_REF_TYPE -eq 'tag') {
-              $requested = $env:GITHUB_REF_NAME.TrimStart('v')
-            } else {
-              $requested = (Get-Content -LiteralPath VERSION -Raw).Trim().TrimStart('v')
-            }
+            $requested = (Get-Content -LiteralPath VERSION -Raw).Trim().TrimStart('v')
           }
           if ($requested -notmatch '^\d+\.\d+\.\d+$') {
             throw "Invalid release version '$requested'. Expected a value such as 1.04.01."
@@ -43,9 +44,6 @@ jobs:
           $repoVersion = (Get-Content -LiteralPath VERSION -Raw).Trim().TrimStart('v')
           if ($repoVersion -ne $requested) {
             throw "VERSION is '$repoVersion' but the release request is '$requested'."
-          }
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$requested") {
-            throw "Tag '$env:GITHUB_REF_NAME' does not match VERSION '$requested'."
           }
           "RELEASE_VERSION=$requested" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "RELEASE_TAG=v$requested" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
