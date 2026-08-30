@@ -4,6 +4,9 @@
 #ifndef MyDate
   #define MyDate "2026-08-29"
 #endif
+#ifndef MyNumericVersion
+  #define MyNumericVersion "1.3.64.0"
+#endif
 #ifndef SourceDir
   #define SourceDir "..\\build\\payload"
 #endif
@@ -33,7 +36,7 @@ WizardStyle=modern
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 InfoAfterFile=..\PRIVACY.md
-VersionInfoVersion=1.3.64.0
+VersionInfoVersion={#MyNumericVersion}
 VersionInfoCompany=Kyamran Bilyal
 VersionInfoDescription=ChessPublisher Setup
 VersionInfoProductName=ChessPublisher
