@@ -1,0 +1,31 @@
+name: Inspect R2 stream hashes
+
+on:
+  push:
+    branches:
+      - 'fix/v1.04.01-oss-source'
+    paths:
+      - '.cp-inspect-r2-hash-ready'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: bash
+        run: |
+          set -euo pipefail
+          cat .cp-oss-v10401-r2/part-*.b64 | base64 -d > /tmp/r2.xz
+          set +e
+          xz -dc /tmp/r2.xz > /tmp/r2.tar
+          set -e
+          echo "xz_size=$(wc -c </tmp/r2.xz) tar_size=$(wc -c </tmp/r2.tar)"
+          echo 'XZ_PREFIX_HASHES'
+          head -c 13500 /tmp/r2.xz | sha256sum
+          head -c 18000 /tmp/r2.xz | sha256sum
+          head -c 175000 /tmp/r2.xz | sha256sum
+          echo 'TAR_PREFIX_HASHES'
+          for n in 512 4096 65536 178176 281600 320000 350000 361000; do head -c $n /tmp/r2.tar | sha256sum | sed "s/^/$n /"; done
