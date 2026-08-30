@@ -1,0 +1,41 @@
+name: Recover complete R2 prefix files
+
+on:
+  push:
+    branches:
+      - 'fix/v1.04.01-oss-source'
+    paths:
+      - '.cp-recover-r2-ready'
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Recover complete prefix entries
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .cp-oss-v10401-r2/part-*.b64 | base64 -d > /tmp/r2.xz
+          set +e
+          xz -dc /tmp/r2.xz > /tmp/r2.tar
+          set -e
+          rm -rf /tmp/r2out .cp-r2-recovered
+          mkdir -p /tmp/r2out .cp-r2-recovered
+          set +e
+          tar -xf /tmp/r2.tar -C /tmp/r2out
+          set -e
+          cp /tmp/r2out/oss-v10401-new/ChessPublisher-LocalEngine.ps1 .cp-r2-recovered/
+          cp /tmp/r2out/oss-v10401-new/ChessPublisher-WebView.ps1 .cp-r2-recovered/
+          sha256sum .cp-r2-recovered/*
+          grep -n '__CP_CR_AES_' .cp-r2-recovered/ChessPublisher-LocalEngine.ps1 || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .cp-r2-recovered
+          git commit -m 'Recover complete files from verified R2 prefix'
+          git push origin HEAD:fix/v1.04.01-oss-source
