@@ -2,9 +2,9 @@
 
 ChessPublisher is an open-source Windows desktop application for managing and publishing chess tournaments. The UI is HTML/CSS/JavaScript hosted in Microsoft WebView2, with a PowerShell local bridge/service. Swiss Dutch pairing is delegated to the upstream **Gacrux 1.9.57** pairing engine rather than reimplemented in JavaScript.
 
-**Current stable distribution:** v1.04.01 (2026-08-30), promoted from the FINAL-approved RC6 candidate after a complete **36/36 PASS** Runtime & Release Gate.
+**Current stable distribution:** v1.04.02 (2026-08-30), a version-only promotion of the FINAL-approved v1.04.01 RC6 codebase after a complete **36/36 PASS** Runtime & Release Gate on the v1.04.02 RC1 candidate.
 
-## v1.04.01 stable highlights
+## v1.04.02 stable highlights
 
 - Swiss-Manager interoperability provides:
   - **TRF Starting List (.TXT)** for setup/participants only.
@@ -12,17 +12,18 @@ ChessPublisher is an open-source Windows desktop application for managing and pu
 - FIDE TRF16/TRF26 workflows remain validated.
 - Chess-Results TNR lifecycle evidence and XLSX round-import coverage are included in the final release gate.
 - Persistence/autosave, forced managed-file failure handling, rapid correction races, tournament switching, rollback, rename/autosave, restore/reload, stale modal/context, FIDE database atomicity and full-import rollback guards are covered by the RC6 point-fix set P-07–P-27.
-- Gacrux 1.9.57, Swiss Dutch pairing logic, pairing-engine TRF path, BBP independent checker and Tie-Break Checker core remain unchanged.
+- v1.04.02 changes only release/version metadata relative to the approved RC6 functional codebase.
+- Gacrux 1.9.57, Swiss Dutch pairing logic, pairing-engine TRF path, BBP independent checker, Tie-Break Checker core and Chess-Results XML/network protocol core remain unchanged.
 
 ## Stable distribution artifacts
 
-- Installer: `chess-publisher-v1.04.01-2026-08-30.exe`
-  - SHA-256: `5642e611a13b75022578fb245ea325a75e557e14aa36b824c6cb6925ca00e24b`
-- Portable/source package: `chess-publisher-v1.04.01-2026-08-30.zip`
-  - SHA-256: `fbbbffdea456b895ba793e544e688021c1d1b73a024c5f440692274699b53872`
+- Installer: `chess-publisher-v1.04.02-2026-08-30.exe`
+  - SHA-256: `5af57ede202f1e65c8fc2e2356af5c6961bd6902006269a7f8b64ffb08accacf`
+- Portable/source package: `chess-publisher-v1.04.02-2026-08-30.zip`
+  - SHA-256: `316eadb9c2f12ea2021ffbc3852c81614140daf55015e00992cd59974336fa20`
 - Gacrux 1.9.57 SHA-256: `6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb`
 
-The stable EXE and ZIP are byte-identical promotions of the candidate that passed the FINAL gate. The installer embeds the exact stable ZIP payload once, and both ZIP and installer deterministic rebuild checks passed byte-for-byte.
+The stable EXE and ZIP are byte-identical promotions of the v1.04.02 RC1 candidate that passed the FINAL gate. The installer embeds the exact stable ZIP payload once, and both ZIP and installer deterministic rebuild checks passed byte-for-byte.
 
 ## Main features
 
@@ -53,13 +54,13 @@ This means the public repository documents the stable distribution version and c
 
 ## Release discipline
 
-The promoted v1.04.01 RC6 candidate passed the unified FINAL Runtime & Release Gate with **36 PASS / 0 FAIL**. The gate covers exact candidate and Gacrux hashes, V138 WebView/LocalEngine handshake, PowerShell parser validation, LocalEngine `/health`, both runtime startup/shutdown paths, JavaScript 47/47, RC6 regression/dynamic persistence evidence, protected-core 11/11 identity, 85/85 ZIP readback, deterministic ZIP/EXE reproduction, exact embedded-payload identity, AMD64/PE32+ sanity, PE structure/resource checks, valid RT_MANIFEST XML, `asInvoker`, and final EXE/ZIP/SHA256 consistency.
+The v1.04.02 RC1 candidate passed the unified FINAL Runtime & Release Gate with **36 PASS / 0 FAIL**. The gate covers exact candidate and Gacrux hashes, V138 WebView/LocalEngine handshake, PowerShell parser validation, LocalEngine `/health`, both runtime startup/shutdown paths, JavaScript 47/47, RC6 regression/dynamic persistence evidence, protected-core identity, live v1.04.02 metadata validation, 85/85 ZIP readback, deterministic ZIP/EXE reproduction, exact embedded-payload identity, AMD64/PE32+ sanity, PE structure/resource checks, valid RT_MANIFEST XML, `asInvoker`, and final EXE/ZIP/SHA256 consistency.
 
 Final gate result:
 
 `FINAL RESULT: PASS - RELEASE APPROVED`
 
-Full release record: `RELEASE-v1.04.01.md`.
+Full release record: `RELEASE-v1.04.02.md`.
 
 ## Network behavior and privacy
 
