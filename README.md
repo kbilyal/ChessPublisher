@@ -2,19 +2,29 @@
 
 ChessPublisher is an open-source Windows desktop application for managing and publishing chess tournaments. The UI is HTML/CSS/JavaScript hosted in Microsoft WebView2, with a PowerShell local bridge/service. Swiss Dutch pairing is delegated to the upstream **Gacrux 1.9.57** pairing engine rather than reimplemented in JavaScript.
 
-**Latest validated application candidate:** v1.04.01 (2026-08-30).
+**Current stable distribution:** v1.04.01 (2026-08-30), based on the maintainer-approved RC2 package.
 
-The v1.04.01 Windows runtime gate passed with the exact tested UI, WebView host, LocalEngine and Gacrux hashes. The public repository must remain credential-free: production integration material that contains service-shared credentials is not committed. Until the credential-injection path is fully public/reproducible, GitHub release publication remains manual and intentionally blocked from automatic VERSION-triggered publishing.
+## v1.04.01 stable highlights
 
-## v1.04.01 highlights
-
-- Swiss-Manager interoperability now has two explicit exports:
+- Swiss-Manager interoperability provides:
   - **TRF Starting List (.TXT)** for setup/participants only.
-  - **Full Tournament to Swiss-Manager (.TXT)** with tournament setup, players, generated rounds, results and genuine forfeits/byes, intended for continuing/editing the tournament in Swiss-Manager.
+  - **Export Tournament in TXT** for transferring the generated tournament, including players, rounds, entered results and legitimate forfeits/byes, so the event can be continued in Swiss-Manager.
 - Fixed the completed-round persistence gap that could leave corrected results stale in `tournament.json` / `Latest.trf` when Autosave was off.
-- Critical result persistence is serialized and revision-guarded; exports wait for a stable persisted revision before writing.
+- Critical result persistence is serialized and revision-guarded.
+- Fixed the self-triggered export revision error where automatic TRF backup validation could increment the internal state revision during FIDE/Swiss-Manager export preparation.
+- Routine successful `Saved to file` / autosave success text is hidden; only meaningful save/error/read-only states remain visible.
 - Shortened the Round Complete dialog to a single informational sentence.
 - Gacrux 1.9.57, Swiss Dutch pairing logic, pairing-engine TRF path, BBP independent checker and Tie-Break Checker core remain unchanged.
+
+## Stable distribution artifacts
+
+- Installer: `chess-publisher-v1.04.01-2026-08-30.exe`
+  - SHA-256: `6162042359a3d24647fd8f250571004dd8ffa4f18a2245cfb90bb7944d0ec0cb`
+- Portable/source package: `chess-publisher-v1.04.01-2026-08-30.zip`
+  - SHA-256: `fe2ac470a6f2cd351139e45043c7b5112006e0bbedadd3f5f932be84b3e84645`
+- Gacrux 1.9.57 SHA-256: `6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb`
+
+The stable ZIP is byte-identical to the accepted RC2 payload; the installer embeds that exact ZIP payload once and was reproduced byte-for-byte in a second deterministic build.
 
 ## Main features
 
@@ -29,41 +39,29 @@ The v1.04.01 Windows runtime gate passed with the exact tested UI, WebView host,
 ## Architecture
 
 ```text
-ChessPublisher.exe (small open-source C# launcher)
-  -> ChessPublisher-WebView.ps1 (WinForms/WebView2 host)
-      -> ChessPublisher.html (HTML/CSS/JavaScript UI)
-      -> WebViewAdapter.js (native/UI bridge)
-      -> ChessPublisher-LocalEngine.ps1 (local service + integrations)
-          -> Gacrux 1.9.57 (upstream FIDE pairing engine)
-```
-
-The Gacrux binary is **not authored or re-signed by ChessPublisher**. Release packaging pins Gacrux 1.9.57 and verifies the expected SHA-256 before use.
-
-Expected Gacrux SHA-256:
-
-```text
-6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb
+ChessPublisher.exe
+  -> ChessPublisher-WebView.ps1
+      -> ChessPublisher.html
+      -> WebViewAdapter.js
+      -> ChessPublisher-LocalEngine.ps1
+          -> Gacrux 1.9.57
 ```
 
 ## Credentials
 
-**No service credential should be embedded in the public source tree.** User-owned credentials such as Telegram tokens remain local. Any service-shared production integration material must be injected outside the public source tree; do not commit credentials, tournament backups or signing keys.
+**No service credential should be embedded in the public source tree.** User-owned credentials such as Telegram tokens remain local. Service-shared production integration material is intentionally not committed to this public repository.
+
+This means the public repository documents the stable distribution version and credential-free source baseline, while the complete production runtime package is distributed separately. Do not commit credentials, tournament backups or signing keys.
 
 ## Release discipline
 
-A candidate is not considered a release until all mandatory gates pass, including JavaScript syntax, ZIP readback/reproducibility, installer payload identity, PE/manifest checks, exact WebView↔LocalEngine service handshake, LocalEngine startup, STA runspace startup/shutdown, child-process fallback startup/shutdown and protected pairing/checker regression guards.
+The accepted v1.04.01 RC2 package passed targeted JavaScript/export/persistence regression, ZIP CRC/readback, deterministic ZIP reproduction and protected-core hash checks. The stable installer packaging additionally passed deterministic EXE reproduction, exact embedded-ZIP identity, AMD64/PE32+ sanity and a valid `asInvoker` RT_MANIFEST.
 
-For v1.04.01 the real Windows runtime gate passed on 2026-08-30 with:
-
-- WebView / LocalEngine handshake: `V138 / V138`
-- LocalEngine SHA-256: `0fe60d712d9a470d0487149bd72b25d8597bbcc56b18361db6156a41be7b5602`
-- Gacrux 1.9.57 SHA-256: `6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb`
-- STA in-process runspace startup + shutdown: PASS
-- `System.Diagnostics.Process` fallback startup + shutdown: PASS
+The earlier v1.04.01 Windows runtime gate validated the unchanged V138 WebView/LocalEngine runtime path, including STA in-process runspace startup/shutdown and `System.Diagnostics.Process` fallback startup/shutdown. RC2 changes are confined to the HTML/UI/export persistence layer; the WebView host, LocalEngine and Gacrux hashes are unchanged.
 
 ## Network behavior and privacy
 
-ChessPublisher has no project analytics or tracking. On first use, the WebView host may download the official Microsoft WebView2 SDK package from NuGet if the SDK files are not already cached. Network features for FIDE, Chess-Results and Telegram are used when the operator invokes/configures those features. See `PRIVACY.md`.
+ChessPublisher has no project analytics or tracking. Network features for FIDE, Chess-Results and Telegram are used when the operator invokes/configures those features. See `PRIVACY.md`.
 
 ## Code signing policy
 
