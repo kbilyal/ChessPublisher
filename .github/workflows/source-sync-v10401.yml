@@ -1,0 +1,48 @@
+name: Sync v1.04.01 public source
+
+on:
+  push:
+    branches:
+      - sync/v1.04.01
+    paths:
+      - '.cp-sync-v10401/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct and verify ChessPublisher.html
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .cp-sync-v10401/part-*.b64 > /tmp/ChessPublisher.html.xz.b64
+          base64 -d /tmp/ChessPublisher.html.xz.b64 > /tmp/ChessPublisher.html.xz
+          xz -dc /tmp/ChessPublisher.html.xz > ChessPublisher.html
+          actual="$(sha256sum ChessPublisher.html | awk '{print $1}')"
+          expected='67ca7ab370247906449f716e53992edf9ddbc1cec734a11bb962f312ef1070bf'
+          test "$actual" = "$expected"
+          grep -F 'data-chesspublisher-version="1.04.01"' ChessPublisher.html >/dev/null
+          grep -F 'cpExportSwissManagerFullTournament' ChessPublisher.html >/dev/null
+          grep -F '_TRF26_Starting_List.TXT' ChessPublisher.html >/dev/null
+          grep -F 'cpCheckpointPersistenceForExport' ChessPublisher.html >/dev/null
+          printf '1.04.01\n' > VERSION
+
+      - name: Commit verified source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .cp-sync-v10401
+          rm -f .github/workflows/source-sync-v10401.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ChessPublisher.html VERSION .cp-sync-v10401 .github/workflows/source-sync-v10401.yml
+          git commit -m 'Sync verified v1.04.01 public source'
+          git push origin HEAD:sync/v1.04.01
