@@ -1,0 +1,47 @@
+name: Export cp-stage baseline
+
+on:
+  push:
+    branches:
+      - fix/v1.04.01-oss-source
+    paths:
+      - '.cp-export-baseline-ready'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode staged baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .cp-stage/p* | tr -d '\r\n' > /tmp/cp-stage.b64
+          base64 -d /tmp/cp-stage.b64 > /tmp/cp-stage.bin
+          mkdir -p /tmp/out
+          if unzip -t /tmp/cp-stage.bin >/dev/null 2>&1; then
+            unzip -q /tmp/cp-stage.bin -d /tmp/out
+          elif xz -t /tmp/cp-stage.bin >/dev/null 2>&1; then
+            xz -dc /tmp/cp-stage.bin > /tmp/cp-stage.tar
+            tar -xf /tmp/cp-stage.tar -C /tmp/out
+          elif tar -tf /tmp/cp-stage.bin >/dev/null 2>&1; then
+            tar -xf /tmp/cp-stage.bin -C /tmp/out
+          else
+            echo 'Unknown cp-stage format' >&2
+            file /tmp/cp-stage.bin || true
+            exit 2
+          fi
+          find /tmp/out -type f -name 'ChessPublisher.html' -print
+          html="$(find /tmp/out -type f -name 'ChessPublisher.html' | head -n1)"
+          test -n "$html"
+          cp "$html" /tmp/ChessPublisher-baseline.html
+          sha256sum /tmp/ChessPublisher-baseline.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cp-stage-baseline-html
+          path: /tmp/ChessPublisher-baseline.html
+          if-no-files-found: error
+          retention-days: 1
