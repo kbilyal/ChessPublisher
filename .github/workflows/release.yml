@@ -2,6 +2,10 @@ name: Build and publish release
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - VERSION
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -24,7 +28,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Check out tagged source
+      - name: Check out release source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
