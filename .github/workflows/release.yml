@@ -1,0 +1,109 @@
+name: Build and publish release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Stable version to release (for example 1.03.96). Leave empty to use VERSION.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Windows release
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate version
+        shell: pwsh
+        run: |
+          $requested = '${{ inputs.version }}'.Trim()
+          if ([string]::IsNullOrWhiteSpace($requested)) {
+            if ($env:GITHUB_REF_TYPE -eq 'tag') {
+              $requested = $env:GITHUB_REF_NAME.TrimStart('v')
+            } else {
+              $requested = (Get-Content -LiteralPath VERSION -Raw).Trim().TrimStart('v')
+            }
+          }
+          if ($requested -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Invalid release version '$requested'. Expected a value such as 1.03.96."
+          }
+          $repoVersion = (Get-Content -LiteralPath VERSION -Raw).Trim().TrimStart('v')
+          if ($repoVersion -ne $requested) {
+            throw "VERSION is '$repoVersion' but the release request is '$requested'."
+          }
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$requested") {
+            throw "Tag '$env:GITHUB_REF_NAME' does not match VERSION '$requested'."
+          }
+          "RELEASE_VERSION=$requested" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "RELEASE_TAG=v$requested" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "RELEASE_DATE=$((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Ensure Inno Setup 6 is available
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path -LiteralPath $iscc)) {
+            choco install innosetup --no-progress -y
+          }
+          if (-not (Test-Path -LiteralPath $iscc)) {
+            throw 'Inno Setup 6 installation did not provide ISCC.exe.'
+          }
+
+      - name: Build installer, portable ZIP and checksums
+        shell: pwsh
+        run: |
+          ./scripts/build-release.ps1 -Version $env:RELEASE_VERSION -Date $env:RELEASE_DATE
+
+      - name: Preserve workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chess-Publisher-${{ env.RELEASE_TAG }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $assets = @(Get-ChildItem -LiteralPath dist -File | ForEach-Object { $_.FullName })
+          if ($assets.Count -lt 3) {
+            throw 'Expected installer, portable ZIP and checksum file in dist/.'
+          }
+
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG @assets --clobber --repo $env:GITHUB_REPOSITORY
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to update release assets.' }
+            gh release edit $env:RELEASE_TAG --title "Chess-Publisher $env:RELEASE_TAG" --latest --repo $env:GITHUB_REPOSITORY
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to mark the release as latest.' }
+          } else {
+            $args = @(
+              'release', 'create', $env:RELEASE_TAG
+            ) + $assets + @(
+              '--title', "Chess-Publisher $env:RELEASE_TAG",
+              '--generate-notes',
+              '--latest',
+              '--target', $env:GITHUB_SHA,
+              '--repo', $env:GITHUB_REPOSITORY
+            )
+            & gh @args
+            if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }
+          }
