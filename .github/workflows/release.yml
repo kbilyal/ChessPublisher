@@ -62,6 +62,9 @@ jobs:
 
       - name: Build installer, portable ZIP and checksums
         shell: pwsh
+        env:
+          CHESSRESULTS_AES_IV_BYTES: ${{ secrets.CHESSRESULTS_AES_IV_BYTES }}
+          CHESSRESULTS_AES_KEY_BYTES: ${{ secrets.CHESSRESULTS_AES_KEY_BYTES }}
         run: |
           ./scripts/build-release.ps1 -Version $env:RELEASE_VERSION -Date $env:RELEASE_DATE
 
