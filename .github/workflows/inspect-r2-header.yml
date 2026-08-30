@@ -1,0 +1,24 @@
+name: Inspect R2 tar header
+
+on:
+  push:
+    branches:
+      - 'fix/v1.04.01-oss-source'
+    paths:
+      - '.cp-inspect-r2-header-ready'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: bash
+        run: |
+          set -euo pipefail
+          cat .cp-oss-v10401-r2/part-*.b64 | base64 -d > /tmp/r2.xz
+          set +e; xz -dc /tmp/r2.xz > /tmp/r2.tar; set -e
+          echo HEADER0=$(head -c 512 /tmp/r2.tar | base64 -w0)
+          echo HEADER1=$(dd if=/tmp/r2.tar bs=512 skip=6 count=1 status=none | base64 -w0)
