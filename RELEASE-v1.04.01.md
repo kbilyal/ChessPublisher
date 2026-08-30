@@ -1,47 +1,73 @@
-# ChessPublisher v1.04.01 — validated candidate status
+# ChessPublisher v1.04.01 — stable distribution
 
 Date: 2026-08-30
 
 ## Status
 
-The v1.04.01 candidate passed the real Windows runtime gate on Windows PowerShell 5.1.
+**Stable:** maintainer-approved RC2 baseline.
 
-Validated runtime checks:
+The stable ZIP is byte-identical to `chess-publisher-v1.04.01-2026-08-30-RC2.zip` and is published without the RC suffix as:
 
-- Candidate HTML SHA-256: `67ca7ab370247906449f716e53992edf9ddbc1cec734a11bb962f312ef1070bf`
-- WebView host SHA-256: `b0e941951102a36ad929064dd157af6bd942a4a598fe854919223f1e2bcef571`
-- LocalEngine SHA-256: `0fe60d712d9a470d0487149bd72b25d8597bbcc56b18361db6156a41be7b5602`
-- Gacrux 1.9.57 SHA-256: `6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb`
-- WebView ↔ LocalEngine service handshake: `V138 / V138` PASS
-- PowerShell parser for WebView host: PASS, 0 errors
-- PowerShell parser for LocalEngine: PASS, 0 errors
-- Production-equivalent STA in-process runspace startup + `/health` + shutdown: PASS
-- Production-equivalent `System.Diagnostics.Process` fallback startup + `/health` + shutdown: PASS
+- `chess-publisher-v1.04.01-2026-08-30.zip`
+- SHA-256: `fe2ac470a6f2cd351139e45043c7b5112006e0bbedadd3f5f932be84b3e84645`
 
-## Changes in v1.04.01
+Stable installer:
+
+- `chess-publisher-v1.04.01-2026-08-30.exe`
+- SHA-256: `6162042359a3d24647fd8f250571004dd8ffa4f18a2245cfb90bb7944d0ec0cb`
+
+The installer embeds the exact stable ZIP once and was reproduced byte-for-byte in an independent second build.
+
+## RC2 fixes included in stable
 
 ### Swiss-Manager interoperability
 
-Two separate exports are provided:
+1. **TRF Starting List (.TXT)** — setup and participants only.
+2. **Export Tournament in TXT** — transfers the generated tournament for continuation in Swiss-Manager, including players, generated rounds, entered results and legitimate forfeits/byes.
 
-1. **TRF Starting List (.TXT)** — tournament setup and participants only.
-2. **Full Tournament to Swiss-Manager (.TXT)** — tournament setup, participants, generated rounds, entered results, legitimate forfeits and byes. This export is intended to allow an arbiter to open the event in Swiss-Manager and continue/edit the tournament there.
+### Persistence/export correction
 
-### Persistence correction
+A completed Swiss round can be corrected after it was already complete. Serialized persistence and revision guards prevent an older asynchronous save from overwriting a later correction.
 
-A completed Swiss round can be corrected after it was already complete. Previously, with Autosave disabled, a corrected result could remain only in the active UI/browser state while `tournament.json` and `Latest.trf` retained the earlier result (including earlier forfeit codes).
+RC2 also fixes a self-triggered revision change in export preparation: automatic TRF backup validation no longer calls the normal UI-sync/save path while a stable export checkpoint is being captured. This prevents FIDE Rating TRF26 and Swiss-Manager tournament export from incorrectly reporting that tournament data changed when the operator made no change.
 
-v1.04.01 adds serialized critical persistence with a revision guard and export checkpointing. Critical exports wait for a stable persisted revision before generating their output. This prevents an older asynchronous write from overwriting a later correction.
+### Autosave UI
+
+Routine successful `Saved`, `Saved to file` and `Saved backup` messages are hidden beside Autosave. Meaningful states such as save failures, read-only state and unsaved changes with Autosave disabled remain visible.
 
 ### Round Complete dialog
 
-The informational dialog is shortened to:
+The informational dialog remains shortened to:
 
 `All results for Round N are entered.`
 
+## Stable packaging checks
+
+- ZIP CRC/readback: PASS
+- ZIP entries: 85/85
+- deterministic ZIP rebuild: PASS
+- deterministic installer rebuild: PASS
+- installer exact embedded ZIP identity: PASS
+- installer AMD64 / PE32+: PASS
+- installer valid RT_MANIFEST XML: PASS
+- installer execution level: `asInvoker`
+- Gacrux 1.9.57 SHA-256 unchanged: `6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb`
+
+## Runtime continuity
+
+The unchanged runtime components retain the previously validated values:
+
+- WebView host SHA-256: `b0e941951102a36ad929064dd157af6bd942a4a598fe854919223f1e2bcef571`
+- LocalEngine SHA-256: `0fe60d712d9a470d0487149bd72b25d8597bbcc56b18361db6156a41be7b5602`
+- WebView ↔ LocalEngine handshake: `V138 / V138`
+- STA in-process LocalEngine startup/shutdown path: previously validated PASS
+- `System.Diagnostics.Process` fallback startup/shutdown path: previously validated PASS
+
+RC2 changed only the HTML/UI/export-persistence layer; WebView host, LocalEngine and Gacrux remained byte-identical.
+
 ## Protected components
 
-The following are intentionally unchanged by this fix:
+Unchanged:
 
 - Gacrux 1.9.57
 - Swiss Dutch pairing logic
@@ -52,6 +78,4 @@ The following are intentionally unchanged by this fix:
 
 ## Public-source safety
 
-The public repository must remain free of service-shared credentials. Production integration material containing private/shared credentials is not to be committed. GitHub release publication therefore remains manual until the credential-injection/reproducible-build path can produce the complete production runtime from credential-free public source.
-
-This file records validation status; it is not itself a GitHub Release asset.
+Production service-shared credentials are not committed to the public repository. Stable binary distribution is tracked separately from the credential-free public source baseline.
