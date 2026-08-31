@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "1.0",
+  "client": {"product": "Chess-Publisher", "version": "1.05.00-beta.1"},
+  "publication": {
+    "hubTournamentId": "hub_demo_2026_001",
+    "publicSlug": "chess-publisher-beta-open-2026",
+    "revision": 7,
+    "generatedAt": "2026-08-31T10:08:00Z",
+    "previousRevision": 6,
+    "checksum": null
+  },
+  "tournament": {
+    "localKey": "demo-local-tournament-001",
+    "name": "Chess-Publisher Beta Open 2026",
+    "status": "playing",
+    "format": "Swiss",
+    "pairingSystem": "Dutch",
+    "timeControl": "15 min + 5 sec / move",
+    "ratingType": "Rapid",
+    "fideRated": true,
+    "roundsDeclared": 7,
+    "location": {"venue": "Tournament Hall", "city": "Sofia", "federation": "BUL"},
+    "staff": {"organizer": "Demo Chess Club", "chiefArbiter": "Chief Arbiter", "arbiter": "Arbiter Team", "director": "Tournament Director"},
+    "dates": {"start": "2026-09-05T10:00:00+03:00", "end": "2026-09-05T18:30:00+03:00", "registrationDeadline": "2026-09-05T09:30:00+03:00"},
+    "contact": {"email": "", "phone": ""},
+    "links": {"website": "https://chess-publisher.org", "live": ""}
+  },
+  "players": [
+    {"key": "fid:910001", "name": "Alexander Marinov", "fideId": "910001", "federation": "BUL", "rating": 2248, "birth": "1991", "title": "FM", "attendance": "present", "joinedFromRound": 1},
+    {"key": "fid:910002", "name": "Daniel Petrov", "fideId": "910002", "federation": "BUL", "rating": 2186, "birth": "1996", "title": "", "attendance": "present", "joinedFromRound": 1},
+    {"key": "fid:910003", "name": "Mert Kaya", "fideId": "910003", "federation": "TUR", "rating": 2143, "birth": "1998", "title": "", "attendance": "present", "joinedFromRound": 1},
+    {"key": "fid:910004", "name": "Nikola Stoyanov", "fideId": "910004", "federation": "BUL", "rating": 2079, "birth": "2002", "title": "", "attendance": "present", "joinedFromRound": 1},
+    {"key": "fid:910005", "name": "Elena Georgieva", "fideId": "910005", "federation": "BUL", "rating": 2012, "birth": "2004", "title": "WFM", "attendance": "present", "joinedFromRound": 1},
+    {"key": "fid:910006", "name": "Andrei Popescu", "fideId": "910006", "federation": "ROU", "rating": 1977, "birth": "1999", "title": "", "attendance": "present", "joinedFromRound": 1},
+    {"key": "fid:910007", "name": "Georgi Ivanov", "fideId": "910007", "federation": "BUL", "rating": 1918, "birth": "2007", "title": "", "attendance": "present", "joinedFromRound": 1},
+    {"key": "local:p8", "name": "Maria Nikolova", "fideId": null, "federation": "BUL", "rating": 1845, "birth": "2008", "title": "", "attendance": "present", "joinedFromRound": 1}
+  ],
+  "rounds": [
+    {
+      "round": 1,
+      "complete": true,
+      "pairings": [
+        {"board": 1, "whiteKey": "fid:910001", "blackKey": "fid:910005", "result": "1-0"},
+        {"board": 2, "whiteKey": "fid:910006", "blackKey": "fid:910002", "result": "0-1"},
+        {"board": 3, "whiteKey": "fid:910003", "blackKey": "fid:910007", "result": "1-0"},
+        {"board": 4, "whiteKey": "local:p8", "blackKey": "fid:910004", "result": "½-½"}
+      ]
+    },
+    {
+      "round": 2,
+      "complete": true,
+      "pairings": [
+        {"board": 1, "whiteKey": "fid:910002", "blackKey": "fid:910001", "result": "½-½"},
+        {"board": 2, "whiteKey": "fid:910004", "blackKey": "fid:910003", "result": "0-1"},
+        {"board": 3, "whiteKey": "fid:910005", "blackKey": "fid:910006", "result": "1-0"},
+        {"board": 4, "whiteKey": "fid:910007", "blackKey": "local:p8", "result": "1-0"}
+      ]
+    },
+    {
+      "round": 3,
+      "complete": false,
+      "pairings": [
+        {"board": 1, "whiteKey": "fid:910003", "blackKey": "fid:910001", "result": "-"},
+        {"board": 2, "whiteKey": "fid:910002", "blackKey": "fid:910007", "result": "-"},
+        {"board": 3, "whiteKey": "fid:910005", "blackKey": "fid:910004", "result": "-"},
+        {"board": 4, "whiteKey": "fid:910006", "blackKey": "local:p8", "result": "-"}
+      ]
+    }
+  ],
+  "standings": {
+    "round": 2,
+    "final": false,
+    "tieBreaks": [
+      {"key": "bh-c1", "label": "Buchholz Cut 1"},
+      {"key": "bh", "label": "Buchholz"},
+      {"key": "sb", "label": "Sonneborn-Berger"}
+    ],
+    "rows": [
+      {"rank": 1, "playerKey": "fid:910003", "points": 2, "tieBreakValues": [1.5, 2.5, 2.5]},
+      {"rank": 2, "playerKey": "fid:910001", "points": 1.5, "tieBreakValues": [1.5, 2.5, 1.75]},
+      {"rank": 3, "playerKey": "fid:910002", "points": 1.5, "tieBreakValues": [1.5, 2.5, 1.75]},
+      {"rank": 4, "playerKey": "fid:910005", "points": 1, "tieBreakValues": [1, 2.5, 1]},
+      {"rank": 5, "playerKey": "fid:910007", "points": 1, "tieBreakValues": [1, 2.5, 0.5]},
+      {"rank": 6, "playerKey": "fid:910004", "points": 0.5, "tieBreakValues": [1.5, 3, 0.75]},
+      {"rank": 7, "playerKey": "local:p8", "points": 0.5, "tieBreakValues": [1, 2, 0.25]},
+      {"rank": 8, "playerKey": "fid:910006", "points": 0, "tieBreakValues": [1, 2.5, 0]}
+    ]
+  },
+  "schedule": [
+    {"no": "1", "dateTime": "2026-09-05T10:00:00+03:00", "event": "Round 1", "description": ""},
+    {"no": "2", "dateTime": "2026-09-05T11:15:00+03:00", "event": "Round 2", "description": ""},
+    {"no": "3", "dateTime": "2026-09-05T12:30:00+03:00", "event": "Round 3", "description": ""}
+  ]
+}
