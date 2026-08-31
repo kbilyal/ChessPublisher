@@ -31,9 +31,13 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Static syntax checks
+      - name: Static syntax and data-source checks
         run: |
+          node --check hub/config.js
+          node --check hub/data-source.js
           node --check hub/hub.js
+          node --check hub/tests/data-source.test.cjs
+          node hub/tests/data-source.test.cjs
           node -e "JSON.parse(require('node:fs').readFileSync('hub/sample-tournament.json','utf8')); console.log('PASS - fixture JSON')"
 
       - name: Install Chromium test runtime
