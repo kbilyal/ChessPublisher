@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chess-publisher.org/schemas/tournament-snapshot-v1.schema.json",
+  "title": "Chess-Publisher Hub Tournament Snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "client", "publication", "tournament", "players", "rounds", "standings", "schedule"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product", "version"],
+      "properties": {
+        "product": {"const": "Chess-Publisher"},
+        "version": {"type": "string", "minLength": 1}
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "generatedAt"],
+      "properties": {
+        "hubTournamentId": {"type": ["string", "null"], "minLength": 1},
+        "publicSlug": {"type": ["string", "null"], "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "revision": {"type": "integer", "minimum": 0},
+        "generatedAt": {"type": "string", "format": "date-time"},
+        "previousRevision": {"type": ["integer", "null"], "minimum": 0},
+        "checksum": {"type": ["string", "null"], "minLength": 1}
+      }
+    },
+    "tournament": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localKey", "name", "status", "format", "pairingSystem", "timeControl", "ratingType", "fideRated", "roundsDeclared", "location", "staff", "dates", "contact", "links"],
+      "properties": {
+        "localKey": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1, "maxLength": 240},
+        "status": {"enum": ["draft", "registration", "playing", "finished"]},
+        "format": {"type": "string"},
+        "pairingSystem": {"type": "string"},
+        "timeControl": {"type": "string"},
+        "ratingType": {"type": "string"},
+        "fideRated": {"type": "boolean"},
+        "roundsDeclared": {"type": "integer", "minimum": 1, "maximum": 99},
+        "location": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["venue", "city", "federation"],
+          "properties": {
+            "venue": {"type": "string"},
+            "city": {"type": "string"},
+            "federation": {"type": "string", "pattern": "^[A-Z]{3}$"}
+          }
+        },
+        "staff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["organizer", "chiefArbiter", "arbiter", "director"],
+          "properties": {
+            "organizer": {"type": "string"},
+            "chiefArbiter": {"type": "string"},
+            "arbiter": {"type": "string"},
+            "director": {"type": "string"}
+          }
+        },
+        "dates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end", "registrationDeadline"],
+          "properties": {
+            "start": {"type": ["string", "null"], "format": "date-time"},
+            "end": {"type": ["string", "null"], "format": "date-time"},
+            "registrationDeadline": {"type": ["string", "null"], "format": "date-time"}
+          }
+        },
+        "contact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["email", "phone"],
+          "properties": {
+            "email": {"type": "string"},
+            "phone": {"type": "string"}
+          }
+        },
+        "links": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["website", "live"],
+          "properties": {
+            "website": {"type": "string"},
+            "live": {"type": "string"}
+          }
+        }
+      }
+    },
+    "players": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "name", "fideId", "federation", "rating", "birth", "title", "attendance", "joinedFromRound"],
+        "properties": {
+          "key": {"type": "string", "minLength": 1},
+          "name": {"type": "string", "minLength": 1},
+          "fideId": {"type": ["string", "null"]},
+          "federation": {"type": "string", "pattern": "^[A-Z]{3}$"},
+          "rating": {"type": "integer", "minimum": 0, "maximum": 4000},
+          "birth": {"type": ["string", "null"]},
+          "title": {"type": "string"},
+          "attendance": {"enum": ["present", "absent"]},
+          "joinedFromRound": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "rounds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["round", "complete", "pairings"],
+        "properties": {
+          "round": {"type": "integer", "minimum": 1},
+          "complete": {"type": "boolean"},
+          "pairings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["board", "whiteKey", "blackKey", "result"],
+              "properties": {
+                "board": {"type": "integer", "minimum": 1},
+                "whiteKey": {"type": ["string", "null"]},
+                "blackKey": {"type": ["string", "null"]},
+                "result": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "standings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["round", "final", "tieBreaks", "rows"],
+      "properties": {
+        "round": {"type": "integer", "minimum": 0},
+        "final": {"type": "boolean"},
+        "tieBreaks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "label"],
+            "properties": {
+              "key": {"type": "string", "minLength": 1},
+              "label": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["rank", "playerKey", "points", "tieBreakValues"],
+            "properties": {
+              "rank": {"type": "integer", "minimum": 1},
+              "playerKey": {"type": "string", "minLength": 1},
+              "points": {"type": "number"},
+              "tieBreakValues": {
+                "type": "array",
+                "items": {"type": ["number", "string"]}
+              }
+            }
+          }
+        }
+      }
+    },
+    "schedule": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["no", "dateTime", "event", "description"],
+        "properties": {
+          "no": {"type": "string"},
+          "dateTime": {"type": ["string", "null"], "format": "date-time"},
+          "event": {"type": "string"},
+          "description": {"type": "string"}
+        }
+      }
+    }
+  }
+}
