@@ -31,13 +31,13 @@ function makeTournament(){
     },
     pairings:{
       liveBoards:{
-        "1":[{board:1,whiteKey:"fid:1001",blackKey:"local:p2",result:"1-0"}],
-        "2":[{board:1,whiteKey:"local:p2",blackKey:"fid:1001",result:"-"}]
+        "1":[{board:1,whiteKey:"local:p1",blackKey:"local:p2",result:"1-0"}],
+        "2":[{board:1,whiteKey:"local:p2",blackKey:"local:p1",result:"-"}]
       }
     },
     schedule:{rows:[{no:"1",dateTime:"2026-09-01T10:00:00+03:00",event:"Round 1",description:"Start"}]},
     players:[
-      {name:"Player One",fideId:"1001",fed:"BUL",rating:2100,birth:"1990",title:"FM",attendance:"present",joinedFromRound:1},
+      {name:"Player One",fideId:"1001",localKey:"local:p1",fed:"BUL",rating:2100,birth:"1990",title:"FM",attendance:"present",joinedFromRound:1},
       {name:"Player Two",fideId:"",localKey:"local:p2",fed:"TUR",rating:1900,birth:"2000",title:"",attendance:"present",joinedFromRound:1}
     ]
   };
@@ -48,7 +48,7 @@ function makeStandings(){
     completed:1,
     tieList:["BH","SB"],
     players:[
-      {key:"fid:1001",score:1,bh:1.5,sb:1},
+      {key:"local:p1",score:1,bh:1.5,sb:1},
       {key:"local:p2",score:0,bh:1,sb:0}
     ]
   };
@@ -84,13 +84,23 @@ function build(tournament=makeTournament(),overrides={}){
   assert.equal(snapshot.tournament.status,"playing");
   assert.equal(snapshot.tournament.fideRated,true);
   assert.equal(snapshot.players.length,2);
-  assert.equal(snapshot.players[0].key,"fid:1001");
+  assert.equal(snapshot.players[0].key,"local:p1");
+  assert.equal(snapshot.players[0].fideId,"1001");
   assert.equal(snapshot.players[1].key,"local:p2");
   assert.equal(snapshot.rounds.length,2);
   assert.equal(snapshot.rounds[0].complete,true);
   assert.equal(snapshot.rounds[1].complete,false);
   assert.equal(snapshot.standings.rows[0].tieBreakValues[0],1.5);
   assert.equal(snapshot.schedule.length,1);
+})();
+
+(function testFideIdDoesNotReplaceImmutableLocalKey(){
+  const tournament=makeTournament();
+  tournament.players[0].fideId="9999999";
+  const snapshot=build(tournament);
+  assert.equal(snapshot.players[0].key,"local:p1");
+  assert.equal(snapshot.players[0].fideId,"9999999");
+  assert.equal(snapshot.rounds[0].pairings[0].whiteKey,"local:p1");
 })();
 
 (function testSerializerDoesNotMutateTournament(){
@@ -103,7 +113,7 @@ function build(tournament=makeTournament(),overrides={}){
 (function testByeCompletion(){
   assert.equal(Hub.isByeResult("PAB"),true);
   assert.equal(Hub.isByeResult("½ BYE"),true);
-  assert.equal(Hub.roundComplete([{board:1,whiteKey:"fid:1001",blackKey:null,result:"PAB"}]),true);
+  assert.equal(Hub.roundComplete([{board:1,whiteKey:"local:p1",blackKey:null,result:"PAB"}]),true);
 })();
 
 (function testFinishedStatus(){
