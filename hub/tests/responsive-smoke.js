@@ -27,6 +27,7 @@ async function openAndReady(page,width,height){
   await page.setViewportSize({width,height});
   await page.goto(BASE_URL,{waitUntil:"networkidle"});
   await page.waitForFunction(()=>document.getElementById("tournamentName")?.textContent.includes("Beta Open"));
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.hubSource),"fixture","Beta preview must declare fixture source explicitly");
   await assertNoPageOverflow(page,`${width}px overview`);
 }
 
