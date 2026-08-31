@@ -1,0 +1,49 @@
+name: Hub Backend Beta Tests
+
+on:
+  push:
+    branches:
+      - beta/v1.05.00-hub
+    paths:
+      - "hub/backend/**"
+      - "hub/tests/hub-backend-core.test.mjs"
+      - "hub/tests/hub-db-schema.test.py"
+      - ".github/workflows/hub-backend-beta-tests.yml"
+  pull_request:
+    paths:
+      - "hub/backend/**"
+      - "hub/tests/hub-backend-core.test.mjs"
+      - "hub/tests/hub-db-schema.test.py"
+      - ".github/workflows/hub-backend-beta-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  backend-contract:
+    name: Backend contract and migration gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: JavaScript syntax checks
+        run: |
+          node --check hub/backend/core.mjs
+          node --check hub/backend/worker.mjs
+
+      - name: Backend core regression tests
+        run: node hub/tests/hub-backend-core.test.mjs
+
+      - name: D1 migration regression tests
+        run: python3 hub/tests/hub-db-schema.test.py
+
+      - name: Worker module import smoke test
+        run: node -e "import('./hub/backend/worker.mjs').then(m=>{if(!m.default || typeof m.default.fetch!=='function') process.exit(1); console.log('PASS - Worker module exports fetch');})"
