@@ -6,14 +6,18 @@ on:
       - beta/v1.05.00-hub
     paths:
       - "hub/backend/**"
+      - "hub/client/hub-snapshot.js"
       - "hub/tests/hub-backend-core.test.mjs"
       - "hub/tests/hub-db-schema.test.py"
+      - "hub/tests/hub-worker-integration.test.cjs"
       - ".github/workflows/hub-backend-beta-tests.yml"
   pull_request:
     paths:
       - "hub/backend/**"
+      - "hub/client/hub-snapshot.js"
       - "hub/tests/hub-backend-core.test.mjs"
       - "hub/tests/hub-db-schema.test.py"
+      - "hub/tests/hub-worker-integration.test.cjs"
       - ".github/workflows/hub-backend-beta-tests.yml"
 
 permissions:
@@ -38,6 +42,7 @@ jobs:
         run: |
           node --check hub/backend/core.mjs
           node --check hub/backend/worker.mjs
+          node --check hub/tests/hub-worker-integration.test.cjs
 
       - name: Backend core regression tests
         run: node hub/tests/hub-backend-core.test.mjs
@@ -47,3 +52,70 @@ jobs:
 
       - name: Worker module import smoke test
         run: node -e "import('./hub/backend/worker.mjs').then(m=>{if(!m.default || typeof m.default.fetch!=='function') process.exit(1); console.log('PASS - Worker module exports fetch');})"
+
+  worker-integration:
+    name: Local Worker D1 R2 integration gate
+    needs: backend-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Prepare local D1 migration state
+        env:
+          CI: "true"
+        run: |
+          rm -rf .wrangler-test
+          npx -y wrangler@4.127.1 d1 migrations apply DB \
+            --local \
+            --persist-to .wrangler-test \
+            --config hub/backend/wrangler.test.toml
+          npx -y wrangler@4.127.1 d1 execute DB \
+            --local \
+            --persist-to .wrangler-test \
+            --config hub/backend/wrangler.test.toml \
+            --file hub/backend/test/seed.sql
+
+      - name: Start local Worker with D1 and R2
+        env:
+          CI: "true"
+        run: |
+          npx -y wrangler@4.127.1 dev \
+            --config hub/backend/wrangler.test.toml \
+            --persist-to .wrangler-test \
+            --ip 127.0.0.1 \
+            --port 8787 \
+            > /tmp/hub-wrangler.log 2>&1 &
+          echo $! > /tmp/hub-wrangler.pid
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Local Worker did not become healthy"
+          cat /tmp/hub-wrangler.log
+          exit 1
+
+      - name: Run end-to-end publish and public-read tests
+        env:
+          HUB_TEST_BASE_URL: "http://127.0.0.1:8787"
+        run: node hub/tests/hub-worker-integration.test.cjs
+
+      - name: Show Worker log
+        if: always()
+        run: cat /tmp/hub-wrangler.log || true
+
+      - name: Stop local Worker
+        if: always()
+        run: |
+          if [ -f /tmp/hub-wrangler.pid ]; then
+            kill "$(cat /tmp/hub-wrangler.pid)" || true
+          fi
