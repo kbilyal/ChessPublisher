@@ -1,0 +1,37 @@
+name: Hub Beta Tests
+
+on:
+  push:
+    branches:
+      - beta/v1.05.00-hub
+    paths:
+      - 'hub/**'
+      - 'docs/HUB_*.md'
+      - '.github/workflows/hub-beta-tests.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'hub/**'
+      - 'docs/HUB_*.md'
+
+permissions:
+  contents: read
+
+jobs:
+  hub-snapshot-tests:
+    name: Hub snapshot regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run Hub snapshot tests
+        run: node hub/tests/hub-snapshot.test.js
