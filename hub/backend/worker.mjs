@@ -31,8 +31,20 @@ function json(data,status=200,headers={}){
   });
 }
 
+function isHubContractError(error){
+  return !!error &&
+    typeof error==="object" &&
+    typeof error.code==="string" &&
+    typeof error.message==="string" &&
+    Number.isInteger(error.status) &&
+    error.status>=400 &&
+    error.status<=599;
+}
+
 function errorJson(error,id){
-  const known=error instanceof HubContractError;
+  // Do not rely only on instanceof here. Workers/Miniflare can move errors
+  // across module/runtime boundaries where prototype identity is not stable.
+  const known=isHubContractError(error);
   const status=known ? error.status : 500;
   const code=known ? error.code : "internal_error";
   const message=known ? error.message : "Unexpected Hub API error.";
