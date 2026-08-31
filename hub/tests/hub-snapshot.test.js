@@ -31,19 +31,11 @@ function makeTournament(){
     },
     pairings:{
       liveBoards:{
-        "1":[
-          {board:1,whiteKey:"fid:1001",blackKey:"local:p2",result:"1-0"}
-        ],
-        "2":[
-          {board:1,whiteKey:"local:p2",blackKey:"fid:1001",result:"-"}
-        ]
+        "1":[{board:1,whiteKey:"fid:1001",blackKey:"local:p2",result:"1-0"}],
+        "2":[{board:1,whiteKey:"local:p2",blackKey:"fid:1001",result:"-"}]
       }
     },
-    schedule:{
-      rows:[
-        {no:"1",dateTime:"2026-09-01T10:00:00+03:00",event:"Round 1",description:"Start"}
-      ]
-    },
+    schedule:{rows:[{no:"1",dateTime:"2026-09-01T10:00:00+03:00",event:"Round 1",description:"Start"}]},
     players:[
       {name:"Player One",fideId:"1001",fed:"BUL",rating:2100,birth:"1990",title:"FM",attendance:"present",joinedFromRound:1},
       {name:"Player Two",fideId:"",localKey:"local:p2",fed:"TUR",rating:1900,birth:"2000",title:"",attendance:"present",joinedFromRound:1}
@@ -62,7 +54,7 @@ function makeStandings(){
   };
 }
 
-function build(tournament=makeTournament()){
+function build(tournament=makeTournament(),overrides={}){
   return Hub.buildSnapshot({
     tournament,
     tournamentName:"Hub Test Open",
@@ -72,7 +64,8 @@ function build(tournament=makeTournament()){
     previousRevision:2,
     generatedAt:"2026-08-31T10:00:00Z",
     standings:makeStandings(),
-    tieBreakValueFn:(player,label)=>label==="BH"?player.bh:player.sb
+    tieBreakValueFn:(player,label)=>label==="BH"?player.bh:player.sb,
+    ...overrides
   });
 }
 
@@ -132,10 +125,37 @@ function build(tournament=makeTournament()){
   assert.throws(()=>build(tournament),/Unknown player key/i);
 })();
 
-(function testCanonicalSerializationIsDeterministic(){
+(function testFederationFallbackIsSchemaSafe(){
+  const tournament=makeTournament();
+  tournament.settings.country="";
+  tournament.players[1].fed="FIDE";
+  const snapshot=build(tournament);
+  assert.equal(snapshot.tournament.location.federation,"FID");
+  assert.equal(snapshot.players[1].federation,"FID");
+  assert.equal(Hub.normalizeFederation("BUL"),"BUL");
+  assert.equal(Hub.normalizeFederation("invalid federation"),"FID");
+})();
+
+(function testCanonicalSerializationIgnoresTransportMetadata(){
   const a=build();
-  const b=build();
+  const b=build(makeTournament(),{
+    clientVersion:"1.05.00-beta.9",
+    revision:9,
+    previousRevision:8,
+    generatedAt:"2026-09-10T12:00:00Z",
+    hubTournamentId:"ht_abcdef",
+    publicSlug:"different-transport-slug",
+    checksum:"transport-value"
+  });
   assert.equal(Hub.canonicalJson(a),Hub.canonicalJson(b));
+})();
+
+(function testCanonicalSerializationChangesWithTournamentState(){
+  const a=build();
+  const tournament=makeTournament();
+  tournament.players[0].rating=2200;
+  const b=build(tournament);
+  assert.notEqual(Hub.canonicalJson(a),Hub.canonicalJson(b));
 })();
 
 console.log("PASS - Chess-Publisher Hub snapshot serializer regression tests");
