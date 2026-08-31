@@ -1,0 +1,23 @@
+name = "chess-publisher-hub-beta"
+main = "./worker.mjs"
+compatibility_date = "2026-08-31"
+workers_dev = true
+
+[vars]
+HUB_ENV = "beta"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "chess-publisher-hub-beta"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "SNAPSHOTS"
+bucket_name = "chess-publisher-hub-beta-snapshots"
+
+# IMPORTANT:
+# - This file intentionally contains no organizer credentials or API secrets.
+# - Copy it to a private/deployment configuration only after creating the D1
+#   database and R2 bucket in the target Cloudflare account.
+# - Organizer API tokens are provisioned separately and only their SHA-256
+#   hashes are stored in D1.
