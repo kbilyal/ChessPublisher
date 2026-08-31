@@ -14,18 +14,18 @@
   }
 
   function nullableText(value){
-    const v=text(value);
-    return v && v!=="-" ? v : null;
+    const valueText=text(value);
+    return valueText && valueText!=="-" ? valueText : null;
   }
 
   function asInteger(value,fallback=0){
-    const n=Number.parseInt(value,10);
-    return Number.isFinite(n)?n:fallback;
+    const number=Number.parseInt(value,10);
+    return Number.isFinite(number)?number:fallback;
   }
 
   function asNumber(value,fallback=0){
-    const n=Number(value);
-    return Number.isFinite(n)?n:fallback;
+    const number=Number(value);
+    return Number.isFinite(number)?number:fallback;
   }
 
   function asBoolean(value){
@@ -42,6 +42,12 @@
     if(!raw) return null;
     const date=new Date(raw);
     return Number.isNaN(date.getTime())?null:date.toISOString();
+  }
+
+  function normalizeFederation(value){
+    const raw=text(value).toUpperCase();
+    if(!raw || raw==="FIDE") return "FID";
+    return /^[A-Z]{3}$/.test(raw)?raw:"FID";
   }
 
   function playerStableKey(player,index){
@@ -63,9 +69,7 @@
   function boardComplete(board){
     const result=normalizeResult(board?.result);
     if(isByeResult(result)) return true;
-    const hasWhite=!!text(board?.whiteKey);
-    const hasBlack=!!text(board?.blackKey);
-    return hasWhite && hasBlack && result!=="-";
+    return !!text(board?.whiteKey) && !!text(board?.blackKey) && result!=="-";
   }
 
   function roundComplete(boards){
@@ -76,27 +80,17 @@
     const live=tournament?.pairings?.liveBoards||{};
     return Object.keys(live)
       .map(Number)
-      .filter(n=>Number.isInteger(n) && n>0 && Array.isArray(live[String(n)]) && live[String(n)].length>0)
+      .filter(number=>Number.isInteger(number) && number>0 && Array.isArray(live[String(number)]) && live[String(number)].length>0)
       .sort((a,b)=>a-b);
   }
 
   function deriveStatus(tournament,roundsDeclared){
     const rounds=generatedRoundNumbers(tournament);
     const latest=rounds.length?rounds[rounds.length-1]:0;
-    if(roundsDeclared>0 && latest>=roundsDeclared && roundComplete(tournament?.pairings?.liveBoards?.[String(roundsDeclared)])){
-      return "finished";
-    }
+    if(roundsDeclared>0 && latest>=roundsDeclared && roundComplete(tournament?.pairings?.liveBoards?.[String(roundsDeclared)])) return "finished";
     if(latest>0) return "playing";
     if((tournament?.players||[]).length>0 || text(tournament?.settings?.startDate)) return "registration";
     return "draft";
-  }
-
-  function playerLookupByInternalKey(tournament){
-    const map=new Map();
-    (tournament?.players||[]).forEach((player,index)=>{
-      map.set(playerStableKey(player,index),player);
-    });
-    return map;
   }
 
   function normalizePlayers(tournament){
@@ -104,7 +98,7 @@
       key:playerStableKey(player,index),
       name:text(player?.name),
       fideId:nullableText(player?.fideId),
-      federation:(text(player?.fed)||"FIDE").toUpperCase(),
+      federation:normalizeFederation(player?.fed),
       rating:Math.max(0,asInteger(player?.rating,0)),
       birth:nullableText(player?.birth),
       title:text(player?.title),
@@ -115,21 +109,18 @@
 
   function normalizeRounds(tournament){
     const live=tournament?.pairings?.liveBoards||{};
-    return generatedRoundNumbers(tournament).map(round=>{
-      const boards=live[String(round)]||[];
-      return {
-        round,
-        complete:roundComplete(boards),
-        pairings:boards
-          .map((board,index)=>({
-            board:Math.max(1,asInteger(board?.board,index+1)),
-            whiteKey:nullableText(board?.whiteKey),
-            blackKey:nullableText(board?.blackKey),
-            result:normalizeResult(board?.result)
-          }))
-          .sort((a,b)=>a.board-b.board)
-      };
-    });
+    return generatedRoundNumbers(tournament).map(round=>({
+      round,
+      complete:roundComplete(live[String(round)]||[]),
+      pairings:(live[String(round)]||[])
+        .map((board,index)=>({
+          board:Math.max(1,asInteger(board?.board,index+1)),
+          whiteKey:nullableText(board?.whiteKey),
+          blackKey:nullableText(board?.blackKey),
+          result:normalizeResult(board?.result)
+        }))
+        .sort((a,b)=>a.board-b.board)
+    }));
   }
 
   function defaultTieBreakKey(label,index){
@@ -147,14 +138,10 @@
     const valueFn=typeof options.tieBreakValueFn==="function"?options.tieBreakValueFn:()=>0;
     const round=Math.max(0,asInteger(standings?.completed,0));
     const roundsDeclared=Math.max(0,asInteger(options.roundsDeclared,0));
-
     return {
       round,
       final:roundsDeclared>0 && round>=roundsDeclared,
-      tieBreaks:tieList.map((label,index)=>({
-        key:defaultTieBreakKey(label,index),
-        label:text(label)
-      })),
+      tieBreaks:tieList.map((label,index)=>({key:defaultTieBreakKey(label,index),label:text(label)})),
       rows:players.map((player,index)=>({
         rank:index+1,
         playerKey:text(player?.key)||playerStableKey(player,index),
@@ -181,13 +168,10 @@
     if(!options || typeof options!=="object") throw new Error("Hub snapshot options are required.");
     const tournament=options.tournament;
     if(!tournament || typeof tournament!=="object") throw new Error("Tournament state is required.");
-
     const tournamentName=text(options.tournamentName);
     if(!tournamentName) throw new Error("Tournament name is required.");
-
     const localTournamentId=text(options.localTournamentId);
     if(!localTournamentId) throw new Error("A stable Hub local tournament ID is required.");
-
     const clientVersion=text(options.clientVersion);
     if(!clientVersion) throw new Error("Chess-Publisher client version is required.");
 
@@ -206,9 +190,7 @@
         publicSlug:nullableText(options.publicSlug),
         revision:Math.max(0,asInteger(options.revision,0)),
         generatedAt:isoOrNull(options.generatedAt||new Date()),
-        previousRevision:options.previousRevision===null || options.previousRevision===undefined
-          ? null
-          : Math.max(0,asInteger(options.previousRevision,0)),
+        previousRevision:options.previousRevision===null || options.previousRevision===undefined?null:Math.max(0,asInteger(options.previousRevision,0)),
         checksum:nullableText(options.checksum)
       },
       tournament:{
@@ -221,30 +203,11 @@
         ratingType:text(settings.tournamentRatingType),
         fideRated:asBoolean(settings.fideRated),
         roundsDeclared,
-        location:{
-          venue:text(settings.venue),
-          city:text(settings.city),
-          federation:(text(settings.country)||"FIDE").toUpperCase()
-        },
-        staff:{
-          organizer:text(settings.organizer),
-          chiefArbiter:text(settings.chiefArbiter),
-          arbiter:text(settings.arbiter),
-          director:text(settings.director)
-        },
-        dates:{
-          start:isoOrNull(settings.startDate),
-          end:isoOrNull(settings.endDate),
-          registrationDeadline:isoOrNull(settings.generalRegistrationDeadline)
-        },
-        contact:{
-          email:text(settings.email),
-          phone:text(settings.phone)
-        },
-        links:{
-          website:text(settings.website),
-          live:text(settings.liveLink)
-        }
+        location:{venue:text(settings.venue),city:text(settings.city),federation:normalizeFederation(settings.country)},
+        staff:{organizer:text(settings.organizer),chiefArbiter:text(settings.chiefArbiter),arbiter:text(settings.arbiter),director:text(settings.director)},
+        dates:{start:isoOrNull(settings.startDate),end:isoOrNull(settings.endDate),registrationDeadline:isoOrNull(settings.generalRegistrationDeadline)},
+        contact:{email:text(settings.email),phone:text(settings.phone)},
+        links:{website:text(settings.website),live:text(settings.liveLink)}
       },
       players:normalizePlayers(tournament),
       rounds:normalizeRounds(tournament),
@@ -258,15 +221,18 @@
 
   function validateSnapshot(snapshot){
     if(snapshot?.schemaVersion!==SCHEMA_VERSION) throw new Error("Unsupported Hub snapshot schema version.");
-    if(snapshot?.client?.product!==PRODUCT) throw new Error("Invalid Hub snapshot product.");
+    if(snapshot?.client?.product!==PRODUCT || !text(snapshot?.client?.version)) throw new Error("Invalid Hub snapshot client.");
     if(!text(snapshot?.tournament?.localKey)) throw new Error("Tournament local key is missing.");
     if(!text(snapshot?.tournament?.name)) throw new Error("Tournament name is missing.");
+    if(!/^[A-Z]{3}$/.test(text(snapshot?.tournament?.location?.federation))) throw new Error("Tournament federation must be a three-letter code.");
 
     const players=Array.isArray(snapshot.players)?snapshot.players:[];
     const playerKeys=new Set();
     for(const player of players){
       if(!text(player.key)) throw new Error("A Hub player key is missing.");
+      if(!text(player.name)) throw new Error(`Hub player name is missing for ${player.key}.`);
       if(playerKeys.has(player.key)) throw new Error(`Duplicate Hub player key: ${player.key}`);
+      if(!/^[A-Z]{3}$/.test(text(player.federation))) throw new Error(`Player federation must be a three-letter code: ${player.key}`);
       playerKeys.add(player.key);
     }
 
@@ -274,25 +240,25 @@
     for(const round of snapshot.rounds||[]){
       if(roundNumbers.has(round.round)) throw new Error(`Duplicate Hub round: ${round.round}`);
       roundNumbers.add(round.round);
-
       const boards=new Set();
       for(const pairing of round.pairings||[]){
         if(boards.has(pairing.board)) throw new Error(`Duplicate board ${pairing.board} in round ${round.round}.`);
         boards.add(pairing.board);
-
         for(const key of [pairing.whiteKey,pairing.blackKey]){
           if(key && !playerKeys.has(key)) throw new Error(`Unknown player key ${key} in round ${round.round}.`);
         }
       }
     }
 
+    const standingPlayers=new Set();
     for(const row of snapshot?.standings?.rows||[]){
       if(!playerKeys.has(row.playerKey)) throw new Error(`Unknown standings player key: ${row.playerKey}`);
+      if(standingPlayers.has(row.playerKey)) throw new Error(`Duplicate standings player key: ${row.playerKey}`);
+      standingPlayers.add(row.playerKey);
       if((row.tieBreakValues||[]).length!==(snapshot?.standings?.tieBreaks||[]).length){
         throw new Error(`Tie-break value count mismatch for ${row.playerKey}.`);
       }
     }
-
     return true;
   }
 
@@ -307,9 +273,20 @@
     return value;
   }
 
-  function canonicalJson(snapshot){
+  function canonicalStateObject(snapshot){
     validateSnapshot(snapshot);
-    return JSON.stringify(canonicalize(snapshot));
+    return canonicalize({
+      schemaVersion:snapshot.schemaVersion,
+      tournament:snapshot.tournament,
+      players:snapshot.players,
+      rounds:snapshot.rounds,
+      standings:snapshot.standings,
+      schedule:snapshot.schedule
+    });
+  }
+
+  function canonicalJson(snapshot){
+    return JSON.stringify(canonicalStateObject(snapshot));
   }
 
   return Object.freeze({
@@ -318,6 +295,8 @@
     buildSnapshot,
     validateSnapshot,
     canonicalJson,
+    canonicalStateObject,
+    normalizeFederation,
     roundComplete,
     isByeResult
   });
