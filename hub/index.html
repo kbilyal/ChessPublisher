@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#0e1b2a">
+  <title>Chess-Publisher Hub — Tournament</title>
+  <meta name="description" content="Chess-Publisher Hub tournament view">
+  <link rel="stylesheet" href="hub.css">
+</head>
+<body>
+  <a class="skip-link" href="#hubContent">Skip to tournament content</a>
+
+  <header class="hub-topbar">
+    <div class="hub-topbar__inner">
+      <a class="hub-brand" href="../" aria-label="Chess-Publisher home">
+        <span class="hub-brand__mark" aria-hidden="true">CP</span>
+        <span class="hub-brand__text"><strong>Chess-Publisher</strong><small>Hub <span class="beta-chip">BETA</span></small></span>
+      </a>
+      <div class="hub-topbar__actions">
+        <span class="sync-state" id="syncState"><span class="sync-dot" aria-hidden="true"></span><span id="updatedText">Loading…</span></span>
+        <a class="home-link" href="../">Product site</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="hubContent">
+    <section class="tournament-hero" aria-labelledby="tournamentName">
+      <div class="shell">
+        <div class="hero-main">
+          <div>
+            <div class="hero-eyebrow"><span class="status-badge" id="tournamentStatus">—</span><span id="tournamentType">Tournament</span></div>
+            <h1 id="tournamentName">Loading tournament…</h1>
+            <p class="hero-meta" id="tournamentMeta">Please wait while the tournament data loads.</p>
+          </div>
+          <div class="round-callout" aria-label="Current tournament round">
+            <span>Latest round</span>
+            <strong id="latestRound">—</strong>
+            <small id="roundProgress">—</small>
+          </div>
+        </div>
+
+        <div class="quick-facts" id="quickFacts" aria-label="Tournament facts"></div>
+      </div>
+    </section>
+
+    <div class="section-nav-wrap">
+      <nav class="section-nav shell" aria-label="Tournament sections">
+        <button type="button" class="section-tab is-active" data-section="overview" aria-selected="true">Overview</button>
+        <button type="button" class="section-tab" data-section="players" aria-selected="false">Players <span id="playersCount"></span></button>
+        <button type="button" class="section-tab" data-section="pairings" aria-selected="false">Pairings</button>
+        <button type="button" class="section-tab" data-section="standings" aria-selected="false">Standings</button>
+      </nav>
+    </div>
+
+    <section class="content-section">
+      <div class="shell content-shell">
+        <div id="hubError" class="message-card message-card--error" hidden role="alert"></div>
+
+        <section class="hub-panel" data-panel="overview">
+          <div class="panel-heading">
+            <div><span class="kicker">Tournament</span><h2>Overview</h2></div>
+          </div>
+          <div class="overview-grid" id="overviewGrid"></div>
+        </section>
+
+        <section class="hub-panel" data-panel="players" hidden>
+          <div class="panel-heading panel-heading--split">
+            <div><span class="kicker">Entry list</span><h2>Players</h2></div>
+            <label class="search-box"><span class="sr-only">Search players</span><input id="playerSearch" type="search" inputmode="search" placeholder="Search player or federation" autocomplete="off"></label>
+          </div>
+          <div id="playersView"></div>
+        </section>
+
+        <section class="hub-panel" data-panel="pairings" hidden>
+          <div class="panel-heading panel-heading--split">
+            <div><span class="kicker">Boards & results</span><h2>Pairings</h2></div>
+            <label class="round-select"><span>Round</span><select id="pairingsRound"></select></label>
+          </div>
+          <div id="pairingsView"></div>
+        </section>
+
+        <section class="hub-panel" data-panel="standings" hidden>
+          <div class="panel-heading">
+            <div><span class="kicker">Ranking</span><h2>Standings <span class="heading-note" id="standingsRound"></span></h2></div>
+          </div>
+          <div id="standingsView"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="hub-footer">
+    <div class="shell hub-footer__inner">
+      <span>Published with <strong>Chess-Publisher Hub</strong></span>
+      <span>Beta preview — read-only tournament view</span>
+    </div>
+  </footer>
+
+  <noscript><div class="noscript">JavaScript is required to display tournament data.</div></noscript>
+  <script src="hub.js" defer></script>
+</body>
+</html>
