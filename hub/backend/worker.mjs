@@ -410,19 +410,19 @@ export default {
       }
 
       if(request.method==="POST" && url.pathname==="/v1/tournaments"){
-        return createTournament(request,env);
+        return await createTournament(request,env);
       }
 
       if(request.method==="PUT" && parts.length===4 && parts[0]==="v1" && parts[1]==="tournaments" && parts[3]==="revisions"){
-        return publishRevision(request,env,parts[2]);
+        return await publishRevision(request,env,parts[2]);
       }
 
       if(request.method==="GET" && parts.length===4 && parts[0]==="v1" && parts[1]==="public" && parts[2]==="tournaments"){
-        return getPublicTournament(request,env,parts[3]);
+        return await getPublicTournament(request,env,parts[3]);
       }
 
       if(request.method==="GET" && parts.length===6 && parts[0]==="v1" && parts[1]==="public" && parts[2]==="tournaments" && parts[4]==="revisions"){
-        return getPublicRevision(request,env,parts[3],parts[5]);
+        return await getPublicRevision(request,env,parts[3],parts[5]);
       }
 
       throw new HubContractError("not_found","API route was not found.",404);
