@@ -19,8 +19,8 @@ permissions:
   contents: read
 
 jobs:
-  hub-snapshot-tests:
-    name: Hub snapshot regression tests
+  hub-client-tests:
+    name: Hub client regression tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -35,3 +35,6 @@ jobs:
 
       - name: Run Hub snapshot tests
         run: node hub/tests/hub-snapshot.test.js
+
+      - name: Run Hub API client tests
+        run: node hub/tests/hub-api-client.test.js
