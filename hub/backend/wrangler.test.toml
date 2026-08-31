@@ -1,0 +1,14 @@
+name = "chess-publisher-hub-local-test"
+main = "./worker.mjs"
+compatibility_date = "2026-08-31"
+workers_dev = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "chess-publisher-hub-local-test"
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "./migrations"
+
+[[r2_buckets]]
+binding = "SNAPSHOTS"
+bucket_name = "chess-publisher-hub-local-test-snapshots"
