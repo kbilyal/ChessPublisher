@@ -48,6 +48,7 @@ jobs:
       - name: Start preview server
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/chess-publisher-hub-server.log 2>&1 &
+          echo $! >/tmp/chess-publisher-hub-server.pid
           for i in {1..20}; do
             if curl -fsS http://127.0.0.1:4173/hub/ >/dev/null; then exit 0; fi
             sleep 1
@@ -66,3 +67,109 @@ jobs:
           path: artifacts/*.png
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          if [ -f /tmp/chess-publisher-hub-server.pid ]; then
+            kill "$(cat /tmp/chess-publisher-hub-server.pid)" || true
+          fi
+
+  public-api-browser-integration:
+    name: Public site to Worker API gate
+    needs: responsive-browser-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Hub site beta
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Fetch isolated Hub backend beta
+        run: |
+          git fetch --depth=1 origin beta/v1.05.00-hub:refs/remotes/origin/beta/v1.05.00-hub
+          git worktree add /tmp/chesspublisher-hub-backend refs/remotes/origin/beta/v1.05.00-hub
+          test -f /tmp/chesspublisher-hub-backend/hub/backend/worker.mjs
+          test -f /tmp/chesspublisher-hub-backend/hub/backend/test/seed.sql
+
+      - name: Prepare local backend D1 state
+        env:
+          CI: 'true'
+        run: |
+          rm -rf /tmp/chesspublisher-hub-state
+          cd /tmp/chesspublisher-hub-backend
+          npx -y wrangler@4.127.1 d1 migrations apply DB \
+            --local \
+            --persist-to /tmp/chesspublisher-hub-state \
+            --config hub/backend/wrangler.test.toml
+          npx -y wrangler@4.127.1 d1 execute DB \
+            --local \
+            --persist-to /tmp/chesspublisher-hub-state \
+            --config hub/backend/wrangler.test.toml \
+            --file hub/backend/test/seed.sql
+
+      - name: Start local Hub Worker API
+        env:
+          CI: 'true'
+        run: |
+          cd /tmp/chesspublisher-hub-backend
+          npx -y wrangler@4.127.1 dev \
+            --config hub/backend/wrangler.test.toml \
+            --persist-to /tmp/chesspublisher-hub-state \
+            --ip 127.0.0.1 \
+            --port 8787 \
+            >/tmp/chesspublisher-hub-api.log 2>&1 &
+          echo $! >/tmp/chesspublisher-hub-api.pid
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/chesspublisher-hub-api.log
+          exit 1
+
+      - name: Install Chromium integration runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start Hub site preview
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/chesspublisher-hub-site.log 2>&1 &
+          echo $! >/tmp/chesspublisher-hub-site.pid
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/hub/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/chesspublisher-hub-site.log
+          exit 1
+
+      - name: Publish through API and open real slug in Chromium
+        env:
+          HUB_API_BASE: 'http://127.0.0.1:8787'
+          HUB_SITE_BASE: 'http://127.0.0.1:4173/hub/'
+        run: node hub/tests/api-browser-integration.cjs
+
+      - name: Show integration service logs
+        if: always()
+        run: |
+          echo '--- Hub Worker API ---'
+          cat /tmp/chesspublisher-hub-api.log || true
+          echo '--- Hub site preview ---'
+          cat /tmp/chesspublisher-hub-site.log || true
+
+      - name: Stop integration services
+        if: always()
+        run: |
+          if [ -f /tmp/chesspublisher-hub-api.pid ]; then
+            kill "$(cat /tmp/chesspublisher-hub-api.pid)" || true
+          fi
+          if [ -f /tmp/chesspublisher-hub-site.pid ]; then
+            kill "$(cat /tmp/chesspublisher-hub-site.pid)" || true
+          fi
