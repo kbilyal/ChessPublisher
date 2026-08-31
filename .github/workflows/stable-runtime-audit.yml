@@ -58,9 +58,17 @@ jobs:
                       h.update(chunk)
               return h.hexdigest()
 
+          def safe_routes(text):
+              # Only emit path-like string literals composed of route-safe ASCII.
+              # Anything containing query values, credentials, crypto material,
+              # hostnames, arbitrary text or interpolation is excluded.
+              candidates = re.findall(r'''["'](\/[A-Za-z0-9._~!$&()*+,;=:@%\/-]{1,100})["']''', text)
+              return sorted(set(route for route in candidates if not route.startswith('//')))
+
           lines = []
           lines.append('Chess-Publisher v1.04.02 stable runtime architecture audit')
-          lines.append('SECURITY: values, string literals, keys, IVs, tokens and endpoint contents are intentionally not emitted.')
+          lines.append('SECURITY: values, arbitrary string literals, keys, IVs, tokens and endpoint contents are intentionally not emitted.')
+          lines.append('Only route-safe path literals and non-sensitive structural identifiers are allowed below.')
           lines.append('')
 
           all_files = [p for p in root.rglob('*') if p.is_file()]
@@ -75,8 +83,11 @@ jobs:
               p = matches[0]
               lines.append(f'PRESENT | {rel} | bytes={p.stat().st_size} | sha256={sha256(p)}')
 
+          dll_names = sorted({p.name for p in all_files if p.suffix.lower() == '.dll'})
+          lines.append('dll-file-names=' + ','.join(dll_names))
           lines.append('')
-          for filename in ['ChessPublisher-WebView.ps1', 'ChessPublisher-LocalEngine.ps1']:
+
+          for filename in ['ChessPublisher.html', 'ChessPublisher-WebView.ps1', 'ChessPublisher-LocalEngine.ps1']:
               matches = [p for p in all_files if p.name == filename]
               if not matches:
                   continue
@@ -85,7 +96,6 @@ jobs:
               lines.append(f'[{filename}]')
               lines.append(f'lines={text.count(chr(10)) + 1}')
 
-              # Architecture indicators only. No matching source text is printed.
               indicators = {
                   'HttpListener': r'HttpListener',
                   'request-path-routing': r'AbsolutePath|LocalPath',
@@ -94,6 +104,8 @@ jobs:
                   'PowerShell-runspace': r'Runspace|PowerShell\.Create',
                   'Invoke-RestMethod': r'Invoke-RestMethod',
                   'Invoke-WebRequest': r'Invoke-WebRequest',
+                  'fetch-call': r'\bfetch\s*\(',
+                  'XMLHttpRequest': r'XMLHttpRequest',
                   'HttpClient': r'HttpClient',
                   'DPAPI-ProtectedData': r'ProtectedData|DataProtectionScope',
                   'Windows-CredentialManager': r'CredentialManager|CredWrite|CredRead',
@@ -103,10 +115,13 @@ jobs:
                   count = len(re.findall(pattern, text, flags=re.IGNORECASE))
                   lines.append(f'indicator:{name}={count}')
 
-              # Function names are identifiers only; function bodies and literals are not emitted.
+              routes = safe_routes(text)
+              lines.append('safe-route-paths=' + ','.join(routes))
+              lines.append(f'safe-route-path-count={len(routes)}')
+
               fn_names = sorted(set(re.findall(r'(?im)^\s*function\s+([A-Za-z0-9_-]+)', text)))
               safe_fn_names = [n for n in fn_names if not re.search(r'key|secret|token|password|credential|encrypt|decrypt|aes|iv', n, re.I)]
-              lines.append('safe-function-identifiers=' + ','.join(safe_fn_names[:120]))
+              lines.append('safe-function-identifiers=' + ','.join(safe_fn_names[:160]))
               lines.append(f'safe-function-identifier-count={len(safe_fn_names)}')
               lines.append('')
 
