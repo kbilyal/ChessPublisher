@@ -1,0 +1,324 @@
+(function(root,factory){
+  const api=factory();
+  if(typeof module!=="undefined" && module.exports) module.exports=api;
+  if(root) root.ChessPublisherHubSnapshot=api;
+})(typeof globalThis!=="undefined"?globalThis:this,function(){
+  "use strict";
+
+  const SCHEMA_VERSION="1.0";
+  const PRODUCT="Chess-Publisher";
+  const BYE_RESULTS=new Set(["PAB","½ BYE","1/2 BYE","0 BYE"]);
+
+  function text(value){
+    return value===null || value===undefined ? "" : String(value).trim();
+  }
+
+  function nullableText(value){
+    const v=text(value);
+    return v && v!=="-" ? v : null;
+  }
+
+  function asInteger(value,fallback=0){
+    const n=Number.parseInt(value,10);
+    return Number.isFinite(n)?n:fallback;
+  }
+
+  function asNumber(value,fallback=0){
+    const n=Number(value);
+    return Number.isFinite(n)?n:fallback;
+  }
+
+  function asBoolean(value){
+    if(typeof value==="boolean") return value;
+    return /^(yes|true|1|y)$/i.test(text(value));
+  }
+
+  function isoOrNull(value){
+    if(!value) return null;
+    if(value instanceof Date){
+      return Number.isNaN(value.getTime())?null:value.toISOString();
+    }
+    const raw=text(value);
+    if(!raw) return null;
+    const date=new Date(raw);
+    return Number.isNaN(date.getTime())?null:date.toISOString();
+  }
+
+  function playerStableKey(player,index){
+    const fideId=nullableText(player?.fideId);
+    if(fideId) return `fid:${fideId}`;
+    const localKey=text(player?.localKey);
+    if(localKey) return localKey;
+    throw new Error(`Hub snapshot requires a stable key for local player at index ${index}.`);
+  }
+
+  function normalizeResult(value){
+    return text(value)||"-";
+  }
+
+  function isByeResult(value){
+    return BYE_RESULTS.has(normalizeResult(value).toUpperCase());
+  }
+
+  function boardComplete(board){
+    const result=normalizeResult(board?.result);
+    if(isByeResult(result)) return true;
+    const hasWhite=!!text(board?.whiteKey);
+    const hasBlack=!!text(board?.blackKey);
+    return hasWhite && hasBlack && result!=="-";
+  }
+
+  function roundComplete(boards){
+    return Array.isArray(boards) && boards.length>0 && boards.every(boardComplete);
+  }
+
+  function generatedRoundNumbers(tournament){
+    const live=tournament?.pairings?.liveBoards||{};
+    return Object.keys(live)
+      .map(Number)
+      .filter(n=>Number.isInteger(n) && n>0 && Array.isArray(live[String(n)]) && live[String(n)].length>0)
+      .sort((a,b)=>a-b);
+  }
+
+  function deriveStatus(tournament,roundsDeclared){
+    const rounds=generatedRoundNumbers(tournament);
+    const latest=rounds.length?rounds[rounds.length-1]:0;
+    if(roundsDeclared>0 && latest>=roundsDeclared && roundComplete(tournament?.pairings?.liveBoards?.[String(roundsDeclared)])){
+      return "finished";
+    }
+    if(latest>0) return "playing";
+    if((tournament?.players||[]).length>0 || text(tournament?.settings?.startDate)) return "registration";
+    return "draft";
+  }
+
+  function playerLookupByInternalKey(tournament){
+    const map=new Map();
+    (tournament?.players||[]).forEach((player,index)=>{
+      map.set(playerStableKey(player,index),player);
+    });
+    return map;
+  }
+
+  function normalizePlayers(tournament){
+    return (tournament?.players||[]).map((player,index)=>({
+      key:playerStableKey(player,index),
+      name:text(player?.name),
+      fideId:nullableText(player?.fideId),
+      federation:(text(player?.fed)||"FIDE").toUpperCase(),
+      rating:Math.max(0,asInteger(player?.rating,0)),
+      birth:nullableText(player?.birth),
+      title:text(player?.title),
+      attendance:player?.attendance==="absent"?"absent":"present",
+      joinedFromRound:Math.max(1,asInteger(player?.joinedFromRound,1))
+    }));
+  }
+
+  function normalizeRounds(tournament){
+    const live=tournament?.pairings?.liveBoards||{};
+    return generatedRoundNumbers(tournament).map(round=>{
+      const boards=live[String(round)]||[];
+      return {
+        round,
+        complete:roundComplete(boards),
+        pairings:boards
+          .map((board,index)=>({
+            board:Math.max(1,asInteger(board?.board,index+1)),
+            whiteKey:nullableText(board?.whiteKey),
+            blackKey:nullableText(board?.blackKey),
+            result:normalizeResult(board?.result)
+          }))
+          .sort((a,b)=>a.board-b.board)
+      };
+    });
+  }
+
+  function defaultTieBreakKey(label,index){
+    const compact=text(label)
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9]+/g,"-")
+      .replace(/^-+|-+$/g,"");
+    return compact||`tb-${index+1}`;
+  }
+
+  function normalizeStandings(standings,options={}){
+    const players=Array.isArray(standings?.players)?standings.players:[];
+    const tieList=Array.isArray(standings?.tieList)?standings.tieList:[];
+    const valueFn=typeof options.tieBreakValueFn==="function"?options.tieBreakValueFn:()=>0;
+    const round=Math.max(0,asInteger(standings?.completed,0));
+    const roundsDeclared=Math.max(0,asInteger(options.roundsDeclared,0));
+
+    return {
+      round,
+      final:roundsDeclared>0 && round>=roundsDeclared,
+      tieBreaks:tieList.map((label,index)=>({
+        key:defaultTieBreakKey(label,index),
+        label:text(label)
+      })),
+      rows:players.map((player,index)=>({
+        rank:index+1,
+        playerKey:text(player?.key)||playerStableKey(player,index),
+        points:asNumber(player?.score,0),
+        tieBreakValues:tieList.map(label=>{
+          const value=valueFn(player,label);
+          return typeof value==="number" && Number.isFinite(value)?value:text(value);
+        })
+      }))
+    };
+  }
+
+  function normalizeSchedule(tournament){
+    const rows=Array.isArray(tournament?.schedule?.rows)?tournament.schedule.rows:[];
+    return rows.map(row=>({
+      no:text(row?.no),
+      dateTime:isoOrNull(row?.dateTime),
+      event:text(row?.event),
+      description:text(row?.description)
+    }));
+  }
+
+  function buildSnapshot(options){
+    if(!options || typeof options!=="object") throw new Error("Hub snapshot options are required.");
+    const tournament=options.tournament;
+    if(!tournament || typeof tournament!=="object") throw new Error("Tournament state is required.");
+
+    const tournamentName=text(options.tournamentName);
+    if(!tournamentName) throw new Error("Tournament name is required.");
+
+    const localTournamentId=text(options.localTournamentId);
+    if(!localTournamentId) throw new Error("A stable Hub local tournament ID is required.");
+
+    const clientVersion=text(options.clientVersion);
+    if(!clientVersion) throw new Error("Chess-Publisher client version is required.");
+
+    const settings=tournament.settings||{};
+    const roundsDeclared=Math.max(1,asInteger(settings.rounds,1));
+    const standings=normalizeStandings(options.standings||{}, {
+      tieBreakValueFn:options.tieBreakValueFn,
+      roundsDeclared
+    });
+
+    const snapshot={
+      schemaVersion:SCHEMA_VERSION,
+      client:{product:PRODUCT,version:clientVersion},
+      publication:{
+        hubTournamentId:nullableText(options.hubTournamentId),
+        publicSlug:nullableText(options.publicSlug),
+        revision:Math.max(0,asInteger(options.revision,0)),
+        generatedAt:isoOrNull(options.generatedAt||new Date()),
+        previousRevision:options.previousRevision===null || options.previousRevision===undefined
+          ? null
+          : Math.max(0,asInteger(options.previousRevision,0)),
+        checksum:nullableText(options.checksum)
+      },
+      tournament:{
+        localKey:localTournamentId,
+        name:tournamentName,
+        status:deriveStatus(tournament,roundsDeclared),
+        format:text(settings.tournamentFormat),
+        pairingSystem:text(settings.pairingSystem),
+        timeControl:text(settings.timeControl),
+        ratingType:text(settings.tournamentRatingType),
+        fideRated:asBoolean(settings.fideRated),
+        roundsDeclared,
+        location:{
+          venue:text(settings.venue),
+          city:text(settings.city),
+          federation:(text(settings.country)||"FIDE").toUpperCase()
+        },
+        staff:{
+          organizer:text(settings.organizer),
+          chiefArbiter:text(settings.chiefArbiter),
+          arbiter:text(settings.arbiter),
+          director:text(settings.director)
+        },
+        dates:{
+          start:isoOrNull(settings.startDate),
+          end:isoOrNull(settings.endDate),
+          registrationDeadline:isoOrNull(settings.generalRegistrationDeadline)
+        },
+        contact:{
+          email:text(settings.email),
+          phone:text(settings.phone)
+        },
+        links:{
+          website:text(settings.website),
+          live:text(settings.liveLink)
+        }
+      },
+      players:normalizePlayers(tournament),
+      rounds:normalizeRounds(tournament),
+      standings,
+      schedule:normalizeSchedule(tournament)
+    };
+
+    validateSnapshot(snapshot);
+    return snapshot;
+  }
+
+  function validateSnapshot(snapshot){
+    if(snapshot?.schemaVersion!==SCHEMA_VERSION) throw new Error("Unsupported Hub snapshot schema version.");
+    if(snapshot?.client?.product!==PRODUCT) throw new Error("Invalid Hub snapshot product.");
+    if(!text(snapshot?.tournament?.localKey)) throw new Error("Tournament local key is missing.");
+    if(!text(snapshot?.tournament?.name)) throw new Error("Tournament name is missing.");
+
+    const players=Array.isArray(snapshot.players)?snapshot.players:[];
+    const playerKeys=new Set();
+    for(const player of players){
+      if(!text(player.key)) throw new Error("A Hub player key is missing.");
+      if(playerKeys.has(player.key)) throw new Error(`Duplicate Hub player key: ${player.key}`);
+      playerKeys.add(player.key);
+    }
+
+    const roundNumbers=new Set();
+    for(const round of snapshot.rounds||[]){
+      if(roundNumbers.has(round.round)) throw new Error(`Duplicate Hub round: ${round.round}`);
+      roundNumbers.add(round.round);
+
+      const boards=new Set();
+      for(const pairing of round.pairings||[]){
+        if(boards.has(pairing.board)) throw new Error(`Duplicate board ${pairing.board} in round ${round.round}.`);
+        boards.add(pairing.board);
+
+        for(const key of [pairing.whiteKey,pairing.blackKey]){
+          if(key && !playerKeys.has(key)) throw new Error(`Unknown player key ${key} in round ${round.round}.`);
+        }
+      }
+    }
+
+    for(const row of snapshot?.standings?.rows||[]){
+      if(!playerKeys.has(row.playerKey)) throw new Error(`Unknown standings player key: ${row.playerKey}`);
+      if((row.tieBreakValues||[]).length!==(snapshot?.standings?.tieBreaks||[]).length){
+        throw new Error(`Tie-break value count mismatch for ${row.playerKey}.`);
+      }
+    }
+
+    return true;
+  }
+
+  function canonicalize(value){
+    if(Array.isArray(value)) return value.map(canonicalize);
+    if(value && typeof value==="object"){
+      return Object.keys(value).sort().reduce((out,key)=>{
+        out[key]=canonicalize(value[key]);
+        return out;
+      },{});
+    }
+    return value;
+  }
+
+  function canonicalJson(snapshot){
+    validateSnapshot(snapshot);
+    return JSON.stringify(canonicalize(snapshot));
+  }
+
+  return Object.freeze({
+    SCHEMA_VERSION,
+    PRODUCT,
+    buildSnapshot,
+    validateSnapshot,
+    canonicalJson,
+    roundComplete,
+    isByeResult
+  });
+});
