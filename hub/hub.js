@@ -39,6 +39,7 @@ const HubPage=(()=>{
     const round=latestRound();
     setStatus(t.status);
     $("tournamentName").textContent=display(t.name);
+    document.title=`${display(t.name)} — Chess-Publisher Hub`;
     $("tournamentType").textContent=[txt(t.format),txt(t.ratingType)].filter(Boolean).join(" • ")||"Tournament";
     $("tournamentMeta").textContent=[txt(t.location?.city),txt(t.location?.federation),formatDate(t.dates?.start)].filter(v=>v&&v!=="—").join(" • ")||"Tournament information";
     $("latestRound").textContent=round?String(round):"—";
@@ -46,7 +47,7 @@ const HubPage=(()=>{
     $("playersCount").textContent=String((data.players||[]).length);
 
     const generated=data.publication?.generatedAt;
-    $("updatedText").textContent=generated?`Updated ${formatDate(generated,true)}`:"Preview data";
+    $("updatedText").textContent=generated?`Updated ${formatDate(generated,true)}`:"Published tournament";
 
     const facts=[
       ["Time control",t.timeControl],
@@ -203,10 +204,12 @@ const HubPage=(()=>{
   async function init(){
     bindEvents();
     try{
-      const response=await fetch("sample-tournament.json",{cache:"no-store"});
-      if(!response.ok) throw new Error(`Tournament data request failed (${response.status}).`);
-      data=await response.json();
+      if(!globalThis.ChessPublisherHubData) throw new Error("Hub data loader is unavailable.");
+      const loaded=await globalThis.ChessPublisherHubData.loadTournament();
+      data=loaded.data;
       renderAll();
+      document.documentElement.dataset.hubSource=loaded.meta.source;
+      if(loaded.meta.slug) document.documentElement.dataset.hubSlug=loaded.meta.slug;
     }catch(error){
       $("hubError").hidden=false;
       $("hubError").textContent=`Unable to load tournament data. ${error.message}`;
