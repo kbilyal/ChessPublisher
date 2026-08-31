@@ -1,0 +1,126 @@
+name: Stable Runtime Architecture Audit
+
+on:
+  push:
+    branches:
+      - beta/v1.05.00-hub
+    paths:
+      - ".github/workflows/stable-runtime-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-runtime:
+    name: Secret-safe v1.04.02 runtime audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout beta control files
+        uses: actions/checkout@v4
+
+      - name: Download exact stable portable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/cp-release /tmp/cp-unpacked artifacts
+          gh release download v1.04.02 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "chess-publisher-v1.04.02-2026-08-30.zip" \
+            --dir /tmp/cp-release
+          echo "316eadb9c2f12ea2021ffbc3852c81614140daf55015e00992cd59974336fa20  /tmp/cp-release/chess-publisher-v1.04.02-2026-08-30.zip" | sha256sum -c -
+          unzip -q /tmp/cp-release/chess-publisher-v1.04.02-2026-08-30.zip -d /tmp/cp-unpacked
+
+      - name: Generate secret-safe architecture report
+        shell: python
+        run: |
+          import hashlib
+          import pathlib
+          import re
+
+          root = pathlib.Path('/tmp/cp-unpacked')
+          out = pathlib.Path('artifacts/stable-runtime-audit.txt')
+
+          targets = [
+              'ChessPublisher.html',
+              'ChessPublisher-WebView.ps1',
+              'ChessPublisher-LocalEngine.ps1',
+              'FIDE-Update.ps1',
+              'WebViewAdapter/ChessPublisher.WebViewAdapter.dll',
+          ]
+
+          def sha256(path):
+              h = hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b''):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          lines = []
+          lines.append('Chess-Publisher v1.04.02 stable runtime architecture audit')
+          lines.append('SECURITY: values, string literals, keys, IVs, tokens and endpoint contents are intentionally not emitted.')
+          lines.append('')
+
+          all_files = [p for p in root.rglob('*') if p.is_file()]
+          lines.append(f'Total files in portable ZIP: {len(all_files)}')
+          lines.append('')
+
+          for rel in targets:
+              matches = [p for p in all_files if p.as_posix().endswith(rel)]
+              if not matches:
+                  lines.append(f'MISSING | {rel}')
+                  continue
+              p = matches[0]
+              lines.append(f'PRESENT | {rel} | bytes={p.stat().st_size} | sha256={sha256(p)}')
+
+          lines.append('')
+          for filename in ['ChessPublisher-WebView.ps1', 'ChessPublisher-LocalEngine.ps1']:
+              matches = [p for p in all_files if p.name == filename]
+              if not matches:
+                  continue
+              p = matches[0]
+              text = p.read_text(encoding='utf-8-sig', errors='replace')
+              lines.append(f'[{filename}]')
+              lines.append(f'lines={text.count(chr(10)) + 1}')
+
+              # Architecture indicators only. No matching source text is printed.
+              indicators = {
+                  'HttpListener': r'HttpListener',
+                  'request-path-routing': r'AbsolutePath|LocalPath',
+                  'loopback-literal': r'127\.0\.0\.1|localhost',
+                  'WebView2': r'WebView2|CoreWebView2',
+                  'PowerShell-runspace': r'Runspace|PowerShell\.Create',
+                  'Invoke-RestMethod': r'Invoke-RestMethod',
+                  'Invoke-WebRequest': r'Invoke-WebRequest',
+                  'HttpClient': r'HttpClient',
+                  'DPAPI-ProtectedData': r'ProtectedData|DataProtectionScope',
+                  'Windows-CredentialManager': r'CredentialManager|CredWrite|CredRead',
+                  'AES-reference': r'\bAES\b|AesManaged|AesCryptoServiceProvider|CreateAes',
+              }
+              for name, pattern in indicators.items():
+                  count = len(re.findall(pattern, text, flags=re.IGNORECASE))
+                  lines.append(f'indicator:{name}={count}')
+
+              # Function names are identifiers only; function bodies and literals are not emitted.
+              fn_names = sorted(set(re.findall(r'(?im)^\s*function\s+([A-Za-z0-9_-]+)', text)))
+              safe_fn_names = [n for n in fn_names if not re.search(r'key|secret|token|password|credential|encrypt|decrypt|aes|iv', n, re.I)]
+              lines.append('safe-function-identifiers=' + ','.join(safe_fn_names[:120]))
+              lines.append(f'safe-function-identifier-count={len(safe_fn_names)}')
+              lines.append('')
+
+          out.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          print(out.read_text(encoding='utf-8'))
+
+      - name: Assert required runtime bridge files exist
+        run: |
+          grep -q '^PRESENT | ChessPublisher-WebView.ps1' artifacts/stable-runtime-audit.txt
+          grep -q '^PRESENT | ChessPublisher-LocalEngine.ps1' artifacts/stable-runtime-audit.txt
+
+      - name: Upload architecture report
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-runtime-audit-v1.04.02
+          path: artifacts/stable-runtime-audit.txt
+          retention-days: 14
