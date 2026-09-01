@@ -1,0 +1,248 @@
+name: RC26 Exact Inno Installer Candidate
+
+on:
+  push:
+    branches:
+      - test/rc26-installer-candidate
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-installer:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconstruct exact RC26 payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path work, publish | Out-Null
+
+          $stableUrl = 'https://github.com/kbilyal/ChessPublisher/releases/download/v1.04.02/chess-publisher-v1.04.02-2026-08-30.zip'
+          $stableZip = Join-Path $PWD 'work\stable-v1.04.02.zip'
+          Invoke-WebRequest -Uri $stableUrl -OutFile $stableZip
+          $stableHash = (Get-FileHash -LiteralPath $stableZip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($stableHash -ne '316eadb9c2f12ea2021ffbc3852c81614140daf55015e00992cd59974336fa20') { throw "Stable transport SHA256 mismatch: $stableHash" }
+
+          $payload = Join-Path $PWD 'work\payload'
+          Expand-Archive -LiteralPath $stableZip -DestinationPath $payload -Force
+
+          $parts = @(
+            '.rc26-ci/patch.00.b64',
+            '.rc26-ci/patch.01.b64',
+            '.rc26-pieces/p02.00',
+            '.rc26-pieces/p02.01',
+            '.rc26-pieces/p02.02.0',
+            '.rc26-pieces/p02.02.1',
+            '.rc26-ci/patch.03.b64',
+            '.rc26-ci/patch.04.b64',
+            '.rc26-ci/patch.05.b64',
+            '.rc26-ci/patch.06.b64'
+          )
+          $builder = [System.Text.StringBuilder]::new()
+          foreach ($part in $parts) {
+            $text = [IO.File]::ReadAllText((Resolve-Path $part)).TrimEnd("`r", "`n")
+            [void]$builder.Append($text)
+          }
+
+          $p07 = [IO.File]::ReadAllText((Resolve-Path '.rc26-ci/patch.07.b64')).TrimEnd("`r", "`n")
+          if ($p07.Length -lt 18000) { throw 'RC26 patch.07 transport is shorter than 18000 bytes.' }
+          [void]$builder.Append($p07.Substring(0, 18000))
+
+          foreach ($part in @(
+            '.rc26-pieces/p08.00.0', '.rc26-pieces/p08.00.1',
+            '.rc26-pieces/p08.01.0', '.rc26-pieces/p08.01.1',
+            '.rc26-pieces/p08.02.0', '.rc26-pieces/p08.02.1',
+            '.rc26-pieces/p09.00.0', '.rc26-pieces/p09.00.1',
+            '.rc26-pieces/p09.01.0', '.rc26-pieces/p09.01.1'
+          )) {
+            $text = [IO.File]::ReadAllText((Resolve-Path $part)).TrimEnd("`r", "`n")
+            [void]$builder.Append($text)
+          }
+
+          $patchB64 = Join-Path $PWD 'work\rc26-exact.patch.xz.b64'
+          [IO.File]::WriteAllText($patchB64, $builder.ToString(), [Text.Encoding]::ASCII)
+          $xzBytes = [Convert]::FromBase64String($builder.ToString())
+          $patchXz = Join-Path $PWD 'work\rc26-exact.patch.xz'
+          [IO.File]::WriteAllBytes($patchXz, $xzBytes)
+          $xzHash = (Get-FileHash -LiteralPath $patchXz -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($xzHash -ne 'ceb0543952a679fc2c9394f20c0cd0637f79b717d50a62bbb717c42b3a9c9801') { throw "RC26 exact patch XZ SHA256 mismatch: $xzHash" }
+
+          $xzExe = Join-Path $env:ProgramFiles 'Git\usr\bin\xz.exe'
+          if (-not (Test-Path -LiteralPath $xzExe)) { throw "xz.exe not found: $xzExe" }
+          & $xzExe -d -k -f $patchXz
+          if ($LASTEXITCODE -ne 0) { throw "xz decompression failed: $LASTEXITCODE" }
+          $patch = Join-Path $PWD 'work\rc26-exact.patch'
+          $patchHash = (Get-FileHash -LiteralPath $patch -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($patchHash -ne 'cb83d00a340dbef5443e077fffafeae936747c184ca2b7d68b0a746612ff3017') { throw "RC26 exact patch SHA256 mismatch: $patchHash" }
+
+          Push-Location $payload
+          try {
+            & git apply --binary --unidiff-zero -p2 '..\rc26-exact.patch'
+            if ($LASTEXITCODE -ne 0) { throw "git apply failed: $LASTEXITCODE" }
+          } finally { Pop-Location }
+
+          Remove-Item -LiteralPath (Join-Path $payload 'Uninstall ChessPublisher.exe') -Force -ErrorAction SilentlyContinue
+
+          $root = (Resolve-Path $payload).Path
+          $relative = [System.Collections.Generic.List[string]]::new()
+          Get-ChildItem -LiteralPath $root -Recurse -File | ForEach-Object {
+            $relative.Add([IO.Path]::GetRelativePath($root, $_.FullName).Replace('\','/'))
+          }
+          $rels = $relative.ToArray()
+          [Array]::Sort($rels, [StringComparer]::Ordinal)
+          $manifest = [System.Text.StringBuilder]::new()
+          $totalBytes = [Int64]0
+          foreach ($rel in $rels) {
+            $full = Join-Path $root ($rel.Replace('/','\'))
+            $hash = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLowerInvariant()
+            $size = (Get-Item -LiteralPath $full).Length
+            $totalBytes += $size
+            [void]$manifest.Append($rel).Append([char]0).Append($hash).Append([char]0).Append($size).Append("`n")
+          }
+          $manifestBytes = [Text.Encoding]::UTF8.GetBytes($manifest.ToString())
+          $sha = [Security.Cryptography.SHA256]::Create()
+          try { $treeDigest = ([BitConverter]::ToString($sha.ComputeHash($manifestBytes))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() }
+          if ($rels.Count -ne 99) { throw "RC26 payload file count mismatch: $($rels.Count)" }
+          if ($totalBytes -ne 28639574) { throw "RC26 payload byte count mismatch: $totalBytes" }
+          if ($treeDigest -ne '659a6f3a5ec722eaaa65ed0cdd6b4848b07e5c984497e57be09a05b7f551a7f4') { throw "RC26 payload aggregate SHA256 mismatch: $treeDigest" }
+
+          $checks = @{
+            'ChessPublisher.exe' = '1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3'
+            'ChessPublisher.html' = '9099d8c08c06e77117cce98d8160942af57b467f0994d6c7c3ff7f902c274098'
+            'ChessPublisher-LocalEngine.ps1' = '98e7014646619f9d1a12b88a64552c97411216c35fa817cb9657d68adb3fb8bb'
+            'ChessPublisher-WebView.ps1' = '0b20ddc31d490e47dadcdea8dae3ee45653d0dc05c4e888799aa0c60dce0a806'
+            'engine/gacrux/pairingchecker.exe' = '6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb'
+          }
+          foreach ($rel in $checks.Keys) {
+            $full = Join-Path $root ($rel.Replace('/','\'))
+            $got = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($got -ne $checks[$rel]) { throw "Protected payload mismatch: $rel = $got" }
+          }
+
+          @(
+            'RC26 EXACT PAYLOAD GATE: PASS',
+            'Source ZIP SHA256: bb9db32b002a46dbf9a67cfd4cbe416c0c2555923cceff246a37fe55ead0e84c',
+            "Files: $($rels.Count)",
+            "Bytes: $totalBytes",
+            "Aggregate SHA256: $treeDigest",
+            'Gacrux 1.9.57: 6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb'
+          ) | Set-Content -LiteralPath 'publish\RC26-EXACT-PAYLOAD-GATE.txt' -Encoding UTF8
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install innosetup --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw "Chocolatey Inno Setup install failed: $LASTEXITCODE" }
+
+      - name: Compile real Inno Setup installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = (Resolve-Path 'work\payload').Path
+          $output = (Resolve-Path 'publish').Path
+          $icon = Join-Path $source 'ChessPublisher.ico'
+          $iss = Join-Path $PWD 'work\ChessPublisher-RC26.iss'
+          @'
+          #ifndef MyVersion
+            #define MyVersion "1.05.00"
+          #endif
+          #ifndef MyDate
+            #define MyDate "2026-09-01"
+          #endif
+          #ifndef MyNumericVersion
+            #define MyNumericVersion "1.5.0.0"
+          #endif
+          #ifndef SourceDir
+            #define SourceDir ".."
+          #endif
+          #ifndef OutputDir
+            #define OutputDir ".\dist"
+          #endif
+          #ifndef ReleaseIcon
+            #define ReleaseIcon "..\ChessPublisher.ico"
+          #endif
+
+          [Setup]
+          AppId={{C9DA7940-E999-4CDE-A19E-63BD5A6A23D8}
+          AppName=Chess-Publisher
+          AppVersion={#MyVersion}
+          AppPublisher=Kyamran Bilyal
+          AppPublisherURL=https://github.com/kbilyal/ChessPublisher
+          AppSupportURL=https://github.com/kbilyal/ChessPublisher/issues
+          AppUpdatesURL=https://github.com/kbilyal/ChessPublisher
+          DefaultDirName={localappdata}\Programs\Chess-Publisher
+          DefaultGroupName=Chess-Publisher
+          PrivilegesRequired=lowest
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          OutputDir={#OutputDir}
+          OutputBaseFilename=Chess-Publisher-v{#MyVersion}-{#MyDate}
+          SetupIconFile={#ReleaseIcon}
+          UninstallDisplayIcon={app}\ChessPublisher.exe
+          Compression=lzma2
+          SolidCompression=yes
+          WizardStyle=modern
+          DisableProgramGroupPage=yes
+          VersionInfoVersion={#MyNumericVersion}
+          VersionInfoCompany=Kyamran Bilyal
+          VersionInfoDescription=Chess-Publisher Setup
+          VersionInfoProductName=Chess-Publisher
+          VersionInfoProductVersion={#MyVersion}
+          LicenseFile={#SourceDir}\LICENSE.txt
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
+
+          [Files]
+          Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "RELEASE-PACKAGING\*,HISTORY\*,Uninstall ChessPublisher.exe,PACKAGE-FILE-SHA256.txt,RC*-TEST-REPORT.txt,SEPTEMBER-RELEASE-GATE.txt,RELEASE-GATE-REPORT.txt"
+
+          [Icons]
+          Name: "{autoprograms}\Chess-Publisher"; Filename: "{app}\ChessPublisher.exe"; WorkingDir: "{app}"
+          Name: "{autodesktop}\Chess-Publisher"; Filename: "{app}\ChessPublisher.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+
+          [Dirs]
+          Name: "{userdocs}\ChessPublisher Tournaments"
+
+          [Run]
+          Filename: "{app}\ChessPublisher.exe"; Description: "Launch Chess-Publisher"; Flags: nowait postinstall skipifsilent
+          '@ | Set-Content -LiteralPath $iss -Encoding UTF8
+
+          $candidates = @(
+            (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 7\ISCC.exe'),
+            (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe'),
+            (Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe')
+          )
+          $iscc = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            $iscc = Get-ChildItem -Path ${env:ProgramFiles(x86)},$env:ProgramFiles -Filter ISCC.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $iscc) { throw 'ISCC.exe not found after Inno Setup installation.' }
+
+          & $iscc "/DMyVersion=1.05.00" "/DMyDate=2026-09-01" "/DMyNumericVersion=1.5.0.0" "/DSourceDir=$source" "/DOutputDir=$output" "/DReleaseIcon=$icon" $iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed: $LASTEXITCODE" }
+
+          $built = Join-Path $output 'Chess-Publisher-v1.05.00-2026-09-01.exe'
+          if (-not (Test-Path -LiteralPath $built)) { throw "Expected installer not found: $built" }
+          $candidate = Join-Path $output 'Chess-Publisher-v1.05.00-RC26-2026-09-01.exe'
+          Move-Item -LiteralPath $built -Destination $candidate -Force
+          $installerHash = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$installerHash  Chess-Publisher-v1.05.00-RC26-2026-09-01.exe" | Set-Content -LiteralPath (Join-Path $output 'RC26-INSTALLER-SHA256.txt') -Encoding ASCII
+          "Installer SHA256: $installerHash"
+
+      - name: Upload RC26 installer candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chess-Publisher-v1.05.00-RC26-Inno-Installer-Candidate
+          path: |
+            publish/Chess-Publisher-v1.05.00-RC26-2026-09-01.exe
+            publish/RC26-INSTALLER-SHA256.txt
+            publish/RC26-EXACT-PAYLOAD-GATE.txt
+          if-no-files-found: error
+          retention-days: 30
