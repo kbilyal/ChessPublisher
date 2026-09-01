@@ -1,0 +1,49 @@
+name: RC26 Linux Gacrux Gate
+
+on:
+  push:
+    branches:
+      - test/rc26-linux-gacrux
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pairing-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Chess-Publisher test branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pin upstream Gacrux 1.9.57 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/OttoMilvang/TieBreakServer.git "$RUNNER_TEMP/TieBreakServer"
+          git -C "$RUNNER_TEMP/TieBreakServer" checkout 14a34a2c2f36509b110e4f25d6247f31fc4bf2f5
+          test "$(git -C "$RUNNER_TEMP/TieBreakServer" rev-parse HEAD)" = "14a34a2c2f36509b110e4f25d6247f31fc4bf2f5"
+          python -m pip install --disable-pip-version-check -r "$RUNNER_TEMP/TieBreakServer/requirements.txt"
+
+      - name: Run RC26 production-equivalent Gacrux pairing matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+          python tests/linux-gacrux/rc26_compact_gate.py \
+            --gacrux "$RUNNER_TEMP/TieBreakServer" \
+            --report test-results/rc26-linux-gacrux-report.json
+
+      - name: Upload gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc26-linux-gacrux-report
+          path: test-results/
+          if-no-files-found: warn
