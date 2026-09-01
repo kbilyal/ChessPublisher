@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import argparse, json, subprocess, tempfile, sys
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=Path(__file__).resolve().parent
 RATING_PREFIX=('ARO','TPR','PTP','APRO','APPO')
 CODES=['PTS','WIN','WON','BPG','BWG','AOB','REP','ARO','ARO/C1','ARO/C2','ARO/M1','ARO/M2','DE','DE/P','BH','BH/C1','BH/C2','BH/M1','BH/M2','BH/P','BH/C1/P','SB','SB/C1','SB/C2','SB/P','PS','PS/C1','PS/C2','KS','TPR','PTP','APRO','APPO']
 
