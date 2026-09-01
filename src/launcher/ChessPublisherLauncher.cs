@@ -5,13 +5,13 @@ using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
 
-[assembly: AssemblyTitle("ChessPublisher")]
+[assembly: AssemblyTitle("Chess-Publisher")]
 [assembly: AssemblyDescription("Chess tournament manager and publisher")]
 [assembly: AssemblyCompany("Kyamran Bilyal")]
-[assembly: AssemblyProduct("ChessPublisher")]
+[assembly: AssemblyProduct("Chess-Publisher")]
 [assembly: AssemblyCopyright("Copyright © 2026 Kyamran Bilyal")]
-[assembly: AssemblyVersion("1.3.64.0")]
-[assembly: AssemblyFileVersion("1.3.64.0")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyFileVersion("1.5.0.0")]
 
 internal static class Program
 {
@@ -23,7 +23,7 @@ internal static class Program
         if (!File.Exists(script))
         {
             MessageBox.Show("ChessPublisher-WebView.ps1 was not found next to ChessPublisher.exe.",
-                "ChessPublisher", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                "Chess-Publisher", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 2;
         }
 
@@ -55,8 +55,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            MessageBox.Show("ChessPublisher could not start.\n\n" + ex.Message,
-                "ChessPublisher", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Chess-Publisher could not start.\n\n" + ex.Message,
+                "Chess-Publisher", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 4;
         }
     }
