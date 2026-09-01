@@ -22,6 +22,11 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Pin upstream Gacrux 1.9.57 source
         shell: bash
         run: |
@@ -31,16 +36,24 @@ jobs:
           test "$(git -C "$RUNNER_TEMP/TieBreakServer" rev-parse HEAD)" = "14a34a2c2f36509b110e4f25d6247f31fc4bf2f5"
           python -m pip install --disable-pip-version-check -r "$RUNNER_TEMP/TieBreakServer/requirements.txt"
 
-      - name: Run RC26 production-equivalent Gacrux pairing matrix
+      - name: Run compact byte-equivalent model gate
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p test-results
           python tests/linux-gacrux/rc26_compact_gate.py \
             --gacrux "$RUNNER_TEMP/TieBreakServer" \
-            --report test-results/rc26-linux-gacrux-report.json
+            --report test-results/rc26-linux-gacrux-compact.json
 
-      - name: Upload gate report
+      - name: Run pinned RC26 production JavaScript serializer gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tests/linux-gacrux/rc26_production_gate.py \
+            --gacrux "$RUNNER_TEMP/TieBreakServer" \
+            --report test-results/rc26-linux-gacrux-production.json
+
+      - name: Upload gate reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
