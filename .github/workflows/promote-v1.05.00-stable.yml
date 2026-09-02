@@ -1,0 +1,68 @@
+name: Promote v1.05.00 Stable
+
+on:
+  push:
+    branches:
+      - test/rc26-installer-candidate
+    paths:
+      - '.github/workflows/promote-v1.05.00-stable.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout promotion transport
+        uses: actions/checkout@v4
+
+      - name: Download validated transport base
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL 'https://github.com/kbilyal/ChessPublisher/releases/download/v1.04.02/chess-publisher-v1.04.02-2026-08-30.zip' -o base.zip
+          curl -fL 'https://github.com/kbilyal/ChessPublisher/releases/download/v1.04.02/chess-publisher-v1.04.02-2026-08-30.exe' -o base.exe
+
+      - name: Reproduce Windows-validated RC26 bytes and promote filenames
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          python .rc26-final/promote_v10500.py base.zip base.exe .rc26-final out
+          sha256sum out/chess-publisher-v1.05.00-2026-09-02.exe out/chess-publisher-v1.05.00-2026-09-02.zip
+
+      - name: Publish GitHub Release v1.05.00
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v1.05.00 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'v1.05.00 already exists; refusing to replace an existing release.' >&2
+            exit 1
+          fi
+          cat > release-notes.md <<'EOF'
+          Chess-Publisher v1.05.00 Stable
+
+          Promoted byte-for-byte from v1.05.00-RC26 after the Windows install/start runtime gate passed on 2 September 2026.
+
+          - No RC27 and no production-code rebuild.
+          - Legacy/custom x64 Windows installer (not Inno Setup), as Windows-tested by the maintainer.
+          - Gacrux 1.9.57, Swiss Dutch pairing, TRF pairing path, BBP checker, Tie-Break core and Chess-Results core were not modified during promotion.
+
+          SHA-256:
+          - Installer: bf4e5c787c9eab8150a95b47648ab5bf302a2a5f32705bfb022b1d3103dc85bd
+          - Portable ZIP: bb9db32b002a46dbf9a67cfd4cbe416c0c2555923cceff246a37fe55ead0e84c
+          EOF
+          sed -i 's/^          //' release-notes.md
+          gh release create v1.05.00 \
+            out/chess-publisher-v1.05.00-2026-09-02.exe \
+            out/chess-publisher-v1.05.00-2026-09-02.zip \
+            out/chess-publisher-v1.05.00-2026-09-02-SHA256.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target main \
+            --title 'Chess-Publisher v1.05.00' \
+            --notes-file release-notes.md
