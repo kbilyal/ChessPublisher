@@ -1,0 +1,111 @@
+name: RC26 Final Inno Installer Candidate
+
+on:
+  push:
+    branches:
+      - test/rc26-installer-candidate
+    paths:
+      - '.rc26-final/**'
+      - '.github/workflows/rc26-final-installer-candidate.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download stable transport base
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $url='https://github.com/kbilyal/ChessPublisher/releases/download/v1.04.02/chess-publisher-v1.04.02-2026-08-30.zip'
+          Invoke-WebRequest -Uri $url -OutFile base.zip
+          $h=(Get-FileHash base.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($h -ne '316eadb9c2f12ea2021ffbc3852c81614140daf55015e00992cd59974336fa20'){throw "base hash mismatch $h"}
+          New-Item work -ItemType Directory -Force | Out-Null
+          Expand-Archive base.zip work -Force
+
+      - name: Reconstruct and validate exact RC26 tree
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $parts=Get-ChildItem '.rc26-final\part*.b64' | Sort-Object Name
+          if($parts.Count -ne 10){throw "Expected 10 delta parts, got $($parts.Count)"}
+          $b64=($parts | ForEach-Object { (Get-Content $_.FullName -Raw).Trim() }) -join ''
+          [IO.File]::WriteAllBytes("$PWD\delta.tar.xz",[Convert]::FromBase64String($b64))
+          $dh=(Get-FileHash delta.tar.xz -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($dh -ne '380afc02ac9de75000d74ef3ee37a707f6d7cf74e2f5dba6cbe9b3339b653a24'){throw "delta hash mismatch $dh"}
+          New-Item delta -ItemType Directory -Force | Out-Null
+          tar.exe -xJf delta.tar.xz -C delta
+          if($LASTEXITCODE -ne 0){throw "delta extraction failed: $LASTEXITCODE"}
+          python delta\apply_delta.py delta work
+          if($LASTEXITCODE -ne 0){throw "exact RC26 reconstruction failed: $LASTEXITCODE"}
+
+      - name: Validate protected RC26 payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $checks=@{
+            'ChessPublisher.html'='9099d8c08c06e77117cce98d8160942af57b467f0994d6c7c3ff7f902c274098'
+            'ChessPublisher.exe'='1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3'
+            'engine\gacrux\pairingchecker.exe'='6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb'
+          }
+          foreach($rel in $checks.Keys){
+            $p=Join-Path "$PWD\work" $rel
+            if(-not(Test-Path $p)){throw "missing protected file $rel"}
+            $h=(Get-FileHash $p -Algorithm SHA256).Hash.ToLowerInvariant()
+            if($h -ne $checks[$rel]){throw "protected hash mismatch $rel : $h"}
+          }
+          Write-Host 'PASS protected RC26 payload hashes'
+
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          choco install innosetup -y --no-progress
+          if($LASTEXITCODE -ne 0){throw "Inno Setup installation failed: $LASTEXITCODE"}
+
+      - name: Build and verify RC26 Inno installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $iscc=@(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+          if(-not $iscc){throw 'ISCC.exe not found'}
+          $root=(Resolve-Path work).Path
+          $out="$PWD\OUTPUT"
+          New-Item $out -ItemType Directory -Force | Out-Null
+          $iss=Join-Path $root 'RELEASE-PACKAGING\ChessPublisher.iss'
+          $icon=Join-Path $root 'ChessPublisher.ico'
+          & $iscc "/DMyVersion=1.05.00-RC26" "/DMyDate=2026-09-01" "/DMyNumericVersion=1.5.0.26" "/DSourceDir=$root" "/DOutputDir=$out" "/DReleaseIcon=$icon" $iss
+          if($LASTEXITCODE -ne 0){throw "ISCC failed: $LASTEXITCODE"}
+          $installer=Join-Path $out 'Chess-Publisher-v1.05.00-RC26-2026-09-01.exe'
+          if(-not(Test-Path $installer)){
+            $installer=(Get-ChildItem $out -Filter '*.exe' | Select-Object -First 1).FullName
+          }
+          if(-not $installer -or -not(Test-Path $installer)){throw 'Installer not produced'}
+          & (Join-Path $root 'RELEASE-PACKAGING\VERIFY-EMBEDDED-ICON.ps1') -Path $installer
+          $sha=(Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          $name=[IO.Path]::GetFileName($installer)
+          "$sha  $name" | Set-Content "$out\Chess-Publisher-v1.05.00-RC26-2026-09-01-SHA256.txt" -Encoding ascii
+          @"
+Source: Chess-Publisher-v1.05.00-RC26-2026-09-01.zip
+Source SHA256: bb9db32b002a46dbf9a67cfd4cbe416c0c2555923cceff246a37fe55ead0e84c
+Exact reconstructed tree: 113/113 files validated by manifest
+Installer: $name
+Installer SHA256: $sha
+"@ | Set-Content "$out\RC26-INSTALLER-CANDIDATE.txt" -Encoding ascii
+          Write-Host "INSTALLER_SHA256=$sha"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Chess-Publisher-v1.05.00-RC26-Inno-Installer-Candidate
+          path: |
+            OUTPUT/*.exe
+            OUTPUT/*SHA256.txt
+            OUTPUT/RC26-INSTALLER-CANDIDATE.txt
+          if-no-files-found: error
