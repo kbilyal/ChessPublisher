@@ -1,15 +1,12 @@
 name: Build and publish release
 
+# Stable desktop releases are promoted only from an explicitly validated candidate.
+# Updating VERSION on main must never rebuild/clobber an already approved release.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - VERSION
   workflow_dispatch:
     inputs:
       version:
-        description: 'Stable version to release (for example 1.04.01). Leave empty to use VERSION.'
+        description: 'Stable version to release (for example 1.05.01). Leave empty to use VERSION.'
         required: false
         type: string
 
@@ -39,7 +36,7 @@ jobs:
             $requested = (Get-Content -LiteralPath VERSION -Raw).Trim().TrimStart('v')
           }
           if ($requested -notmatch '^\d+\.\d+\.\d+$') {
-            throw "Invalid release version '$requested'. Expected a value such as 1.04.01."
+            throw "Invalid release version '$requested'. Expected a value such as 1.05.01."
           }
           $repoVersion = (Get-Content -LiteralPath VERSION -Raw).Trim().TrimStart('v')
           if ($repoVersion -ne $requested) {
@@ -48,6 +45,16 @@ jobs:
           "RELEASE_VERSION=$requested" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "RELEASE_TAG=v$requested" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "RELEASE_DATE=$((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Refuse to overwrite an existing stable release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Release $env:RELEASE_TAG already exists. Stable assets are immutable; use a new version."
+          }
 
       - name: Ensure Inno Setup 6 is available
         shell: pwsh
@@ -82,23 +89,6 @@ jobs:
           if ($assets.Count -lt 3) {
             throw 'Expected installer, portable ZIP and checksum file in dist/.'
           }
-
-          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:RELEASE_TAG @assets --clobber --repo $env:GITHUB_REPOSITORY
-            if ($LASTEXITCODE -ne 0) { throw 'Failed to update release assets.' }
-            gh release edit $env:RELEASE_TAG --title "Chess-Publisher $env:RELEASE_TAG" --latest --repo $env:GITHUB_REPOSITORY
-            if ($LASTEXITCODE -ne 0) { throw 'Failed to mark the release as latest.' }
-          } else {
-            $args = @(
-              'release', 'create', $env:RELEASE_TAG
-            ) + $assets + @(
-              '--title', "Chess-Publisher $env:RELEASE_TAG",
-              '--generate-notes',
-              '--latest',
-              '--target', $env:GITHUB_SHA,
-              '--repo', $env:GITHUB_REPOSITORY
-            )
-            & gh @args
-            if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }
-          }
+          $args = @('release','create',$env:RELEASE_TAG) + $assets + @('--title',"Chess-Publisher $env:RELEASE_TAG",'--generate-notes','--latest','--target',$env:GITHUB_SHA,'--repo',$env:GITHUB_REPOSITORY)
+          & gh @args
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }
