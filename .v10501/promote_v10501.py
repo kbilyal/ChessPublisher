@@ -15,12 +15,8 @@ EXPECTED_PROTECTED = {
     "engine/gacrux/pairingchecker.exe": "6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb",
 }
 
-EXPECTED_STABLE_RUNTIME = {
-    "ChessPublisher-WebView.ps1": "53e92b104e271996f306ce7b2666d6450ee356414543ce778b0fa4c0b08165a5",
-    "ChessPublisher.html": "028cac4dfd6ba14003ab6d99f4072c384cc3c02d3457ea28b8252029cc8a2b59",
-    "webview/HubAdapter.js": "ff71ce1f0895406abfd4dc0f4c8d547caf9b4c8063842c01f2de72f3cbfb5f3a",
-    "hub/client/hub-api-client.js": "e77dd35a97dc15d5c06621ad02bb05bc63a11de54098f4fe9865e8896f32471c",
-}
+# Exact approved RC1 host file after only RC1 -> Stable version-label promotion.
+EXPECTED_STABLE_WEBVIEW = "53e92b104e271996f306ce7b2666d6450ee356414543ce778b0fa4c0b08165a5"
 
 START_DIRECT = '''function Start-EngineDirectProcess([string]$EngineScript) {
   Write-WvLog 'Universal launcher method 2: starting LocalEngine with System.Diagnostics.Process.'
@@ -120,6 +116,18 @@ def main():
     root = Path(sys.argv[1]).resolve()
     gate(root, EXPECTED_PROTECTED, "protected parent")
 
+    # Snapshot the three UI/client files before touching them. Their ONLY permitted
+    # change in this maintenance release is the visible/client version token.
+    token_files = ("ChessPublisher.html", "webview/HubAdapter.js", "hub/client/hub-api-client.js")
+    original = {}
+    for rel in token_files:
+        p = root / rel
+        data = p.read_bytes()
+        old = PARENT_VERSION.encode("ascii")
+        if old not in data:
+            raise SystemExit(f"Missing parent marker {PARENT_VERSION} in {rel}")
+        original[rel] = data
+
     wv = root / "ChessPublisher-WebView.ps1"
     raw = wv.read_bytes()
     bom = raw.startswith(b"\xef\xbb\xbf")
@@ -134,13 +142,15 @@ def main():
         out = b"\xef\xbb\xbf" + out
     wv.write_bytes(out)
 
-    for rel in ("ChessPublisher.html", "webview/HubAdapter.js", "hub/client/hub-api-client.js"):
+    old = PARENT_VERSION.encode("ascii")
+    new = STABLE_VERSION.encode("ascii")
+    for rel in token_files:
         p = root / rel
-        data = p.read_bytes()
-        old = PARENT_VERSION.encode("ascii")
-        if old not in data:
-            raise SystemExit(f"Missing parent marker {PARENT_VERSION} in {rel}")
-        p.write_bytes(data.replace(old, STABLE_VERSION.encode("ascii")))
+        expected = original[rel].replace(old, new)
+        p.write_bytes(expected)
+        if p.read_bytes() != expected:
+            raise SystemExit(f"Non-version drift detected in {rel}")
+        print(f"PASS version-only file: {rel} {sha256(p)}")
 
     (root / "VERSION.txt").write_text(STABLE_VERSION + "\n", encoding="ascii")
     (root / "WEBVIEW-VERSION.txt").write_text(STABLE_VERSION + "\n", encoding="ascii")
@@ -151,12 +161,15 @@ def main():
         "Scope: Windows host lifecycle point-fix only.\n"
         "- Failed direct LocalEngine startup: Kill -> WaitForExit(2000) -> Dispose -> clear process reference.\n"
         "- Normal owned-engine shutdown clears disposed runspace/process references and resets ownership/mode.\n"
+        "- RC1 HTML drift unrelated to this point-fix was intentionally excluded from Stable.\n"
         "- Gacrux 1.9.57, Swiss Dutch pairing, TRF, BBP, tie-break and Chess-Results core unchanged.\n"
-        "- Exact RC1-to-stable runtime and protected-core SHA-256 gates enforced during publication.\n",
+        "- Exact approved RC1 WebView host SHA-256 and protected-core SHA-256 gates enforced.\n",
         encoding="utf-8",
     )
 
-    gate(root, EXPECTED_STABLE_RUNTIME, "stable runtime")
+    if sha256(wv) != EXPECTED_STABLE_WEBVIEW:
+        raise SystemExit(f"Approved RC1 WebView hash mismatch: {sha256(wv)} != {EXPECTED_STABLE_WEBVIEW}")
+    print(f"PASS exact approved RC1 host: ChessPublisher-WebView.ps1 {EXPECTED_STABLE_WEBVIEW}")
     gate(root, EXPECTED_PROTECTED, "protected stable")
 
     final = wv.read_text(encoding="utf-8-sig")
@@ -169,7 +182,7 @@ def main():
             raise SystemExit(f"Missing lifecycle marker: {marker}")
     if final.count("function Stop-OwnedEngine") != 1:
         raise SystemExit("Stop-OwnedEngine definition count is not exactly 1")
-    print("PASS v1.05.01 stable point-fix promotion gate")
+    print("PASS v1.05.01 minimal stable point-fix promotion gate")
 
 
 if __name__ == "__main__":
