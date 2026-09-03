@@ -2,199 +2,85 @@ name: Promote v1.05.01 Stable
 
 on:
   push:
-    branches:
-      - test/rc26-installer-candidate
-    paths:
-      - '.github/workflows/promote-v1.05.01-stable.yml'
+    branches: [test/rc26-installer-candidate]
+    paths: ['.github/workflows/promote-v1.05.01-stable.yml']
   workflow_dispatch:
 
 permissions:
   contents: write
-
-concurrency:
-  group: promote-v1.05.01-stable
-  cancel-in-progress: false
 
 jobs:
   promote:
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
-      - name: Checkout guarded promotion transport
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Download exact v1.05.00 stable portable base
+      - name: Download parent and apply exact RC1 point-fix
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          $url = 'https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.00/chess-publisher-v1.05.00-2026-09-02.zip'
-          Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile base-v1.05.00.zip
-          $hash = (Get-FileHash base-v1.05.00.zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne 'bb9db32b002a46dbf9a67cfd4cbe416c0c2555923cceff246a37fe55ead0e84c') {
-            throw "v1.05.00 parent ZIP hash mismatch: $hash"
-          }
-          Write-Host "PASS parent v1.05.00 ZIP: $hash"
+          $ErrorActionPreference='Stop'
+          Invoke-WebRequest -UseBasicParsing 'https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.00/chess-publisher-v1.05.00-2026-09-02.zip' -OutFile base.zip
+          $h=(Get-FileHash base.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($h -ne 'bb9db32b002a46dbf9a67cfd4cbe416c0c2555923cceff246a37fe55ead0e84c'){throw "Parent hash mismatch: $h"}
+          New-Item -ItemType Directory base -Force | Out-Null
+          Expand-Archive base.zip base -Force
+          $dirs=@(Get-ChildItem base -Directory)
+          if($dirs.Count -ne 1){throw "Expected one parent root, got $($dirs.Count)"}
+          $root=$dirs[0].FullName
+          python .v10501/promote_v10501.py "$root"
+          if($LASTEXITCODE -ne 0){throw 'RC1-to-stable gate failed'}
+          $stable=Join-Path (Resolve-Path base).Path 'Chess-Publisher-v1.05.01'
+          if($root -ne $stable){Move-Item $root $stable -Force}
+          "STABLE_ROOT=$stable" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Apply exact RC1 point-fix and stable version labels
+      - name: Build official Inno installer and portable ZIP
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Path base -Force | Out-Null
-          Expand-Archive -LiteralPath base-v1.05.00.zip -DestinationPath base -Force
-          $dirs = @(Get-ChildItem -LiteralPath base -Directory)
-          if ($dirs.Count -ne 1) { throw "Expected one portable root directory; got $($dirs.Count)." }
-          $parentRoot = $dirs[0].FullName
-          python .v10501/promote_v10501.py "$parentRoot"
-          if ($LASTEXITCODE -ne 0) { throw 'v1.05.01 promotion gate failed.' }
-          $stableRoot = Join-Path (Resolve-Path base).Path 'Chess-Publisher-v1.05.01'
-          if ($parentRoot -ne $stableRoot) { Move-Item -LiteralPath $parentRoot -Destination $stableRoot -Force }
-          "STABLE_ROOT=$stableRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $ErrorActionPreference='Stop'
+          $iscc="${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if(-not (Test-Path $iscc)){choco install innosetup --no-progress -y}
+          & "$env:STABLE_ROOT\RELEASE-PACKAGING\BUILD-SEPTEMBER-RELEASE.ps1" -Version '1.05.01' -Date '2026-09-03'
+          if($LASTEXITCODE -ne 0){throw 'Release packaging failed'}
+          New-Item -ItemType Directory out -Force | Out-Null
+          Move-Item "$env:STABLE_ROOT\dist\Chess-Publisher-v1.05.01-2026-09-03.exe" 'out\chess-publisher-v1.05.01-2026-09-03.exe'
+          Move-Item "$env:STABLE_ROOT\dist\Chess-Publisher-v1.05.01-2026-09-03.zip" 'out\chess-publisher-v1.05.01-2026-09-03.zip'
+          $installer='out\chess-publisher-v1.05.01-2026-09-03.exe'
+          $portable='out\chess-publisher-v1.05.01-2026-09-03.zip'
+          @($installer,$portable) | ForEach-Object { $h=(Get-FileHash $_ -Algorithm SHA256).Hash.ToLowerInvariant(); "$h  $([IO.Path]::GetFileName($_))" } | Set-Content 'out\chess-publisher-v1.05.01-2026-09-03-SHA256.txt' -Encoding ASCII
+          Get-Content 'out\chess-publisher-v1.05.01-2026-09-03-SHA256.txt'
 
-      - name: Ensure Inno Setup 6
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path -LiteralPath $iscc)) {
-            choco install innosetup --no-progress -y
-          }
-          if (-not (Test-Path -LiteralPath $iscc)) { throw 'Inno Setup 6 ISCC.exe not found.' }
-
-      - name: Build official installer, portable ZIP and checksums
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $out = Join-Path $PWD 'out'
-          New-Item -ItemType Directory -Path $out -Force | Out-Null
-          $iss = Join-Path $PWD '.v10501\ChessPublisher-v1.05.01.iss'
-          @'
-          #ifndef MyVersion
-            #define MyVersion "1.05.01"
-          #endif
-          #ifndef MyDate
-            #define MyDate "2026-09-03"
-          #endif
-          #ifndef MyNumericVersion
-            #define MyNumericVersion "1.5.1.0"
-          #endif
-          #ifndef SourceDir
-            #define SourceDir "."
-          #endif
-          #ifndef OutputDir
-            #define OutputDir "."
-          #endif
-          #ifndef ReleaseIcon
-            #define ReleaseIcon ".\ChessPublisher.ico"
-          #endif
-
-          [Setup]
-          AppId={{C9DA7940-E999-4CDE-A19E-63BD5A6A23D8}
-          AppName=Chess-Publisher
-          AppVersion={#MyVersion}
-          AppPublisher=Kyamran Bilyal
-          AppPublisherURL=https://github.com/kbilyal/ChessPublisher
-          AppSupportURL=https://github.com/kbilyal/ChessPublisher/issues
-          AppUpdatesURL=https://www.chess-publisher.org/
-          DefaultDirName={localappdata}\Programs\Chess-Publisher
-          DefaultGroupName=Chess-Publisher
-          PrivilegesRequired=lowest
-          ArchitecturesAllowed=x64compatible
-          ArchitecturesInstallIn64BitMode=x64compatible
-          OutputDir={#OutputDir}
-          OutputBaseFilename=chess-publisher-v{#MyVersion}-{#MyDate}
-          SetupIconFile={#ReleaseIcon}
-          UninstallDisplayIcon={app}\ChessPublisher.exe
-          Compression=lzma2
-          SolidCompression=yes
-          WizardStyle=modern
-          DisableProgramGroupPage=yes
-          VersionInfoVersion={#MyNumericVersion}
-          VersionInfoCompany=Kyamran Bilyal
-          VersionInfoDescription=Chess-Publisher Setup
-          VersionInfoProductName=Chess-Publisher
-          VersionInfoProductVersion={#MyVersion}
-          LicenseFile={#SourceDir}\LICENSE.txt
-
-          [Tasks]
-          Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
-
-          [Files]
-          Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "RELEASE-PACKAGING\*,HISTORY\*,Uninstall ChessPublisher.exe,PACKAGE-FILE-SHA256.txt,RC*-TEST-REPORT.txt,SEPTEMBER-RELEASE-GATE.txt,RELEASE-GATE-REPORT.txt"
-
-          [Icons]
-          Name: "{autoprograms}\Chess-Publisher"; Filename: "{app}\ChessPublisher.exe"; WorkingDir: "{app}"
-          Name: "{autodesktop}\Chess-Publisher"; Filename: "{app}\ChessPublisher.exe"; WorkingDir: "{app}"; Tasks: desktopicon
-
-          [Dirs]
-          Name: "{userdocs}\ChessPublisher Tournaments"
-
-          [Run]
-          Filename: "{app}\ChessPublisher.exe"; Description: "Launch Chess-Publisher"; Flags: nowait postinstall skipifsilent
-          '@ | Set-Content -LiteralPath $iss -Encoding UTF8
-
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          & $iscc "/DMyVersion=1.05.01" "/DMyDate=2026-09-03" "/DMyNumericVersion=1.5.1.0" "/DSourceDir=$env:STABLE_ROOT" "/DOutputDir=$out" "/DReleaseIcon=$env:STABLE_ROOT\ChessPublisher.ico" $iss
-          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed: $LASTEXITCODE" }
-
-          $portable = Join-Path $out 'chess-publisher-v1.05.01-2026-09-03.zip'
-          Compress-Archive -LiteralPath $env:STABLE_ROOT -DestinationPath $portable -CompressionLevel Optimal -Force
-          $installer = Join-Path $out 'chess-publisher-v1.05.01-2026-09-03.exe'
-          if (-not (Test-Path -LiteralPath $installer)) { throw 'Installer was not produced.' }
-
-          $checksums = Join-Path $out 'chess-publisher-v1.05.01-2026-09-03-SHA256.txt'
-          @($installer, $portable) | ForEach-Object {
-            $h = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$h  $([IO.Path]::GetFileName($_))"
-          } | Set-Content -LiteralPath $checksums -Encoding ASCII
-
-          Write-Host 'Release artifacts:'
-          Get-ChildItem -LiteralPath $out -File | ForEach-Object {
-            Write-Host (" - {0} ({1:N0} bytes)" -f $_.Name, $_.Length)
-          }
-          Get-Content -LiteralPath $checksums
-
-      - name: Preserve official release artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: Chess-Publisher-v1.05.01-Stable
           path: out/*
-          if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub Release v1.05.01
+      - name: Publish v1.05.01 as latest stable
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $ErrorActionPreference = 'Stop'
+          $ErrorActionPreference='Stop'
           gh release view v1.05.01 --repo $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -eq 0) { throw 'v1.05.01 already exists; refusing to replace it.' }
-
+          if($LASTEXITCODE -eq 0){throw 'v1.05.01 already exists; refusing replacement'}
           @'
           Chess-Publisher v1.05.01 Stable
 
-          Stable maintenance release promoted from v1.05.01-RC1 with the maintainer's release approval on 3 September 2026.
+          Maintenance release promoted from v1.05.01-RC1 on 3 September 2026.
 
           Fix:
-          - Windows host lifecycle cleanup for the LocalEngine child process.
-          - Failed direct startup now waits for process exit, disposes the Process object and clears the stored reference.
-          - Normal owned-engine shutdown now clears disposed runspace/process references and resets ownership/mode state.
+          - Correct LocalEngine child-process cleanup after failed direct startup.
+          - Dispose and clear owned process/runspace references during normal shutdown.
 
           Protected and unchanged:
-          - ChessPublisher.exe launcher bytes
-          - ChessPublisher-LocalEngine.ps1 service logic
+          - ChessPublisher.exe launcher bytes and LocalEngine service logic
           - Gacrux 1.9.57 / Swiss Dutch pairing
-          - TRF pairing and history paths
-          - BBP checker
-          - Tie-Break core
+          - TRF pairing/history paths, BBP checker and Tie-Break core
           - Chess-Results core
 
-          Release gate:
-          - Exact RC1-to-stable runtime SHA-256 hashes verified during publication.
-          - Protected core SHA-256 hashes verified before and after the point-fix patch.
-          - No unrelated production-code changes.
-          '@ | Set-Content -LiteralPath release-notes-v1.05.01.md -Encoding UTF8
-
-          $assets = @(Get-ChildItem -LiteralPath out -File | ForEach-Object { $_.FullName })
-          & gh release create v1.05.01 @assets --repo $env:GITHUB_REPOSITORY --target main --title 'Chess-Publisher v1.05.01' --notes-file release-notes-v1.05.01.md --latest
-          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release v1.05.01 creation failed.' }
+          Publication verifies the exact RC1-to-stable runtime hashes and protected-core SHA-256 hashes. No unrelated production-code changes are included.
+          '@ | Set-Content notes.md -Encoding UTF8
+          $assets=@(Get-ChildItem out -File | ForEach-Object {$_.FullName})
+          & gh release create v1.05.01 @assets --repo $env:GITHUB_REPOSITORY --target main --title 'Chess-Publisher v1.05.01' --notes-file notes.md --latest
+          if($LASTEXITCODE -ne 0){throw 'GitHub release creation failed'}
