@@ -8,16 +8,22 @@
   "installer": {
     "name": "chess-publisher-v1.05.01-2026-09-03.exe",
     "sha256": "2b6db9069f6a2ba0dcda37c7d855b893ed2fe01ea61323878a22437a73b6663d",
-    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.01/chess-publisher-v1.05.01-2026-09-03.exe"
+    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.01/chess-publisher-v1.05.01-2026-09-03.exe",
+    "drive_file_id": "1j7G0Ku1Md74UYAAYhe3WclQ4-TY2r2N9",
+    "drive_url": "https://drive.google.com/file/d/1j7G0Ku1Md74UYAAYhe3WclQ4-TY2r2N9/view?usp=drivesdk"
   },
   "portable": {
     "name": "chess-publisher-v1.05.01-2026-09-03.zip",
     "sha256": "34d89888d52eca1e4dc3b114701ce5ca4a417f84f186dff66467f875605ea44e",
-    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.01/chess-publisher-v1.05.01-2026-09-03.zip"
+    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.01/chess-publisher-v1.05.01-2026-09-03.zip",
+    "drive_file_id": "1F6Dt-jTh3whvf99WkNN1o-Q7FspVV2aU",
+    "drive_url": "https://drive.google.com/file/d/1F6Dt-jTh3whvf99WkNN1o-Q7FspVV2aU/view?usp=drivesdk"
   },
   "checksums": {
     "name": "chess-publisher-v1.05.01-2026-09-03-SHA256.txt",
     "sha256": "4915c8dc1df21ab7d1f70350af18f4bf125f3cca87722f169cb32f561622207e",
-    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.01/chess-publisher-v1.05.01-2026-09-03-SHA256.txt"
+    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.01/chess-publisher-v1.05.01-2026-09-03-SHA256.txt",
+    "drive_file_id": "1NhZNYc-pGnbZnJSfkRBpED9MwDnOsk43",
+    "drive_url": "https://drive.google.com/file/d/1NhZNYc-pGnbZnJSfkRBpED9MwDnOsk43/view?usp=drivesdk"
   }
 }
