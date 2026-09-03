@@ -1,4 +1,5 @@
 name: Promote v1.05.01 Stable
+# Minimal maintenance promotion: exact v1.05.00 parent + approved RC1 host fix only.
 
 on:
   push:
@@ -79,7 +80,7 @@ jobs:
           - TRF pairing/history paths, BBP checker and Tie-Break core
           - Chess-Results core
 
-          Publication verifies the exact RC1-to-stable runtime hashes and protected-core SHA-256 hashes. No unrelated production-code changes are included.
+          Publication uses the exact v1.05.00 Stable parent and the exact approved RC1 WebView host fix. UI/client files receive version-token changes only; unrelated RC1 HTML drift is deliberately excluded.
           '@ | Set-Content notes.md -Encoding UTF8
           $assets=@(Get-ChildItem out -File | ForEach-Object {$_.FullName})
           & gh release create v1.05.01 @assets --repo $env:GITHUB_REPOSITORY --target main --title 'Chess-Publisher v1.05.01' --notes-file notes.md --latest
