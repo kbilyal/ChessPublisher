@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """Non-destructive real-machine acceptance checks for Chess-Publisher Linux.
 
-Default scope is the live Chess-Results Worker connection test using the
-Organizer Token already stored by Chess-Publisher. It never creates, publishes,
-deletes or unlinks a tournament. A physical DGT BOARD_DUMP check is optional.
+Default scope is the live Chess-Results Worker connection test. The Organizer
+Token is read either from CP_ORGANIZER_TOKEN for an ephemeral one-process test,
+or from the installation-local Chess-Publisher secret store. The environment
+value takes precedence and is never persisted by this command. The command
+never creates, publishes, deletes or unlinks a tournament. A physical DGT
+BOARD_DUMP check is optional.
 """
 from __future__ import annotations
-import argparse,json,os,platform,sys
+import argparse,json,os,platform
 from pathlib import Path
 from typing import Any,Callable
 
 from chess_publisher_linux import LinuxEngine
-from chess_results_runtime import ChessResultsRuntime,ChessResultsRuntimeError
+from chess_results_runtime import ChessResultsRuntime,ChessResultsRuntimeError,ORGANIZER_SECRET_KEY
 from dgt_runtime import DgtLinuxRuntime,DgtError
 from build_info import APP_BUILD,ENGINE_VERSION
 
@@ -20,12 +23,22 @@ def default_data_home()->Path:
     return Path(os.environ.get('CP_DATA_HOME','~/.local/share/chess-publisher')).expanduser().resolve()
 
 
+def _token_provider(engine:LinuxEngine)->tuple[Callable[[],dict[str,str]],str]:
+    ephemeral=str(os.environ.get('CP_ORGANIZER_TOKEN') or '').strip()
+    if ephemeral:
+        # Return a fresh in-memory dict on every read. Do not call secret_op() or
+        # write secrets.json when the acceptance token came from the process.
+        return (lambda:{ORGANIZER_SECRET_KEY:ephemeral}),'environment'
+    return engine.load_secrets,'installation-secret-store'
+
+
 def chess_results_live_test(package_root:Path,data_home:Path,transport:Callable[[str,dict[str,Any],str],dict[str,Any]]|None=None)->dict[str,Any]:
     engine=LinuxEngine(package_root,data_home)
-    runtime=ChessResultsRuntime(engine.load_secrets,engine.settings_root/'chess-results-ownership.json',transport=transport)
+    secrets_provider,token_source=_token_provider(engine)
+    runtime=ChessResultsRuntime(secrets_provider,engine.settings_root/'chess-results-ownership.json',transport=transport)
     status=runtime.status()
     if not status.get('organizerTokenConnected'):
-        raise ChessResultsRuntimeError('Organizer Token is not connected in this Chess-Publisher installation.')
+        raise ChessResultsRuntimeError('Organizer Token is not connected. Set CP_ORGANIZER_TOKEN for an ephemeral test or connect it in Online & Cloud.')
     result=runtime.request('test',{})
     # Never include token, request headers, AES material or other secret values in
     # diagnostics. The Worker owns bridge crypto; Linux only reports safe status.
@@ -35,6 +48,8 @@ def chess_results_live_test(package_root:Path,data_home:Path,transport:Callable[
         'sourceId':21,
         'transport':'secure-worker',
         'localBridgeCrypto':False,
+        'tokenSource':token_source,
+        'tokenPersistedByTest':False,
     }
 
 
