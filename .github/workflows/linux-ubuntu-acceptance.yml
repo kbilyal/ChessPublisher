@@ -1,0 +1,40 @@
+name: Linux Ubuntu Acceptance
+
+on:
+  push:
+    branches:
+      - linux-ubuntu-port
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-pairing-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install protected runtime dependency
+        run: python -m pip install --disable-pip-version-check 'networkx>=2.6'
+
+      - name: Syntax check acceptance harness
+        run: python -m py_compile linux-port/ci/real_acceptance.py
+
+      - name: Run real Gacrux and BBP TRF acceptance
+        run: python linux-port/ci/real_acceptance.py
+
+      - name: Upload acceptance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-real-acceptance-report
+          path: linux-port/tests/logs/real-linux-acceptance.json
+          if-no-files-found: warn
