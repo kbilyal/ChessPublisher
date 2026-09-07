@@ -17,6 +17,14 @@ def sha256(path:Path)->str:
         for chunk in iter(lambda:f.read(1024*1024),b''):h.update(chunk)
     return h.hexdigest()
 
+def runtime_manifest(linux_root:Path)->dict[str,dict[str,object]]:
+    rows={}
+    for p in sorted(linux_root.rglob('*')):
+        if not p.is_file() or '__pycache__' in p.parts or p.suffix in {'.pyc','.pyo'}:continue
+        rel=p.relative_to(linux_root).as_posix()
+        rows[rel]={'size':p.stat().st_size,'sha256':sha256(p)}
+    return rows
+
 def main()->int:
     ap=argparse.ArgumentParser()
     ap.add_argument('--source',type=Path,required=True,help='Exact current Chess-Publisher source directory')
@@ -30,6 +38,9 @@ def main()->int:
         shutil.copytree(HERE/'linux',root/'linux',ignore=COPY_IGNORE)
         shutil.copytree(args.source,root/'source',ignore=COPY_IGNORE)
         shutil.copy2(manifest,root/'source_manifest.json')
+        for name in ('run-chess-publisher.sh','run-self-test.sh'):
+            p=root/'linux'/name
+            if p.is_file():p.chmod(0o755)
         (root/'requirements.txt').write_text('networkx==3.6.1\n',encoding='utf-8')
         (root/'README-LINUX.txt').write_text(
             'Chess-Publisher Linux development bundle\n'
@@ -37,13 +48,15 @@ def main()->int:
             f"Base release: {verified['baseRelease']}\n\n"
             'Install dependency: python3 -m pip install -r requirements.txt\n'
             'Run: ./linux/run-chess-publisher.sh\n'
+            'Offline self-test: ./linux/run-self-test.sh\n'
+            'Pinned engine download test: ./linux/run-self-test.sh --online-engines\n'
+            'Real DGT BOARD_DUMP test: ./linux/run-self-test.sh --dgt-connect\n'
             'DGT USB users may need membership in the dialout group.\n',encoding='utf-8')
-        build={'schema':1,'source':verified,'runtimeFiles':{},'bytecodeIncluded':False}
-        for p in sorted((root/'linux').glob('*')):
-            if p.is_file():build['runtimeFiles'][p.name]={'size':p.stat().st_size,'sha256':sha256(p)}
+        runtime=runtime_manifest(root/'linux')
+        build={'schema':2,'source':verified,'runtimeFiles':runtime,'selfTestCommand':'./linux/run-self-test.sh','bytecodeIncluded':False}
         (root/'BUILD-MANIFEST.json').write_text(json.dumps(build,indent=2,sort_keys=True)+'\n',encoding='utf-8')
         with tarfile.open(args.output,'w:gz',format=tarfile.PAX_FORMAT) as tf:
             tf.add(root,arcname=root.name,recursive=True)
-    print(json.dumps({'ok':True,'output':str(args.output),'sha256':sha256(args.output),'sourceSnapshot':verified['snapshotId'],'bytecodeIncluded':False},indent=2))
+    print(json.dumps({'ok':True,'output':str(args.output),'sha256':sha256(args.output),'sourceSnapshot':verified['snapshotId'],'runtimeFiles':len(runtime),'selfTestCommand':'./linux/run-self-test.sh','bytecodeIncluded':False},indent=2))
     return 0
 if __name__=='__main__':raise SystemExit(main())
