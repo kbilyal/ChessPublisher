@@ -41,8 +41,6 @@ def main()->int:
             online_names={row.get('name'):row for row in online_result.get('tests',[])}
             detail=online_names.get('online-engines',{}).get('detail',{})
             if online_names.get('online-engines',{}).get('status')!='PASS' or detail.get('gacrux')!='1.9.57' or detail.get('bbp')!='6.0.0':raise RuntimeError('installed package did not prepare pinned Gacrux/BBP engines')
-            # Live command must exist after install and block safely before network
-            # when this synthetic installation has no Organizer Token.
             live=subprocess.run(['/usr/bin/chess-publisher-live-test','--data-home',str(td/'live-empty'),'--json'],text=True,capture_output=True,timeout=15,check=False,env=env)
             if live.returncode!=2:raise RuntimeError(f'installed live-test did not fail closed without token rc={live.returncode}')
             live_result=json.loads(live.stdout);live_row=live_result.get('tests',[{}])[0]
@@ -59,7 +57,7 @@ def main()->int:
             if not isinstance(health,dict) or health.get('ok') is not True:
                 stdout,stderr=proc.communicate(timeout=2) if proc.poll() is not None else ('','')
                 raise RuntimeError(f'installed LocalEngine health failed stdout={stdout[-1000:]} stderr={stderr[-1000:]}')
-            if health.get('appBuild')!='1.06.00-beta.34-linux-dev.4' or health.get('engineVersion')!='0.4.1-linux-dev':raise RuntimeError(f'installed build identity mismatch: {health}')
+            if health.get('appBuild')!='1.06.00-beta.34-linux-dev.5' or health.get('engineVersion')!='0.5.0-linux-dev':raise RuntimeError(f'installed build identity mismatch: {health}')
             print(json.dumps({'installed':True,'selfTestPassed':True,'httpDeliverySelfTest':True,'onlineEnginesPassed':True,'liveTestFailClosed':True,'health':health},indent=2))
         finally:
             if proc is not None and proc.poll() is None:
