@@ -9,7 +9,7 @@ sys.path.insert(0,str(ROOT/'linux'))
 from source_guard import verify_source
 
 PACKAGE='chess-publisher'
-DEB_VERSION='1.06.00~beta34+linuxdev2'
+DEB_VERSION='1.06.00~beta34+linuxdev3'
 COPY_IGNORE=shutil.ignore_patterns('__pycache__','*.pyc','*.pyo')
 
 def sha(path:Path)->str:
@@ -21,6 +21,14 @@ def sha(path:Path)->str:
 def write(path:Path,text:str,mode:int=0o644)->None:
     path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text,encoding='utf-8');path.chmod(mode)
 
+def runtime_manifest(linux_root:Path)->dict[str,dict[str,object]]:
+    rows={}
+    for p in sorted(linux_root.rglob('*')):
+        if not p.is_file() or '__pycache__' in p.parts or p.suffix in {'.pyc','.pyo'}:continue
+        rel=p.relative_to(linux_root).as_posix()
+        rows[rel]={'size':p.stat().st_size,'sha256':sha(p)}
+    return rows
+
 def main()->int:
     ap=argparse.ArgumentParser();ap.add_argument('--source',type=Path,required=True);ap.add_argument('--output-dir',type=Path,required=True);args=ap.parse_args()
     verified=verify_source(args.source,ROOT/'source_manifest.json')
@@ -30,13 +38,15 @@ def main()->int:
         pkg=Path(td)/PACKAGE;opt=pkg/'opt/chess-publisher'
         shutil.copytree(ROOT/'linux',opt/'linux',ignore=COPY_IGNORE);shutil.copytree(args.source,opt/'source',ignore=COPY_IGNORE);shutil.copy2(ROOT/'source_manifest.json',opt/'source_manifest.json')
         write(opt/'requirements.txt','networkx>=2.6\n')
-        write(pkg/'DEBIAN/control',f'''Package: {PACKAGE}\nVersion: {DEB_VERSION}\nSection: games\nPriority: optional\nArchitecture: amd64\nDepends: python3 (>= 3.10), python3-networkx, xdg-utils\nMaintainer: Chess-Publisher Project\nDescription: Chess-Publisher tournament manager Linux development build\n Linux-native LocalEngine package with verified protected UI source.\n''')
+        write(pkg/'DEBIAN/control',f'''Package: {PACKAGE}\nVersion: {DEB_VERSION}\nSection: games\nPriority: optional\nArchitecture: amd64\nDepends: python3 (>= 3.10), python3-networkx, xdg-utils\nMaintainer: Chess-Publisher Project\nDescription: Chess-Publisher tournament manager Linux development build\n Linux-native LocalEngine package with verified protected UI source and on-machine self-test.\n''')
         # Use Debian's system Python explicitly: package dependencies are installed
         # for /usr/bin/python3 and must not be bypassed by Conda/pyenv/PATH shims.
         write(pkg/'usr/bin/chess-publisher','''#!/bin/sh\nset -eu\nexec /usr/bin/python3 /opt/chess-publisher/linux/chess_publisher_linux_entry.py "$@"\n''',0o755)
+        write(pkg/'usr/bin/chess-publisher-self-test','''#!/bin/sh\nset -eu\nexec /usr/bin/python3 /opt/chess-publisher/linux/self_test.py --package-root /opt/chess-publisher "$@"\n''',0o755)
         write(pkg/'usr/share/applications/chess-publisher.desktop','''[Desktop Entry]\nType=Application\nName=Chess-Publisher\nComment=Chess tournament manager and publisher\nExec=chess-publisher\nTerminal=false\nCategories=Game;Utility;\nStartupNotify=true\n''')
-        write(opt/'PACKAGE-MANIFEST.json',json.dumps({'schema':1,'package':PACKAGE,'version':DEB_VERSION,'architecture':'amd64','source':verified,'bytecodeIncluded':False},indent=2,sort_keys=True)+'\n')
+        runtime=runtime_manifest(opt/'linux')
+        write(opt/'PACKAGE-MANIFEST.json',json.dumps({'schema':2,'package':PACKAGE,'version':DEB_VERSION,'architecture':'amd64','source':verified,'runtimeFiles':runtime,'selfTestCommand':'chess-publisher-self-test','bytecodeIncluded':False},indent=2,sort_keys=True)+'\n')
         subprocess.run(['dpkg-deb','--root-owner-group','--build',str(pkg),str(out)],check=True)
-    print(json.dumps({'ok':True,'deb':str(out),'sha256':sha(out),'bytes':out.stat().st_size,'sourceSnapshot':verified['snapshotId'],'bytecodeIncluded':False},indent=2))
+    print(json.dumps({'ok':True,'deb':str(out),'sha256':sha(out),'bytes':out.stat().st_size,'sourceSnapshot':verified['snapshotId'],'runtimeFiles':len(runtime),'selfTestCommand':'chess-publisher-self-test','bytecodeIncluded':False},indent=2))
     return 0
 if __name__=='__main__':raise SystemExit(main())
