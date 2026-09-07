@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Chess-Publisher Linux development entrypoint with platform integrations."""
 from __future__ import annotations
+from pathlib import Path
 import chess_publisher_linux as app
+from source_guard import require_package_source,SourceIdentityError
 from fide_integration import apply as apply_fide
 from chess_results_integration import apply as apply_chess_results
 from dgt_integration import apply as apply_dgt
@@ -11,4 +13,11 @@ apply_chess_results()
 apply_dgt()
 
 if __name__=='__main__':
+    package_root=Path(__file__).resolve().parent.parent
+    try:
+        verified=require_package_source(package_root)
+    except SourceIdentityError as exc:
+        print(f'Chess-Publisher Linux refused to start: {exc}',file=__import__('sys').stderr)
+        raise SystemExit(3)
+    print(f"Verified source snapshot: {verified.get('snapshotId')}")
     raise SystemExit(app.main())
