@@ -12,7 +12,7 @@ function makeEnv(handler){
     const p={closed:false,opener:{},url:'about:blank',location:{href:'about:blank',replace(url){p.url=url;this.href=url;}},close(){this.closed=true;}};
     opened.push(p); return p;
   };
-  const document={documentElement:{dataset:{}},body:{appendChild(){}},createElement(){return {style:{}};}};
+  const document={documentElement:{dataset:{}},body:{appendChild(){}},createElement(){return {style:{}};},querySelector(){return null;},getElementById(){return null;}};
   const window={
     __cpLinuxWebViewShimLoaded:false,
     fetch:async (url,init={})=>{calls.push({url:String(url),init}); return handler(String(url),init,calls);},
@@ -23,6 +23,23 @@ function makeEnv(handler){
   const context={window,document,URL,console:window.console,setTimeout,clearTimeout,encodeURIComponent,JSON,Number,String,Error,Set,Promise};
   vm.createContext(context); vm.runInContext(source,context,{filename:'LinuxWebViewShim.js'});
   return {window,calls,opened};
+}
+
+{
+  const env=makeEnv(async(url)=>{
+    if(url==='/dgt/diagnostics')return {ok:true,status:200,json:async()=>({ok:true,snapshot:{Connected:false,Ports:['/dev/ttyUSB0'],Boards:[],Warnings:[]},diagnostics:{Status:'SerialReady'}})};
+    if(url==='/tournament/pgn')return {ok:true,status:200,json:async()=>({ok:true,folder:'/tmp/T/PGN',path:'/tmp/T/PGN/games.pgn'})};
+    throw new Error('unexpected '+url);
+  });
+  let message=null;env.window.chrome.webview.addEventListener('message',e=>{message=e.data;});
+  env.window.chrome.webview.postMessage({type:'cp:dgt',requestId:'d1',operation:'diagnostics',expectedBoards:2});
+  await sleep(5);
+  assert.equal(env.calls[0].url,'/dgt/diagnostics');
+  assert.equal(message?.type,'cp:dgt-result');assert.equal(message?.ok,true);
+  const pgn=await env.window.cpNativeSaveTournamentPGN({tournamentName:'T',fileName:'games.pgn',text:'*'});
+  assert.equal(pgn.folder,'/tmp/T/PGN');
+  assert.equal(env.calls[1].url,'/tournament/pgn');
+  assert.equal(JSON.parse(env.calls[1].init.body).operation,'write');
 }
 
 {
