@@ -73,6 +73,9 @@ jobs:
       - name: Run real Chromium Linux bridge smoke
         run: python linux-port/ci/chromium_runtime_smoke.py
 
+      - name: Run exact pinned Chess-Publisher UI in Chromium
+        run: python linux-port/ci/chromium_runtime_smoke.py --exact-drive-ui
+
       - name: Run offline FIDE runtime contract
         run: python linux-port/ci/fide_contract_smoke.py
 
