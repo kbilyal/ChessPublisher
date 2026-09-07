@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import hashlib,json,shutil,subprocess,sys,tempfile
+import argparse,hashlib,json,shutil,subprocess,sys,tempfile
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -12,6 +12,7 @@ def sha(path:Path)->str:
     return h.hexdigest()
 
 def main()->int:
+    ap=argparse.ArgumentParser();ap.add_argument('--online-engines',action='store_true');args=ap.parse_args()
     with tempfile.TemporaryDirectory(prefix='cp-selftest-contract-') as td_raw:
         pkg=Path(td_raw)/'package';linux=pkg/'linux';source=pkg/'source'
         shutil.copytree(ROOT/'linux',linux,ignore=shutil.ignore_patterns('__pycache__','*.pyc','*.pyo'))
@@ -23,18 +24,26 @@ def main()->int:
         for p in sorted(linux.rglob('*')):
             if p.is_file() and '__pycache__' not in p.parts and p.suffix not in {'.pyc','.pyo'}:
                 runtime[p.relative_to(linux).as_posix()]={'size':p.stat().st_size,'sha256':sha(p)}
-        (pkg/'PACKAGE-MANIFEST.json').write_text(json.dumps({'schema':2,'runtimeFiles':runtime,'source':source_manifest},indent=2)+'\n',encoding='utf-8')
-        cp=subprocess.run([sys.executable,str(linux/'self_test.py'),'--package-root',str(pkg),'--json'],text=True,capture_output=True,timeout=45,check=False)
+        (pkg/'PACKAGE-MANIFEST.json').write_text(json.dumps({'schema':3,'runtimeFiles':runtime,'source':source_manifest},indent=2)+'\n',encoding='utf-8')
+        cmd=[sys.executable,str(linux/'self_test.py'),'--package-root',str(pkg),'--json']
+        if args.online_engines:cmd.append('--online-engines')
+        cp=subprocess.run(cmd,text=True,capture_output=True,timeout=150 if args.online_engines else 45,check=False,env={**__import__('os').environ,'PYTHONDONTWRITEBYTECODE':'1'})
         if cp.stdout:print(cp.stdout)
         if cp.stderr:print(cp.stderr,file=sys.stderr)
-        if cp.returncode!=0:raise RuntimeError(f'offline self-test failed rc={cp.returncode}')
+        if cp.returncode!=0:raise RuntimeError(f'self-test failed rc={cp.returncode}')
         result=json.loads(cp.stdout)
         if result.get('ok') is not True or result.get('failed')!=0:raise RuntimeError('self-test JSON did not report clean PASS')
         names={row.get('name'):row for row in result.get('tests',[])}
         for required in ('platform','protected-source','runtime-integrity','localengine-filesystem','platform-services'):
             if names.get(required,{}).get('status')!='PASS':raise RuntimeError(f'missing self-test PASS: {required}')
         if names['runtime-integrity'].get('detail',{}).get('verified') is not True:raise RuntimeError('runtime integrity was not verified')
-        print('LINUX_ON_MACHINE_SELF_TEST_CONTRACT=PASS')
+        if args.online_engines:
+            row=names.get('online-engines',{})
+            if row.get('status')!='PASS':raise RuntimeError('online engine self-test did not pass')
+            detail=row.get('detail',{})
+            if detail.get('gacrux')!='1.9.57' or detail.get('bbp')!='6.0.0':raise RuntimeError('online engine versions were not pinned as expected')
+            print('LINUX_ON_MACHINE_SELF_TEST_ONLINE_ENGINES=PASS')
+        else:print('LINUX_ON_MACHINE_SELF_TEST_CONTRACT=PASS')
     return 0
 
 if __name__=='__main__':raise SystemExit(main())
