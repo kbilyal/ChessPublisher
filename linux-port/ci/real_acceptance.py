@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Real Linux acceptance gate for Chess-Publisher protected pairing helpers.
+"""Real Ubuntu pairing equivalence gate for Chess-Publisher.
 
-Runs only on a network-enabled Ubuntu/CI runner. It downloads the exact pinned
-Gacrux 1.9.57 source and bbpPairings 6.0.0 x86_64 Linux release, verifies their
-identity, then checks real Chess-Publisher TRF fixtures with both independent
-engines. It never changes Chess-Publisher pairing/TRF data.
+Uses a real Chess-Publisher pairing-engine TRF fixture and the same protected
+architecture as the desktop application: Gacrux 1.9.57 generates the round,
+bbpPairings 6.0.0 independently generates it, then white/black identities must
+be identical. Nothing in either upstream engine is modified.
 """
 from __future__ import annotations
 
@@ -20,7 +20,11 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURE = ROOT / "tests" / "fixtures" / "chesspublisher-test-tournament-trf26.TXT"
+FIXTURE = ROOT / "tests" / "fixtures" / "pairing-engine-r7.trf"
+ROUND = 7
+ROUNDS = 7
+TOP_COLOR = "b"
+UNPAIRED = [10]
 GACRUX_COMMIT = "14a34a2c2f36509b110e4f25d6247f31fc4bf2f5"
 GACRUX_VERSION = "1.9.57"
 GACRUX_DATE = "2026-07-21"
@@ -36,7 +40,7 @@ def sha256(data: bytes) -> str:
 
 
 def download(url: str, max_bytes: int = 16 * 1024 * 1024) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "Chess-Publisher-Linux-Acceptance/1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Chess-Publisher-Linux-Acceptance/2"})
     with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
         data = r.read(max_bytes + 1)
     if len(data) > max_bytes:
@@ -82,98 +86,148 @@ def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[
     print("$", " ".join(cmd))
     cp = subprocess.run(cmd, cwd=cwd, text=True, capture_output=True, timeout=TIMEOUT, check=False)
     if cp.stdout:
-        print(cp.stdout[-6000:])
+        print(cp.stdout[-7000:])
     if cp.stderr:
-        print(cp.stderr[-4000:], file=sys.stderr)
+        print(cp.stderr[-5000:], file=sys.stderr)
     return cp
 
 
-def parse_gacrux_json(stdout: str) -> dict:
-    text = stdout.strip()
-    candidates = [text]
-    first = text.find("{")
-    last = text.rfind("}")
-    if 0 <= first < last:
-        candidates.append(text[first:last + 1])
-    for item in candidates:
-        try:
-            value = json.loads(item)
-            if isinstance(value, dict):
-                return value
-        except Exception:
-            pass
-    return {}
+def parse_pair_text(text: str, label: str) -> list[tuple[int, int]]:
+    lines = [x.strip() for x in text.replace("\r", "").split("\n") if x.strip()]
+    if not lines or not re.fullmatch(r"\d+", lines[0]):
+        raise RuntimeError(f"{label} output does not start with a pair count")
+    count = int(lines[0])
+    if count < 1 or len(lines) < count + 1:
+        raise RuntimeError(f"{label} pair count is invalid")
+    pairs: list[tuple[int, int]] = []
+    for line in lines[1:count + 1]:
+        m = re.fullmatch(r"(\d+)\s+(\d+)", line)
+        if not m:
+            raise RuntimeError(f"{label} invalid pair line: {line!r}")
+        pairs.append((int(m.group(1)), int(m.group(2))))
+    return pairs
 
 
-def convert_162_a_to_z(text: str) -> str:
-    # Historical Chess-Publisher independent-checker compatibility transform.
-    # The canonical fixture itself is never modified.
+def score_from_blocks(line: str, completed: int) -> float:
+    padded = line.ljust(91 + ROUNDS * 10)
+    score = 0.0
+    for i in range(completed):
+        result = padded[91 + i * 10 + 7:91 + i * 10 + 8]
+        if result in {"1", "+", "F", "U", "W"}:
+            score += 1.0
+        elif result in {"=", "H", "D"}:
+            score += 0.5
+    return score
+
+
+def prepare_history(full_text: str, completed: int) -> tuple[str, list[tuple[int, int]]]:
+    lines = full_text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    headers = {line[:3]: line for line in lines if len(line) >= 3 and line[:3] in {"012", "142", "152", "192"}}
+    if headers.get("152", "").strip().upper() != "152 B":
+        raise RuntimeError("fixture initial top color is not the expected B")
+    out = [headers["012"], headers["142"], headers["152"], headers["192"]]
+    expected: list[tuple[int, int]] = []
+    for line in lines:
+        if not line.startswith("001"):
+            continue
+        arr = list(line.ljust(91 + ROUNDS * 10))
+        pid = int("".join(arr[4:8]).strip())
+        arr[85:89] = list(f"{pid:4d}")
+        arr[80:84] = list(f"{score_from_blocks(line, completed):4.1f}")
+        round_block = "".join(arr[91 + (ROUND - 1) * 10:91 + ROUND * 10])
+        opp = int(round_block[:4].strip() or "0")
+        color = round_block[5:6]
+        if opp > 0 and color == "w":
+            expected.append((pid, opp))
+        out.append("".join(arr[:91 + completed * 10]))
+    return "\r\n".join(out) + "\r\n", expected
+
+
+def mark_current_round_unpaired(history: str, round_no: int, unpaired: list[int]) -> str:
+    wanted = set(unpaired)
     out = []
-    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-        if line.startswith("162"):
-            line = re.sub(r"(?<=\s)A(?=\s+[-+]?\d)", "Z", line, count=1)
+    for line in history.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        if line.startswith("001"):
+            arr = list(line.ljust(91 + round_no * 10))
+            pid = int("".join(arr[4:8]).strip())
+            if pid in wanted:
+                start = 91 + (round_no - 1) * 10
+                arr[start:start + 10] = list("0000 - U  ")
+            line = "".join(arr)
         out.append(line)
-    return "\n".join(out)
+    return "\r\n".join(out).rstrip("\r\n") + "\r\n"
+
+
+def canonical(pairs: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    return sorted((int(w), int(b)) for w, b in pairs)
 
 
 def main() -> int:
     if not FIXTURE.is_file():
         raise RuntimeError(f"missing fixture: {FIXTURE}")
-    fixture_text = FIXTURE.read_text(encoding="utf-8-sig")
-    if not fixture_text.startswith("012 ") or "192 FIDE_DUTCH_2025" not in fixture_text:
-        raise RuntimeError("fixture is not the expected TRF26 Dutch test tournament")
+    full = FIXTURE.read_text(encoding="ascii")
+    history, expected = prepare_history(full, ROUND - 1)
+    if len(expected) != 13:
+        raise RuntimeError(f"fixture expected Round {ROUND} has {len(expected)} normal pairs, expected 13")
 
     with tempfile.TemporaryDirectory(prefix="cp-linux-real-") as td_raw:
         td = Path(td_raw)
+        history_file = td / "history.trf"
+        history_file.write_text(history, encoding="ascii", newline="")
 
-        print("== Gacrux 1.9.57 pinned source ==")
-        gacrux_data = download(GACRUX_URL)
-        gacrux = safe_zip(gacrux_data, td / "gacrux")
+        print("== Install exact upstream engines ==")
+        gacrux = safe_zip(download(GACRUX_URL), td / "gacrux")
         version_text = (gacrux / "version.py").read_text(encoding="utf-8")
         if f'"version": "{GACRUX_VERSION}"' not in version_text or f'"version_date": "{GACRUX_DATE}"' not in version_text:
             raise RuntimeError("Gacrux version/date mismatch")
-        print("Gacrux commit:", GACRUX_COMMIT)
-        print("Gacrux version: PASS", GACRUX_VERSION, GACRUX_DATE)
-
-        print("== bbpPairings 6.0.0 verified Linux release ==")
         bbp_data = download(BBP_URL)
         got = sha256(bbp_data)
         if got != BBP_ARCHIVE_SHA256:
             raise RuntimeError(f"BBP archive SHA256 mismatch: {got}")
-        print("BBP archive SHA256: PASS", got)
         bbp = safe_tar(bbp_data, td / "bbp")
+        print("Gacrux:", GACRUX_VERSION, GACRUX_COMMIT)
+        print("BBP archive SHA256: PASS", got)
 
-        fixture = td / "fixture.trf"
-        fixture.write_text(fixture_text, encoding="utf-8", newline="")
+        print(f"== Generate Round {ROUND} with Gacrux ==")
+        gc_cmd = [
+            sys.executable, str(gacrux / "pairingchecker.py"),
+            "-i", str(history_file), "-f", "TRF", "-m", "dutch",
+            "-p", "-d", "T", "-n", str(ROUND), "-N", str(ROUNDS), "-t", TOP_COLOR,
+            "-u", *[str(x) for x in UNPAIRED],
+        ]
+        gc = run(gc_cmd, cwd=gacrux)
+        if gc.returncode != 0 or "Program error" in gc.stdout or "(Pdb)" in gc.stdout:
+            raise RuntimeError(f"Gacrux pairing failed with rc={gc.returncode}")
+        gacrux_pairs = parse_pair_text(gc.stdout, "Gacrux")
 
-        print("== Gacrux check of real Chess-Publisher TRF26 ==")
-        gacrux_cmd = [sys.executable, str(gacrux / "pairingchecker.py"), "-i", str(fixture), "-f", "TRF", "-m", "dutch", "-c", "-d", "J"]
-        gc = run(gacrux_cmd, cwd=gacrux)
-        gj = parse_gacrux_json(gc.stdout)
-        status_code = gj.get("status", {}).get("code") if gj else None
-        if gc.returncode != 0 or (status_code not in (None, 0)):
-            raise RuntimeError(f"Gacrux rejected fixture (process={gc.returncode}, status={status_code})")
-        print("Gacrux TRF pairing check: PASS")
+        print(f"== Independently generate Round {ROUND} with bbpPairings ==")
+        bbp_history = td / "history-bbp.trf"
+        bbp_history.write_text(mark_current_round_unpaired(history, ROUND, UNPAIRED), encoding="ascii", newline="")
+        bbp_out = td / "bbp-pairs.txt"
+        bc = run([str(bbp), "--dutch", str(bbp_history), "-p", str(bbp_out)])
+        if bc.returncode != 0 or not bbp_out.is_file():
+            raise RuntimeError(f"bbpPairings pairing failed with rc={bc.returncode}")
+        bbp_pairs = parse_pair_text(bbp_out.read_text(encoding="utf-8", errors="replace"), "bbpPairings")
 
-        print("== bbpPairings raw TRF26 check ==")
-        bc_raw = run([str(bbp), "--dutch", str(fixture), "-c"])
-        raw_ok = bc_raw.returncode == 0
-        print("BBP raw TRF26:", "PASS" if raw_ok else f"NOT ACCEPTED (rc={bc_raw.returncode})")
-
-        print("== bbpPairings historical temporary A->Z checker copy ==")
-        legacy = td / "fixture-bbp-legacy.trf"
-        legacy.write_text(convert_162_a_to_z(fixture_text), encoding="utf-8", newline="")
-        bc_legacy = run([str(bbp), "--dutch", str(legacy), "-c"])
-        legacy_ok = bc_legacy.returncode == 0
-        print("BBP A->Z temporary copy:", "PASS" if legacy_ok else f"FAIL (rc={bc_legacy.returncode})")
-
-        if not raw_ok and not legacy_ok:
-            raise RuntimeError("bbpPairings rejected both canonical TRF26 and temporary compatibility copy")
+        expected_c = canonical(expected)
+        gacrux_c = canonical(gacrux_pairs)
+        bbp_c = canonical(bbp_pairs)
+        print("Expected:", expected_c)
+        print("Gacrux  :", gacrux_c)
+        print("BBP     :", bbp_c)
+        if gacrux_c != expected_c:
+            raise RuntimeError("Gacrux Round 7 differs from the stored Chess-Publisher pairing fixture")
+        if bbp_c != gacrux_c:
+            raise RuntimeError("bbpPairings Round 7 differs from Gacrux")
 
         result = {
-            "gacrux": {"commit": GACRUX_COMMIT, "version": GACRUX_VERSION, "check": True},
-            "bbp": {"version": BBP_VERSION, "archiveSha256": got, "rawTrf26Accepted": raw_ok, "legacy162AtoZAccepted": legacy_ok},
             "fixture": FIXTURE.name,
+            "round": ROUND,
+            "unpaired": UNPAIRED,
+            "gacrux": {"version": GACRUX_VERSION, "commit": GACRUX_COMMIT, "pairs": [list(x) for x in gacrux_c]},
+            "bbp": {"version": BBP_VERSION, "archiveSha256": got, "pairs": [list(x) for x in bbp_c]},
+            "expected": [list(x) for x in expected_c],
+            "equivalent": True,
         }
         report = ROOT / "tests" / "logs" / "real-linux-acceptance.json"
         report.parent.mkdir(parents=True, exist_ok=True)
