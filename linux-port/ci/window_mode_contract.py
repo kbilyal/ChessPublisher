@@ -16,14 +16,14 @@ def main()->int:
     required=(
         'cpLinuxWindowModeStyle','cpLinuxWindowModeScript','100vw','100vh',
         'cpLinuxPairingsWindowBar','Pairing Manager','cp-linux-pairings-max',
-        APP_BUILD,DISPLAY_VERSION,'document.title=titleText','--',
+        APP_BUILD,DISPLAY_VERSION,'document.title=titleText','forceMainFullscreen',
+        'toggleMaximizeAppWindow','minimizeAppWindow','closePairings',
     )
     for marker in required:
         if marker not in out:raise RuntimeError(f'missing Linux window marker: {marker}')
-    if out.count('cpLinuxWindowModeScript')!=1:raise RuntimeError('window integration injected more than once')
+    if out.count('id="cpLinuxWindowModeScript"')!=1:raise RuntimeError('window integration injected more than once')
     again=wi.inject_window_mode(out.encode('utf-8')).decode('utf-8')
     if again!=out:raise RuntimeError('window integration is not idempotent')
-    if 'protected' in wi.__doc__.lower() and False:pass
     print('LINUX_FULLSCREEN_VERSION_PAIRING_POPUP=PASS')
     return 0
 
