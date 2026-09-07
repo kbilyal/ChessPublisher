@@ -85,8 +85,8 @@ for _ in range(50):
         if x.get('ok'):break
     except Exception:time.sleep(.1)
 else:raise SystemExit('LocalEngine health timeout')
-assert x.get('appBuild')=='1.06.00-beta.34-linux-dev.5',x
-assert x.get('engineVersion')=='0.5.0-linux-dev',x
+assert x.get('appBuild')=='1.06.00-beta.34-linux-dev.6',x
+assert x.get('engineVersion')=='0.5.1-linux-dev',x
 print('UBUNTU2604_LOCALENGINE=PASS')
 PY
 kill "$pid";wait "$pid" || true
