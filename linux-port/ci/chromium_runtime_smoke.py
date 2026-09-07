@@ -15,6 +15,14 @@ EXACT_HTML_BYTES=1526307
 EXACT_HTML_SHA256='f51355b1a449870be6ed69d1bb941c19a9d8d2bdf3c8f91da845b4bc1275f310'
 EXACT_MARKERS=('Tournament Setup','Pairings','Chess-Results','Registration','Participants','DGT')
 
+class SourceAccessBlocked(RuntimeError):pass
+
+
+def _looks_like_google_wrapper(data:bytes,content_type:str)->bool:
+    head=data[:8192].decode('utf-8','ignore').lower()
+    ct=(content_type or '').lower()
+    return ('text/html' in ct or head.lstrip().startswith(('<!doctype html','<html'))) and any(x in head for x in ('google','drive','accounts.google','docs.google'))
+
 
 def _download_exact_html()->bytes:
     urls=(
@@ -22,14 +30,23 @@ def _download_exact_html()->bytes:
         f'https://drive.google.com/uc?export=download&id={EXACT_HTML_DRIVE_ID}&confirm=t',
     )
     last=None
+    blocked=[]
     for url in urls:
         try:
             req=urllib.request.Request(url,headers={'User-Agent':'Chess-Publisher-Linux-CI/1'})
-            with urllib.request.urlopen(req,timeout=30) as r:data=r.read(EXACT_HTML_BYTES+1024)
+            with urllib.request.urlopen(req,timeout=30) as r:
+                data=r.read(EXACT_HTML_BYTES+1024);ct=str(r.headers.get('content-type') or '');final=str(r.geturl())
             digest=hashlib.sha256(data).hexdigest()
             if len(data)==EXACT_HTML_BYTES and digest==EXACT_HTML_SHA256:return data
-            last=RuntimeError(f'Drive returned wrong pinned HTML identity: bytes={len(data)} sha256={digest}')
+            if _looks_like_google_wrapper(data,ct):
+                blocked.append(f'wrapper bytes={len(data)} sha256={digest} contentType={ct} final={final}')
+                continue
+            last=RuntimeError(f'Drive returned non-wrapper bytes with wrong pinned identity: bytes={len(data)} sha256={digest} contentType={ct} final={final}')
         except Exception as exc:last=exc
+    if blocked and last is None:
+        raise SourceAccessBlocked('Exact pinned source is accessible through the authenticated Drive connector but raw public download is blocked: '+'; '.join(blocked))
+    if blocked and last is not None:
+        raise SourceAccessBlocked('Exact pinned source raw download is unavailable: '+'; '.join(blocked)+f'; fallback={last}')
     raise RuntimeError(f'Could not retrieve exact pinned ChessPublisher.html from Drive: {last}')
 
 
@@ -42,9 +59,6 @@ def _browser()->str:
 def _prepare_common(pkg:Path)->tuple[Path,Path]:
     src=pkg/'source';linux=pkg/'linux';src.mkdir(parents=True);linux.mkdir(parents=True)
     shutil.copy2(ROOT/'linux'/'LinuxWebViewShim.js',linux/'LinuxWebViewShim.js')
-    # Exact bridge/adaptor logic has independent Node/HTTP contracts. The exact-UI
-    # browser gate focuses on the protected 1.526 MB application page itself and
-    # therefore uses inert files for these delivery-time adapters.
     for rel in ('cloud/client/cloud-workspace-api.js','hub/client/hub-snapshot.js','hub/client/hub-api-client.js','webview/HubAdapter.js','webview/CloudWorkspaceAdapter.js'):
         p=src/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('/* chromium smoke placeholder; adapter contracts run separately */\n',encoding='utf-8')
     return src,linux
@@ -94,28 +108,29 @@ def exact_ui(browser:str)->None:
         try:
             host,port=srv.server_address;cp=_run_browser(browser,f'http://{host}:{port}/',2500)
             if cp.returncode!=0:raise RuntimeError(f'Exact-UI Chromium failed rc={cp.returncode}: {cp.stderr[-2500:]}')
-            dom=cp.stdout
-            lower=dom.lower()
+            dom=cp.stdout;lower=dom.lower()
             if 'data-chesspublisher-platform="linux"' not in lower:raise RuntimeError('Exact UI Chromium DOM has no Linux platform dataset marker.')
             if f'data-chesspublisher-linux-build="{APP_BUILD}"'.lower() not in lower:raise RuntimeError('Exact UI Chromium DOM has no canonical Linux build marker.')
             if 'linux-dev.2' in dom:raise RuntimeError('Exact UI Chromium DOM contains stale linux-dev.2 identity.')
             for marker in EXACT_MARKERS:
                 if marker not in dom:raise RuntimeError(f'Exact UI Chromium DOM is missing UI marker: {marker}')
             if 'Chess-Publisher' not in dom:raise RuntimeError('Exact UI Chromium DOM does not identify Chess-Publisher.')
-            print('Exact UI bytes:',len(html))
-            print('Exact UI SHA256:',hashlib.sha256(html).hexdigest())
-            print('Exact UI Chromium markers:',','.join(EXACT_MARKERS))
-            print('LINUX_EXACT_UI_CHROMIUM_SMOKE=PASS')
+            print('Exact UI bytes:',len(html));print('Exact UI SHA256:',hashlib.sha256(html).hexdigest())
+            print('Exact UI Chromium markers:',','.join(EXACT_MARKERS));print('LINUX_EXACT_UI_CHROMIUM_SMOKE=PASS')
         finally:
             srv.shutdown();srv.server_close();th.join(timeout=2)
 
 
 def main()->int:
-    ap=argparse.ArgumentParser()
-    ap.add_argument('--exact-drive-ui',action='store_true',help='Download the exact pinned ChessPublisher.html from Drive, verify SHA256, and load it in Chromium.')
-    args=ap.parse_args();browser=_browser();print('Browser:',browser)
-    if args.exact_drive_ui:exact_ui(browser)
-    else:synthetic_bridge(browser);print('LINUX_CHROMIUM_RUNTIME_SMOKE=PASS')
+    ap=argparse.ArgumentParser();ap.add_argument('--exact-drive-ui',action='store_true');args=ap.parse_args()
+    browser=_browser();print('Browser:',browser)
+    try:
+        if args.exact_drive_ui:exact_ui(browser)
+        else:synthetic_bridge(browser);print('LINUX_CHROMIUM_RUNTIME_SMOKE=PASS')
+    except SourceAccessBlocked as exc:
+        print('LINUX_EXACT_UI_CHROMIUM=BLOCKED_BY_SOURCE_ACCESS')
+        print(str(exc))
+        return 77
     return 0
 
 if __name__=='__main__':raise SystemExit(main())
