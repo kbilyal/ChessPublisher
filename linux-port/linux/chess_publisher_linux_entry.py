@@ -7,19 +7,25 @@ from build_info import APP_BUILD,ENGINE_VERSION
 from build_identity_integration import apply as apply_build_identity
 from source_guard import require_package_source,SourceIdentityError
 from fide_payload_policy import apply as apply_fide_payload_policy
+from fide_streaming_integration import apply as apply_fide_streaming
 from fide_integration import apply as apply_fide
 from chess_results_integration import apply as apply_chess_results
 from dgt_integration import apply as apply_dgt
 from telegram_integration import apply as apply_telegram
 from desktop_integration import apply as apply_desktop
+from browser_integration import apply as apply_browser
+from window_integration import apply as apply_window
 
 apply_build_identity()
 apply_fide_payload_policy()
+apply_fide_streaming()
 apply_fide()
 apply_chess_results()
 apply_dgt()
 apply_telegram()
 apply_desktop()
+apply_browser()
+apply_window()
 
 if __name__=='__main__':
     package_root=Path(__file__).resolve().parent.parent
