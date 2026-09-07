@@ -37,6 +37,7 @@ jobs:
             linux-port/ci/dgt_contract_smoke.py \
             linux-port/ci/source_guard_contract.py \
             linux-port/ci/self_test_contract.py \
+            linux-port/ci/deb_install_smoke.py \
             linux-port/packaging/build_linux_bundle.py \
             linux-port/packaging/build_deb.py \
             linux-port/linux/build_info.py \
@@ -81,6 +82,9 @@ jobs:
 
       - name: Run self-test pinned online engine install
         run: python linux-port/ci/self_test_contract.py --online-engines
+
+      - name: Install, smoke-test and purge Linux deb
+        run: python linux-port/ci/deb_install_smoke.py
 
       - name: Run real TRF16 and TRF26 compatibility
         run: python linux-port/ci/trf_compat_acceptance.py
