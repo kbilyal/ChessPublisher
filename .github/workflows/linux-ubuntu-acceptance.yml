@@ -26,20 +26,29 @@ jobs:
         run: python -m pip install --disable-pip-version-check 'networkx>=2.6'
 
       - name: Syntax check Linux runtime and acceptance harness
-        run: >-
-          python -m py_compile
-          linux-port/ci/real_acceptance.py
-          linux-port/ci/fide_contract_smoke.py
-          linux-port/ci/localengine_contract_smoke.py
-          linux-port/ci/chess_results_contract_smoke.py
-          linux-port/linux/gacrux_runtime.py
-          linux-port/linux/bbp_runtime.py
-          linux-port/linux/fide_runtime.py
-          linux-port/linux/fide_integration.py
-          linux-port/linux/chess_results_runtime.py
-          linux-port/linux/chess_results_integration.py
-          linux-port/linux/chess_publisher_linux.py
-          linux-port/linux/chess_publisher_linux_entry.py
+        run: |
+          python -m py_compile \
+            linux-port/ci/real_acceptance.py \
+            linux-port/ci/fide_contract_smoke.py \
+            linux-port/ci/localengine_contract_smoke.py \
+            linux-port/ci/chess_results_contract_smoke.py \
+            linux-port/ci/bbp_adapter_contract.py \
+            linux-port/linux/gacrux_runtime.py \
+            linux-port/linux/bbp_runtime.py \
+            linux-port/linux/fide_runtime.py \
+            linux-port/linux/fide_integration.py \
+            linux-port/linux/chess_results_runtime.py \
+            linux-port/linux/chess_results_integration.py \
+            linux-port/linux/chess_publisher_linux.py \
+            linux-port/linux/chess_publisher_linux_entry.py
+          node --check linux-port/linux/LinuxWebViewShim.js
+          node --check linux-port/ci/webview_shim_contract.mjs
+
+      - name: Run BBP runtime adapter contract
+        run: python linux-port/ci/bbp_adapter_contract.py
+
+      - name: Run Linux WebView Chess-Results safety contract
+        run: node linux-port/ci/webview_shim_contract.mjs
 
       - name: Run offline FIDE runtime contract
         run: python linux-port/ci/fide_contract_smoke.py
