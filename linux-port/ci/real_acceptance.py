@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Real Ubuntu pairing equivalence gate for Chess-Publisher.
 
-Uses a real Chess-Publisher pairing-engine TRF fixture and the same protected
-architecture as the desktop application: Gacrux 1.9.57 generates the round,
-bbpPairings 6.0.0 independently generates it, then white/black identities must
-be identical. Nothing in either upstream engine is modified.
+Uses a real Chess-Publisher TRF fixture and the same protected architecture as
+the desktop application: Gacrux 1.9.57 generates the round, bbpPairings 6.0.0
+independently generates it, then white/black identities must be identical.
+Nothing in either upstream engine is modified.
 """
 from __future__ import annotations
 
@@ -144,18 +144,13 @@ def prepare_history(full_text: str, completed: int) -> tuple[str, list[tuple[int
 
 
 def mark_current_round_unpaired(history: str, round_no: int, unpaired: list[int]) -> str:
-    wanted = set(unpaired)
-    out = []
-    for line in history.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-        if line.startswith("001"):
-            arr = list(line.ljust(91 + round_no * 10))
-            pid = int("".join(arr[4:8]).strip())
-            if pid in wanted:
-                start = 91 + (round_no - 1) * 10
-                arr[start:start + 10] = list("0000 - U  ")
-            line = "".join(arr)
-        out.append(line)
-    return "\r\n".join(out).rstrip("\r\n") + "\r\n"
+    # BBP 6.0.0 expects future-round exclusions as TRF record 240.
+    # Do not add a future 001 block: BBP would count it as a played round.
+    clean = history.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n")
+    wanted = sorted({int(x) for x in unpaired if int(x) > 0})
+    if wanted:
+        clean += "\n" + f"240 Z {round_no:3d}" + "".join(f" {pid:4d}" for pid in wanted)
+    return clean.replace("\n", "\r\n") + "\r\n"
 
 
 def canonical(pairs: list[tuple[int, int]]) -> list[tuple[int, int]]:
