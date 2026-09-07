@@ -17,7 +17,8 @@ def main()->int:
         pkg=Path(td_raw)/'package';linux=pkg/'linux';source=pkg/'source'
         shutil.copytree(ROOT/'linux',linux,ignore=shutil.ignore_patterns('__pycache__','*.pyc','*.pyo'))
         source.mkdir(parents=True)
-        app=source/'ChessPublisher.html';app.write_text('<!doctype html><html><body>self-test</body></html>\n',encoding='utf-8')
+        app=source/'ChessPublisher.html'
+        app.write_text('<!doctype html><html><body>Chess-Publisher Tournament Setup Pairings Chess-Results Registration DGT</body></html>\n',encoding='utf-8')
         source_manifest={'schema':1,'snapshotId':'ci-synthetic-self-test','baseRelease':'ci','files':{'ChessPublisher.html':{'size':app.stat().st_size,'sha256':sha(app)}}}
         (pkg/'source_manifest.json').write_text(json.dumps(source_manifest,indent=2)+'\n',encoding='utf-8')
         runtime={}
@@ -34,9 +35,11 @@ def main()->int:
         result=json.loads(cp.stdout)
         if result.get('ok') is not True or result.get('failed')!=0:raise RuntimeError('self-test JSON did not report clean PASS')
         names={row.get('name'):row for row in result.get('tests',[])}
-        for required in ('platform','protected-source','runtime-integrity','localengine-filesystem','platform-services'):
+        for required in ('platform','protected-source','runtime-integrity','localengine-filesystem','http-delivery','platform-services'):
             if names.get(required,{}).get('status')!='PASS':raise RuntimeError(f'missing self-test PASS: {required}')
         if names['runtime-integrity'].get('detail',{}).get('verified') is not True:raise RuntimeError('runtime integrity was not verified')
+        delivery=names['http-delivery'].get('detail',{})
+        if delivery.get('appBuild')!='1.06.00-beta.34-linux-dev.3' or delivery.get('engineVersion')!='0.4.0-linux-dev':raise RuntimeError('HTTP self-test build identity mismatch')
         if args.online_engines:
             row=names.get('online-engines',{})
             if row.get('status')!='PASS':raise RuntimeError('online engine self-test did not pass')
