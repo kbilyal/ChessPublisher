@@ -90,7 +90,22 @@
         return;
       }
       if(message.type==="cp:dgt"){
-        dispatch({type:"cp:dgt-result",requestId:message.requestId,ok:false,error:"DGT native Linux provider is not connected in the current development build."});
+        const operation=String(message.operation||"").trim().toLowerCase();
+        const r=await nativeFetch(`/dgt/${encodeURIComponent(operation)}`,{
+          method:"POST",headers:{"Content-Type":"application/json;charset=utf-8","Accept":"application/json"},
+          body:JSON.stringify({expectedBoards:Number(message.expectedBoards||0),targetRequestId:String(message.targetRequestId||"")}),cache:"no-store"
+        });
+        const p=await r.json().catch(()=>({}));
+        dispatch({type:"cp:dgt-result",requestId:message.requestId,...p,ok:r.ok&&p.ok!==false,error:p.error||""});
+        return;
+      }
+      if(message.type==="cp:pgn"){
+        const r=await nativeFetch("/tournament/pgn",{
+          method:"POST",headers:{"Content-Type":"application/json;charset=utf-8","Accept":"application/json"},
+          body:JSON.stringify({operation:message.operation,tournamentName:message.tournamentName||"",tournamentFilePath:message.tournamentFilePath||"",fileName:message.fileName||"",text:message.text||""})
+        });
+        const p=await r.json().catch(()=>({}));
+        dispatch({type:"cp:pgn-result",requestId:message.requestId,...p,ok:r.ok&&p.ok!==false,error:p.error||""});
         return;
       }
       if(message.type==="cp:cr-delete"||message.type==="cp:cr-delete-other"){
@@ -136,13 +151,28 @@
     removeEventListener(type,fn){ if(type==="message")listeners.delete(fn); }
   };
 
+  async function nativePgn(operation,payload={}){
+    const r=await nativeFetch("/tournament/pgn",{method:"POST",headers:{"Content-Type":"application/json;charset=utf-8","Accept":"application/json"},body:JSON.stringify({operation,...payload})});
+    const p=await r.json().catch(()=>({}));
+    if(!r.ok||p.ok===false)throw new Error(p.error||`PGN service HTTP ${r.status}`);
+    return p;
+  }
+  window.cpNativeSaveTournamentPGN=payload=>nativePgn("write",payload);
+  window.cpNativeEnsureTournamentPGNFolder=payload=>nativePgn("ensure",payload);
+
   window.addEventListener("DOMContentLoaded",()=>{
     try{
       const bar=document.createElement("div");
       bar.id="cpLinuxDevBadge";
-      bar.textContent="Linux development build · LocalEngine 0.3 · protected tournament core preserved";
+      bar.textContent="Linux development build · LocalEngine 0.4 · protected tournament core preserved";
       bar.style.cssText="position:fixed;right:12px;bottom:8px;z-index:2147483647;padding:5px 9px;border-radius:6px;background:#202020;color:#ddd;font:11px/1.2 system-ui;opacity:.82;pointer-events:none";
       document.body.appendChild(bar);
+      const driverLabel=document.querySelector('#dgt .dgt-diagnostics .dgt-diag-label');
+      if(driverLabel&&/Windows driver/i.test(driverLabel.textContent||""))driverLabel.textContent="Linux serial / USB";
+      const driverStatus=document.getElementById("dgtDriverStatus");
+      if(driverStatus)driverStatus.textContent="Hardware scan is idle. Press Connect / Detect to query Linux serial devices and DGT hardware.";
+      const ports=document.getElementById("dgtPortsLine");
+      if(ports)ports.textContent="Linux serial ports: scan runs on Connect / Detect.";
     }catch(_){ }
   },{once:true});
 })();
