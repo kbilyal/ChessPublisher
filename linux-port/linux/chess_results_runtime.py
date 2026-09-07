@@ -7,7 +7,7 @@ boundary that owns AES/IV, GETSID, GETKEY, secure XML upload and organizer-scope
 TNR ownership.
 """
 from __future__ import annotations
-import json, os, re, tempfile, time, urllib.error, urllib.request
+import json, os, re, tempfile, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
@@ -29,6 +29,19 @@ def _atomic_json(path:Path,value:Any)->None:
         try:os.unlink(tmp)
         except OSError:pass
         raise
+
+def _trusted_chess_results_url(value:Any)->str:
+    raw=str(value or '').strip()
+    if not raw:raise ChessResultsRuntimeError('Chess-Results did not return an authenticated browser URL.')
+    try:url=urllib.parse.urlsplit(raw)
+    except Exception as exc:raise ChessResultsRuntimeError('Chess-Results returned an invalid browser URL.') from exc
+    host=str(url.hostname or '').rstrip('.').lower()
+    if url.scheme.lower()!='https' or url.username is not None or url.password is not None:
+        raise ChessResultsRuntimeError('Chess-Results returned an untrusted browser URL.')
+    if host!='chess-results.com' and not host.endswith('.chess-results.com'):
+        raise ChessResultsRuntimeError('Chess-Results returned a browser URL outside the official chess-results.com domain.')
+    if url.port not in (None,443):raise ChessResultsRuntimeError('Chess-Results returned an untrusted browser URL port.')
+    return raw
 
 class ChessResultsRuntime:
     def __init__(self,secrets_provider:Callable[[],dict[str,str]],ownership_file:Path,cloud_identity_resolver:Callable[[str,str],str]|None=None,transport:Callable[[str,dict[str,Any],str],dict[str,Any]]|None=None):
@@ -84,11 +97,17 @@ class ChessResultsRuntime:
             payload['ownershipProof']=proof
         result=self.transport(op,payload,token);result_key=str(result.get('key') or key or '').strip();proof=str(result.get('ownershipProof') or '').strip()
         if op in {'create','claim'} and re.fullmatch(r'\d+',result_key or '') and proof:self._save_proof(result_key,proof,client_id)
-        if op=='delete-authorize':result={**result,'canDelete':result.get('canDelete') is True or result.get('verifiedOwner') is True,'adminUrl':str(result.get('adminUrl') or result.get('url') or ''),'alreadyDeleted':result.get('alreadyDeleted') is True}
+        if op=='admin-link':
+            browser_url=_trusted_chess_results_url(result.get('url') or result.get('adminUrl'))
+            result={**result,'url':browser_url,'adminUrl':browser_url}
+        if op=='delete-authorize':
+            admin_raw=result.get('adminUrl') or result.get('url') or ''
+            admin_url=_trusted_chess_results_url(admin_raw) if str(admin_raw or '').strip() else ''
+            result={**result,'canDelete':result.get('canDelete') is True or result.get('verifiedOwner') is True,'adminUrl':admin_url,'alreadyDeleted':result.get('alreadyDeleted') is True}
         if op=='unlink' and result.get('canUnlink') is True and re.fullmatch(r'\d+',result_key or ''):self._remove_proof(result_key)
         return result
     def status(self)->dict[str,Any]:
         token=''
         try:token=self._token()
         except ChessResultsRuntimeError:pass
-        return {'ok':True,'ready':bool(token),'transport':'secure-worker','worker':API_PREFIX,'organizerTokenConnected':bool(token),'localBridgeCrypto':False,'sourceId':21}
+        return {'ok':True,'ready':bool(token),'transport':'secure-worker','worker':API_PREFIX,'organizerTokenConnected':bool(token),'localBridgeCrypto':False,'sourceId':21,'browserUrlPolicy':'https://*.chess-results.com only'}
