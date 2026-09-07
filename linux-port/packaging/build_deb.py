@@ -30,7 +30,9 @@ def main()->int:
         shutil.copytree(ROOT/'linux',opt/'linux');shutil.copytree(args.source,opt/'source');shutil.copy2(ROOT/'source_manifest.json',opt/'source_manifest.json')
         write(opt/'requirements.txt','networkx>=2.6\n')
         write(pkg/'DEBIAN/control',f'''Package: {PACKAGE}\nVersion: {DEB_VERSION}\nSection: games\nPriority: optional\nArchitecture: amd64\nDepends: python3 (>= 3.10), python3-networkx, xdg-utils\nMaintainer: Chess-Publisher Project\nDescription: Chess-Publisher tournament manager Linux development build\n Linux-native LocalEngine package with verified protected UI source.\n''')
-        write(pkg/'usr/bin/chess-publisher','''#!/bin/sh\nset -eu\nexec /opt/chess-publisher/linux/run-chess-publisher.sh "$@"\n''',0o755)
+        # Use Debian's system Python explicitly: package dependencies are installed
+        # for /usr/bin/python3 and must not be bypassed by Conda/pyenv/PATH shims.
+        write(pkg/'usr/bin/chess-publisher','''#!/bin/sh\nset -eu\nexec /usr/bin/python3 /opt/chess-publisher/linux/chess_publisher_linux_entry.py "$@"\n''',0o755)
         write(pkg/'usr/share/applications/chess-publisher.desktop','''[Desktop Entry]\nType=Application\nName=Chess-Publisher\nComment=Chess tournament manager and publisher\nExec=chess-publisher\nTerminal=false\nCategories=Game;Utility;\nStartupNotify=true\n''')
         write(opt/'PACKAGE-MANIFEST.json',json.dumps({'schema':1,'package':PACKAGE,'version':DEB_VERSION,'architecture':'amd64','source':verified},indent=2,sort_keys=True)+'\n')
         subprocess.run(['dpkg-deb','--root-owner-group','--build',str(pkg),str(out)],check=True)
