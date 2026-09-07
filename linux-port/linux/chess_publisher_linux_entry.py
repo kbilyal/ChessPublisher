@@ -9,11 +9,15 @@ from source_guard import require_package_source,SourceIdentityError
 from fide_integration import apply as apply_fide
 from chess_results_integration import apply as apply_chess_results
 from dgt_integration import apply as apply_dgt
+from telegram_integration import apply as apply_telegram
+from desktop_integration import apply as apply_desktop
 
 apply_build_identity()
 apply_fide()
 apply_chess_results()
 apply_dgt()
+apply_telegram()
+apply_desktop()
 
 if __name__=='__main__':
     package_root=Path(__file__).resolve().parent.parent
