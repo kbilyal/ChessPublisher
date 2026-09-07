@@ -86,3 +86,15 @@ jobs:
           name: linux-real-acceptance-report
           path: linux-port/tests/logs/real-linux-acceptance.json
           if-no-files-found: warn
+
+      - name: Upload verified Linux runtime kit
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chess-publisher-linux-runtime-kit
+          path: |
+            linux-port/linux
+            linux-port/packaging
+            linux-port/source_manifest.json
+          if-no-files-found: error
+          retention-days: 14
