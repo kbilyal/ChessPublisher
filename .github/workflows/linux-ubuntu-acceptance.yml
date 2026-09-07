@@ -38,6 +38,7 @@ jobs:
             linux-port/ci/source_guard_contract.py \
             linux-port/ci/self_test_contract.py \
             linux-port/ci/deb_install_smoke.py \
+            linux-port/ci/chromium_runtime_smoke.py \
             linux-port/packaging/build_linux_bundle.py \
             linux-port/packaging/build_deb.py \
             linux-port/linux/build_info.py \
@@ -68,6 +69,9 @@ jobs:
 
       - name: Run Linux WebView safety and DGT PGN contract
         run: node linux-port/ci/webview_shim_contract.mjs
+
+      - name: Run real Chromium Linux bridge smoke
+        run: python linux-port/ci/chromium_runtime_smoke.py
 
       - name: Run offline FIDE runtime contract
         run: python linux-port/ci/fide_contract_smoke.py
