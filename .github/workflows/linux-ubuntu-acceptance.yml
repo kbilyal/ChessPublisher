@@ -25,10 +25,20 @@ jobs:
       - name: Install protected runtime dependency
         run: python -m pip install --disable-pip-version-check 'networkx>=2.6'
 
-      - name: Syntax check acceptance harness
-        run: python -m py_compile linux-port/ci/real_acceptance.py
+      - name: Syntax check Linux runtime and acceptance harness
+        run: >-
+          python -m py_compile
+          linux-port/ci/real_acceptance.py
+          linux-port/ci/fide_contract_smoke.py
+          linux-port/linux/gacrux_runtime.py
+          linux-port/linux/bbp_runtime.py
+          linux-port/linux/fide_runtime.py
+          linux-port/linux/chess_publisher_linux.py
 
-      - name: Run real Gacrux and BBP TRF acceptance
+      - name: Run offline FIDE runtime contract
+        run: python linux-port/ci/fide_contract_smoke.py
+
+      - name: Run real Gacrux BBP and Tie-Break acceptance
         run: python linux-port/ci/real_acceptance.py
 
       - name: Upload acceptance report
