@@ -33,6 +33,7 @@ jobs:
             linux-port/ci/fide_contract_smoke.py \
             linux-port/ci/localengine_contract_smoke.py \
             linux-port/ci/chess_results_contract_smoke.py \
+            linux-port/ci/live_acceptance_contract.py \
             linux-port/ci/bbp_adapter_contract.py \
             linux-port/ci/dgt_contract_smoke.py \
             linux-port/ci/source_guard_contract.py \
@@ -54,7 +55,8 @@ jobs:
             linux-port/linux/dgt_integration.py \
             linux-port/linux/chess_publisher_linux.py \
             linux-port/linux/chess_publisher_linux_entry.py \
-            linux-port/linux/self_test.py
+            linux-port/linux/self_test.py \
+            linux-port/linux/live_acceptance.py
           node --check linux-port/linux/LinuxWebViewShim.js
           node --check linux-port/ci/webview_shim_contract.mjs
 
@@ -91,6 +93,9 @@ jobs:
 
       - name: Run Chess-Results secure Worker contract
         run: python linux-port/ci/chess_results_contract_smoke.py
+
+      - name: Run non-destructive live acceptance contract
+        run: python linux-port/ci/live_acceptance_contract.py
 
       - name: Run integrated LocalEngine HTTP and served UI identity contract
         run: python linux-port/ci/localengine_contract_smoke.py
