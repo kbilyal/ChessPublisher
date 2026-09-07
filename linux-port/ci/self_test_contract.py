@@ -39,7 +39,7 @@ def main()->int:
             if names.get(required,{}).get('status')!='PASS':raise RuntimeError(f'missing self-test PASS: {required}')
         if names['runtime-integrity'].get('detail',{}).get('verified') is not True:raise RuntimeError('runtime integrity was not verified')
         delivery=names['http-delivery'].get('detail',{})
-        if delivery.get('appBuild')!='1.06.00-beta.34-linux-dev.6' or delivery.get('engineVersion')!='0.5.1-linux-dev':raise RuntimeError('HTTP self-test build identity mismatch')
+        if delivery.get('appBuild')!='1.06.00-beta.34-linux-dev.7' or delivery.get('engineVersion')!='0.6.0-linux-dev':raise RuntimeError('HTTP self-test build identity mismatch')
         if args.online_engines:
             row=names.get('online-engines',{})
             if row.get('status')!='PASS':raise RuntimeError('online engine self-test did not pass')
