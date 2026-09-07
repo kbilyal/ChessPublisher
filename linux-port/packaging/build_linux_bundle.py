@@ -8,6 +8,7 @@ import sys
 HERE=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(HERE/'linux'))
 from source_guard import verify_source
+from build_info import APP_BUILD,ENGINE_VERSION,DISPLAY_VERSION
 
 COPY_IGNORE=shutil.ignore_patterns('__pycache__','*.pyc','*.pyo')
 
@@ -43,7 +44,9 @@ def main()->int:
             if p.is_file():p.chmod(0o755)
         (root/'requirements.txt').write_text('networkx==3.6.1\n',encoding='utf-8')
         (root/'README-LINUX.txt').write_text(
-            'Chess-Publisher Linux development bundle\n'
+            f'Chess-Publisher Linux development bundle {DISPLAY_VERSION}\n'
+            f'App build: {APP_BUILD}\n'
+            f'LocalEngine: {ENGINE_VERSION}\n'
             f"Source snapshot: {verified['snapshotId']}\n"
             f"Base release: {verified['baseRelease']}\n\n"
             'Install dependency: python3 -m pip install -r requirements.txt\n'
@@ -53,10 +56,10 @@ def main()->int:
             'Real DGT BOARD_DUMP test: ./linux/run-self-test.sh --dgt-connect\n'
             'DGT USB users may need membership in the dialout group.\n',encoding='utf-8')
         runtime=runtime_manifest(root/'linux')
-        build={'schema':2,'source':verified,'runtimeFiles':runtime,'selfTestCommand':'./linux/run-self-test.sh','bytecodeIncluded':False}
+        build={'schema':3,'displayVersion':DISPLAY_VERSION,'appBuild':APP_BUILD,'engineVersion':ENGINE_VERSION,'source':verified,'runtimeFiles':runtime,'selfTestCommand':'./linux/run-self-test.sh','bytecodeIncluded':False}
         (root/'BUILD-MANIFEST.json').write_text(json.dumps(build,indent=2,sort_keys=True)+'\n',encoding='utf-8')
         with tarfile.open(args.output,'w:gz',format=tarfile.PAX_FORMAT) as tf:
             tf.add(root,arcname=root.name,recursive=True)
-    print(json.dumps({'ok':True,'output':str(args.output),'sha256':sha256(args.output),'sourceSnapshot':verified['snapshotId'],'runtimeFiles':len(runtime),'selfTestCommand':'./linux/run-self-test.sh','bytecodeIncluded':False},indent=2))
+    print(json.dumps({'ok':True,'output':str(args.output),'sha256':sha256(args.output),'sourceSnapshot':verified['snapshotId'],'appBuild':APP_BUILD,'engineVersion':ENGINE_VERSION,'runtimeFiles':len(runtime),'selfTestCommand':'./linux/run-self-test.sh','bytecodeIncluded':False},indent=2))
     return 0
 if __name__=='__main__':raise SystemExit(main())
