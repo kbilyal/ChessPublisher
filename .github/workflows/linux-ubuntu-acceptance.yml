@@ -32,6 +32,7 @@ jobs:
             linux-port/ci/trf_compat_acceptance.py \
             linux-port/ci/fide_contract_smoke.py \
             linux-port/ci/fide_endpoint_contract.py \
+            linux-port/ci/fide_legacy_limits_contract.py \
             linux-port/ci/localengine_contract_smoke.py \
             linux-port/ci/chess_results_contract_smoke.py \
             linux-port/ci/live_acceptance_contract.py \
@@ -52,6 +53,7 @@ jobs:
             linux-port/linux/gacrux_runtime.py \
             linux-port/linux/bbp_runtime.py \
             linux-port/linux/fide_runtime.py \
+            linux-port/linux/fide_payload_policy.py \
             linux-port/linux/fide_integration.py \
             linux-port/linux/chess_results_runtime.py \
             linux-port/linux/chess_results_integration.py \
@@ -110,6 +112,9 @@ jobs:
 
       - name: Run FIDE LocalEngine update endpoint contract
         run: python linux-port/ci/fide_endpoint_contract.py
+
+      - name: Run large FIDE legacy XML safety contract
+        run: python linux-port/ci/fide_legacy_limits_contract.py
 
       - name: Run Chess-Results secure Worker contract
         run: python linux-port/ci/chess_results_contract_smoke.py
