@@ -14,16 +14,27 @@ import platform
 import stat
 import sys
 import tempfile
+import threading
+import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+import chess_publisher_linux as app
+from build_info import APP_BUILD, ENGINE_VERSION
+from build_identity_integration import apply as apply_build_identity
 from source_guard import require_package_source, SourceIdentityError
-from chess_publisher_linux import LinuxEngine
 from fide_runtime import FideRuntime
 from chess_results_runtime import ChessResultsRuntime
 from dgt_runtime import DgtLinuxRuntime, DgtError
 from gacrux_runtime import GacruxRuntime, GacruxError, GACRUX_VERSION
 from bbp_runtime import BBPRuntime, BBPError, BBP_VERSION
+
+# Self-test must exercise the same canonical build identity used by the normal
+# packaged entrypoint, not the historical constants retained in the base host.
+app.APP_BUILD = APP_BUILD
+app.ENGINE_VERSION = ENGINE_VERSION
+apply_build_identity()
+LinuxEngine = app.LinuxEngine
 
 
 class SelfTestFailure(RuntimeError):
@@ -112,6 +123,52 @@ def _offline_localengine(package_root: Path) -> dict[str, Any]:
         return {"saveOpenRename": True, "unicode": True, "trfBackup": True, "trfExport": True, "secret0600": True}
 
 
+def _offline_http_delivery(package_root: Path) -> dict[str, Any]:
+    html_file = package_root / "source" / "ChessPublisher.html"
+    shim_file = package_root / "linux" / "LinuxWebViewShim.js"
+    if not html_file.is_file() or not shim_file.is_file():
+        raise SelfTestFailure("Package is missing ChessPublisher.html or LinuxWebViewShim.js.")
+    with tempfile.TemporaryDirectory(prefix="cp-http-selftest-") as td_raw:
+        engine = LinuxEngine(package_root, Path(td_raw) / "data")
+        srv = app.make_server(engine, "127.0.0.1", 0, True)
+        th = threading.Thread(target=srv.serve_forever, daemon=True)
+        th.start()
+        try:
+            host, port = srv.server_address
+            base = f"http://{host}:{port}"
+            with urllib.request.urlopen(base + "/health", timeout=3) as r:
+                health = json.loads(r.read().decode("utf-8"))
+            if health.get("appBuild") != APP_BUILD or health.get("engineVersion") != ENGINE_VERSION:
+                raise SelfTestFailure(f"LocalEngine build identity mismatch: {health}")
+            with urllib.request.urlopen(base + "/", timeout=5) as r:
+                served = r.read().decode("utf-8", "replace")
+            with urllib.request.urlopen(base + "/linux/LinuxWebViewShim.js", timeout=3) as r:
+                shim = r.read().decode("utf-8", "replace")
+            if APP_BUILD not in served:
+                raise SelfTestFailure("Served UI does not contain the canonical Linux build marker.")
+            if "linux-dev.2" in served:
+                raise SelfTestFailure("Served UI contains stale linux-dev.2 build identity.")
+            if "/linux/LinuxWebViewShim.js" not in served:
+                raise SelfTestFailure("Served UI does not inject LinuxWebViewShim.js.")
+            for marker in ("Tournament Setup", "Pairings", "Chess-Results", "Registration", "DGT"):
+                if marker not in served:
+                    raise SelfTestFailure(f"Served UI is missing expected application marker: {marker}")
+            if "window.chrome" not in shim or "webview" not in shim:
+                raise SelfTestFailure("Linux WebView shim content is not the expected bridge implementation.")
+            return {
+                "health": True,
+                "appBuild": health.get("appBuild"),
+                "engineVersion": health.get("engineVersion"),
+                "servedUiBytes": len(served.encode("utf-8")),
+                "shimBytes": len(shim.encode("utf-8")),
+                "canonicalBuildMarker": True,
+            }
+        finally:
+            srv.shutdown()
+            srv.server_close()
+            th.join(timeout=2)
+
+
 def _offline_platform(package_root: Path) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="cp-platform-selftest-") as td_raw:
         td = Path(td_raw)
@@ -188,6 +245,7 @@ def main() -> int:
     _record(results, "protected-source", lambda: require_package_source(root))
     _record(results, "runtime-integrity", lambda: _verify_runtime_files(root))
     _record(results, "localengine-filesystem", lambda: _offline_localengine(root))
+    _record(results, "http-delivery", lambda: _offline_http_delivery(root))
     _record(results, "platform-services", lambda: _offline_platform(root))
     if args.online_engines:
         _record(results, "online-engines", lambda: _online_engines(root))
