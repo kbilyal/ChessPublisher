@@ -10,6 +10,7 @@ from source_guard import verify_source
 from build_info import APP_BUILD,ENGINE_VERSION,DEB_VERSION,DISPLAY_VERSION
 
 PACKAGE='chess-publisher'
+DEFAULT_SOURCE_MANIFEST=ROOT/'source_manifest.json'
 COPY_IGNORE=shutil.ignore_patterns('__pycache__','*.pyc','*.pyo')
 
 def sha(path:Path)->str:
@@ -30,13 +31,18 @@ def runtime_manifest(linux_root:Path)->dict[str,dict[str,object]]:
     return rows
 
 def main()->int:
-    ap=argparse.ArgumentParser();ap.add_argument('--source',type=Path,required=True);ap.add_argument('--output-dir',type=Path,required=True);args=ap.parse_args()
-    verified=verify_source(args.source,ROOT/'source_manifest.json')
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--source',type=Path,required=True)
+    ap.add_argument('--output-dir',type=Path,required=True)
+    ap.add_argument('--manifest',type=Path,default=DEFAULT_SOURCE_MANIFEST,help='Explicit source identity manifest. Official builds must use the default pinned manifest.')
+    args=ap.parse_args()
+    manifest_path=args.manifest.expanduser().resolve()
+    verified=verify_source(args.source,manifest_path)
     args.output_dir.mkdir(parents=True,exist_ok=True)
     out=args.output_dir/f'{PACKAGE}_{DEB_VERSION}_amd64.deb'
     with tempfile.TemporaryDirectory(prefix='cp-deb-') as td:
         pkg=Path(td)/PACKAGE;opt=pkg/'opt/chess-publisher'
-        shutil.copytree(ROOT/'linux',opt/'linux',ignore=COPY_IGNORE);shutil.copytree(args.source,opt/'source',ignore=COPY_IGNORE);shutil.copy2(ROOT/'source_manifest.json',opt/'source_manifest.json')
+        shutil.copytree(ROOT/'linux',opt/'linux',ignore=COPY_IGNORE);shutil.copytree(args.source,opt/'source',ignore=COPY_IGNORE);shutil.copy2(manifest_path,opt/'source_manifest.json')
         write(opt/'requirements.txt','networkx>=2.6\n')
         write(pkg/'DEBIAN/control',f'''Package: {PACKAGE}\nVersion: {DEB_VERSION}\nSection: games\nPriority: optional\nArchitecture: amd64\nDepends: python3 (>= 3.10), python3-networkx, xdg-utils\nMaintainer: Chess-Publisher Project\nDescription: Chess-Publisher tournament manager Linux development build\n Linux-native LocalEngine package with verified protected UI source and on-machine self-test.\n''')
         write(pkg/'usr/bin/chess-publisher','''#!/bin/sh\nset -eu\nexport PYTHONDONTWRITEBYTECODE=1\nexec /usr/bin/python3 /opt/chess-publisher/linux/chess_publisher_linux_entry.py "$@"\n''',0o755)
@@ -46,6 +52,6 @@ def main()->int:
         package_manifest={'schema':3,'package':PACKAGE,'version':DEB_VERSION,'displayVersion':DISPLAY_VERSION,'appBuild':APP_BUILD,'engineVersion':ENGINE_VERSION,'architecture':'amd64','source':verified,'runtimeFiles':runtime,'selfTestCommand':'chess-publisher-self-test','bytecodeIncluded':False}
         write(opt/'PACKAGE-MANIFEST.json',json.dumps(package_manifest,indent=2,sort_keys=True)+'\n')
         subprocess.run(['dpkg-deb','--root-owner-group','--build',str(pkg),str(out)],check=True)
-    print(json.dumps({'ok':True,'deb':str(out),'sha256':sha(out),'bytes':out.stat().st_size,'sourceSnapshot':verified['snapshotId'],'appBuild':APP_BUILD,'engineVersion':ENGINE_VERSION,'runtimeFiles':len(runtime),'selfTestCommand':'chess-publisher-self-test','bytecodeIncluded':False},indent=2))
+    print(json.dumps({'ok':True,'deb':str(out),'sha256':sha(out),'bytes':out.stat().st_size,'sourceSnapshot':verified['snapshotId'],'sourceManifest':str(manifest_path),'appBuild':APP_BUILD,'engineVersion':ENGINE_VERSION,'runtimeFiles':len(runtime),'selfTestCommand':'chess-publisher-self-test','bytecodeIncluded':False},indent=2))
     return 0
 if __name__=='__main__':raise SystemExit(main())
