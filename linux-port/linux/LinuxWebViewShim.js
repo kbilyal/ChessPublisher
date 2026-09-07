@@ -20,6 +20,17 @@
       const proxied="/proxy/hub-api"+url.slice(worker.length);
       return nativeFetch(proxied,init);
     }
+    const telegram=/^https:\/\/api\.telegram\.org\/bot([^/]+)\/sendMessage(?:\?.*)?$/.exec(url);
+    if(telegram){
+      let payload={};
+      try{payload=init?.body?JSON.parse(String(init.body)):{};}catch(_){payload={};}
+      return nativeFetch("/telegram/send-message",{
+        method:"POST",
+        headers:{"Content-Type":"application/json;charset=utf-8","Accept":"application/json"},
+        body:JSON.stringify({token:telegram[1],payload}),
+        cache:"no-store"
+      });
+    }
     return nativeFetch(input,init);
   };
 
@@ -164,7 +175,7 @@
     try{
       const bar=document.createElement("div");
       bar.id="cpLinuxDevBadge";
-      bar.textContent="Linux development build · LocalEngine 0.4 · protected tournament core preserved";
+      bar.textContent="Linux development build · LocalEngine 0.5 · protected tournament core preserved";
       bar.style.cssText="position:fixed;right:12px;bottom:8px;z-index:2147483647;padding:5px 9px;border-radius:6px;background:#202020;color:#ddd;font:11px/1.2 system-ui;opacity:.82;pointer-events:none";
       document.body.appendChild(bar);
       const driverLabel=document.querySelector('#dgt .dgt-diagnostics .dgt-diag-label');
