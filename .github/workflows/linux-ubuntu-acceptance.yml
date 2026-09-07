@@ -36,6 +36,7 @@ jobs:
             linux-port/ci/bbp_adapter_contract.py \
             linux-port/ci/dgt_contract_smoke.py \
             linux-port/ci/source_guard_contract.py \
+            linux-port/ci/self_test_contract.py \
             linux-port/packaging/build_linux_bundle.py \
             linux-port/packaging/build_deb.py \
             linux-port/linux/source_guard.py \
@@ -48,7 +49,8 @@ jobs:
             linux-port/linux/dgt_runtime.py \
             linux-port/linux/dgt_integration.py \
             linux-port/linux/chess_publisher_linux.py \
-            linux-port/linux/chess_publisher_linux_entry.py
+            linux-port/linux/chess_publisher_linux_entry.py \
+            linux-port/linux/self_test.py
           node --check linux-port/linux/LinuxWebViewShim.js
           node --check linux-port/ci/webview_shim_contract.mjs
 
@@ -72,6 +74,9 @@ jobs:
 
       - name: Run integrated LocalEngine HTTP contract
         run: python linux-port/ci/localengine_contract_smoke.py
+
+      - name: Run installed Linux self-test contract
+        run: python linux-port/ci/self_test_contract.py
 
       - name: Run real TRF16 and TRF26 compatibility
         run: python linux-port/ci/trf_compat_acceptance.py
