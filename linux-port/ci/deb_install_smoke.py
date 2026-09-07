@@ -57,7 +57,7 @@ def main()->int:
             if not isinstance(health,dict) or health.get('ok') is not True:
                 stdout,stderr=proc.communicate(timeout=2) if proc.poll() is not None else ('','')
                 raise RuntimeError(f'installed LocalEngine health failed stdout={stdout[-1000:]} stderr={stderr[-1000:]}')
-            if health.get('appBuild')!='1.06.00-beta.34-linux-dev.6' or health.get('engineVersion')!='0.5.1-linux-dev':raise RuntimeError(f'installed build identity mismatch: {health}')
+            if health.get('appBuild')!='1.06.00-beta.34-linux-dev.7' or health.get('engineVersion')!='0.6.0-linux-dev':raise RuntimeError(f'installed build identity mismatch: {health}')
             print(json.dumps({'installed':True,'selfTestPassed':True,'httpDeliverySelfTest':True,'onlineEnginesPassed':True,'liveTestFailClosed':True,'health':health},indent=2))
         finally:
             if proc is not None and proc.poll() is None:
