@@ -9,6 +9,8 @@ HERE=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(HERE/'linux'))
 from source_guard import verify_source
 
+COPY_IGNORE=shutil.ignore_patterns('__pycache__','*.pyc','*.pyo')
+
 def sha256(path:Path)->str:
     h=hashlib.sha256()
     with path.open('rb') as f:
@@ -25,8 +27,8 @@ def main()->int:
     args.output.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='cp-linux-bundle-') as td:
         root=Path(td)/'Chess-Publisher-Linux'
-        shutil.copytree(HERE/'linux',root/'linux')
-        shutil.copytree(args.source,root/'source')
+        shutil.copytree(HERE/'linux',root/'linux',ignore=COPY_IGNORE)
+        shutil.copytree(args.source,root/'source',ignore=COPY_IGNORE)
         shutil.copy2(manifest,root/'source_manifest.json')
         (root/'requirements.txt').write_text('networkx==3.6.1\n',encoding='utf-8')
         (root/'README-LINUX.txt').write_text(
@@ -36,12 +38,12 @@ def main()->int:
             'Install dependency: python3 -m pip install -r requirements.txt\n'
             'Run: ./linux/run-chess-publisher.sh\n'
             'DGT USB users may need membership in the dialout group.\n',encoding='utf-8')
-        build={'schema':1,'source':verified,'runtimeFiles':{}}
+        build={'schema':1,'source':verified,'runtimeFiles':{},'bytecodeIncluded':False}
         for p in sorted((root/'linux').glob('*')):
             if p.is_file():build['runtimeFiles'][p.name]={'size':p.stat().st_size,'sha256':sha256(p)}
         (root/'BUILD-MANIFEST.json').write_text(json.dumps(build,indent=2,sort_keys=True)+'\n',encoding='utf-8')
         with tarfile.open(args.output,'w:gz',format=tarfile.PAX_FORMAT) as tf:
             tf.add(root,arcname=root.name,recursive=True)
-    print(json.dumps({'ok':True,'output':str(args.output),'sha256':sha256(args.output),'sourceSnapshot':verified['snapshotId']},indent=2))
+    print(json.dumps({'ok':True,'output':str(args.output),'sha256':sha256(args.output),'sourceSnapshot':verified['snapshotId'],'bytecodeIncluded':False},indent=2))
     return 0
 if __name__=='__main__':raise SystemExit(main())
