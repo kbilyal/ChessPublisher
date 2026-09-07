@@ -39,6 +39,7 @@ jobs:
             linux-port/ci/source_guard_contract.py \
             linux-port/ci/self_test_contract.py \
             linux-port/ci/deb_install_smoke.py \
+            linux-port/ci/ubuntu_2604_container_smoke.py \
             linux-port/ci/chromium_runtime_smoke.py \
             linux-port/packaging/build_linux_bundle.py \
             linux-port/packaging/build_deb.py \
@@ -106,8 +107,11 @@ jobs:
       - name: Run self-test pinned online engine install
         run: python linux-port/ci/self_test_contract.py --online-engines
 
-      - name: Install, smoke-test and purge Linux deb
+      - name: Install, smoke-test and purge Linux deb on Ubuntu 24.04 runner
         run: python linux-port/ci/deb_install_smoke.py
+
+      - name: Install and self-test Linux deb in clean Ubuntu 26.04 container
+        run: python linux-port/ci/ubuntu_2604_container_smoke.py
 
       - name: Run real TRF16 and TRF26 compatibility
         run: python linux-port/ci/trf_compat_acceptance.py
