@@ -22,7 +22,7 @@ def apply()->None:
     _APPLIED=True
     app.APP_BUILD=APP_BUILD
     app.ENGINE_VERSION=ENGINE_VERSION
-    app.Handler.server_version='ChessPublisherLinuxEngine/0.4'
+    app.Handler.server_version=f"ChessPublisherLinuxEngine/{ENGINE_VERSION.split('-',1)[0]}"
     original_serve=app.Handler._serve_app
 
     def serve_app(self:app.Handler)->Any:
@@ -33,8 +33,6 @@ def apply()->None:
                 if len(matches)!=1:
                     raise RuntimeError(f'Linux served UI build marker count is {len(matches)}, expected exactly 1.')
                 data=_MARKER.sub(_REPLACEMENT,data,count=1)
-                if b'linux-dev.2' in data:
-                    raise RuntimeError('Stale Linux dev.2 build identity remains in served UI.')
             return original_text(status,data,content_type)
         self._text=identity_text  # type: ignore[method-assign]
         try:return original_serve(self)
