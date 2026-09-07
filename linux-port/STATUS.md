@@ -5,20 +5,20 @@ Updated: 2026-09-07
 ## Identity
 
 - Development branch: `linux-ubuntu-port`
-- Latest accepted runtime CI commit: `6d8bf444c49f31bb1c824b1bd0a9c5bc35130eed`
-- Ubuntu acceptance run: `34152113552` (run 95) — SUCCESS
-- Package display version: `v1.06.00-beta.34-linuxdev3`
-- App build: `1.06.00-beta.34-linux-dev.3`
-- LocalEngine: `0.4.0-linux-dev`
+- Latest accepted runtime CI commit: `7eaba282ce224d70e6a10e5163e1e858322db0f4`
+- Ubuntu acceptance workflow run: `34153588768` (run 104) — SUCCESS
+- Package display version: `v1.06.00-beta.34-linuxdev4`
+- App build: `1.06.00-beta.34-linux-dev.4`
+- LocalEngine: `0.4.1-linux-dev`
 - Base release target: `v1.06.00-beta.34`
 - Pinned reconstructed source snapshot: `cp-v1.06.00-beta.34-linux-source-20260907`
 - Pinned `ChessPublisher.html`: 1,526,307 bytes, SHA256 `f51355b1a449870be6ed69d1bb941c19a9d8d2bdf3c8f91da845b4bc1275f310`
 
-The exact beta.34 Google Drive ZIP could not be retrieved byte-for-byte automatically because Google Drive blocks the executable/script-containing archive. The Linux source snapshot is therefore explicitly identified as a reconstructed, SHA256-pinned snapshot, not a claim of byte identity with the beta.34 ZIP.
+The exact beta.34 Google Drive ZIP cannot be retrieved byte-for-byte automatically because Google Drive blocks the executable/script-containing archive. The Linux source snapshot is therefore explicitly identified as a reconstructed, SHA256-pinned snapshot, not a claim of byte identity with the beta.34 ZIP.
 
-## Ubuntu acceptance gates
+## Accepted Ubuntu gates
 
-All required automated Linux gates passed on Ubuntu 24.04:
+Run 104 passed all required automated Linux gates:
 
 - protected source identity contract
 - bbpPairings adapter contract
@@ -27,20 +27,23 @@ All required automated Linux gates passed on Ubuntu 24.04:
 - real headless Google Chrome Linux bridge execution
 - FIDE database runtime contract
 - secure Chess-Results Worker contract
-- non-destructive Chess-Results live-test contract (missing-token fail-closed + sanitized `test {}` transport)
+- non-destructive Chess-Results live-test contract, including ephemeral environment-token non-persistence
 - integrated LocalEngine HTTP / served UI identity contract
 - on-machine offline self-test: 6/6
 - on-machine self-test with pinned online engines: 7/7
-- Ubuntu `apt install` -> installed self-test -> installed pinned Gacrux/BBP preparation -> installed LocalEngine `/health` -> `apt purge` cleanup
-- TRF16 compatibility
-- TRF26 rating/report fixed-width semantic compatibility
-- real Round 7 Gacrux 1.9.57 pairing
-- independent bbpPairings 6.0.0 comparison
+- Ubuntu 24.04 `apt install` -> self-test -> pinned Gacrux/BBP -> LocalEngine `/health` -> `apt purge`: PASS
+- clean official Ubuntu 26.04 container install and system-Python acceptance: PASS
+- TRF16 compatibility: PASS
+- TRF26 rating/report fixed-width semantic compatibility: PASS
+- real Round 7 Gacrux 1.9.57 pairing: PASS
+- independent bbpPairings 6.0.0 comparison: PASS
 - Gacrux Tie-Break final standings: 27/27 ranks, 0 mismatches
+
+Ubuntu 26.04 acceptance used Python 3.14.4 and distribution `networkx 3.2.1`. Ubuntu 24.04 acceptance used distribution `python3-networkx 2.8.8`.
 
 The real Round 7 fixture produces the same 13 white/black pairs in Chess-Publisher, Gacrux 1.9.57 and bbpPairings 6.0.0, with player 10 excluded from that round.
 
-Exact full-page Chromium execution of the pinned private Drive UI is currently `BLOCKED_BY_SOURCE_ACCESS`: unauthenticated CI receives a Google sign-in HTML wrapper instead of the raw 1,526,307-byte source. This is not counted as a GUI failure. A wrong raw source identity remains a hard failure. The exact pinned UI is still validated by the package source guard and by on-machine HTTP-delivery tests; the Linux bridge itself runs in real headless Chrome.
+Exact full-page Chromium execution of the pinned private Drive UI remains `BLOCKED_BY_SOURCE_ACCESS`: unauthenticated CI receives a Google sign-in HTML wrapper instead of the raw 1,526,307-byte source. This is not counted as a GUI failure. The real Chromium Linux bridge passes, the exact 7/7 packaged source passes SHA256 identity, and exact served-UI HTTP delivery passes.
 
 ## Protected tournament core
 
@@ -53,58 +56,60 @@ The Linux port does not reimplement or modify the protected tournament algorithm
 
 ## Chess-Results security and live diagnostics
 
-Linux stores the Organizer Token only in the local secret store and communicates with the secure Chess-Publisher Chess-Results Worker. AES/IV, GETSID/GETKEY and official bridge crypto remain Worker-side. Ownership proofs are stored locally with restrictive permissions. Browser/Admin URLs are accepted only over HTTPS on `chess-results.com` or its subdomains.
+Linux talks only to the secure Chess-Publisher Chess-Results Worker. AES/IV, GETSID/GETKEY and official bridge crypto remain Worker-side. Source ID remains 21. Ownership proofs are stored locally with restrictive permissions. Browser/Admin URLs are accepted only over HTTPS on `chess-results.com` or its subdomains.
 
-Installed non-destructive live command:
+`linuxdev4` supports two Organizer Token sources for the non-destructive live test:
+
+1. installation-local secret store;
+2. ephemeral process environment `CP_ORGANIZER_TOKEN`.
+
+The environment token takes precedence, is kept in memory for that process only, and the live command does not create or update `secrets.json` when this path is used. CI explicitly verifies that the token is not persisted and is not echoed in diagnostic JSON.
+
+Installed command:
 
 ```bash
 chess-publisher-live-test
 ```
 
-It performs only the Worker `test {}` operation. It never creates, publishes, deletes or unlinks a tournament. Without a connected Organizer Token it stops before networking and reports `BLOCKED`. Optional physical DGT check:
+It performs only Worker `test {}`. It never creates, publishes, deletes or unlinks a tournament. Without a token it stops before networking and reports `BLOCKED`.
 
-```bash
-chess-publisher-live-test --dgt-connect
-```
+A real Organizer Token was supplied during development and a non-destructive live test was attempted from the local build environment. The environment could not resolve external DNS, so the request stopped with `Temporary failure in name resolution` before reaching the Worker. The token was not rejected or accepted, was not committed, was not included in CI or build artifacts, and the temporary local credential file was removed. Real remote authentication therefore remains unverified.
 
 ## Current development packages
 
-Current clean candidate built from the run-95 verified runtime plus the exact 7/7 source snapshot:
+Current clean candidate built from the exact run-104 runtime artifact plus the exact 7/7 source snapshot:
 
-- Debian/Ubuntu amd64: `Chess-Publisher-v1.06.00-beta.34-linuxdev3-amd64.deb`
-  - SHA256: `96a62a7d8f88dc752d889fe6e201ad205324cd726de1a63cc9856636e132b73e`
-  - size: 348,176 bytes
-- Portable bundle: `Chess-Publisher-v1.06.00-beta.34-linuxdev3-amd64.tar.gz`
-  - SHA256: `8c857bda9b7f5e27c3fe6d4c625932c36056e864029494172e67d63938e3db94`
-  - size: 454,449 bytes
+- Debian/Ubuntu amd64: `Chess-Publisher-v1.06.00-beta.34-linuxdev4-amd64.deb`
+  - SHA256: `cd33d0e2c2324a43f8425f1461e876f4548ce3a9057f901fef90d1c6b1696885`
+  - size: 348,400 bytes
+- Portable bundle: `Chess-Publisher-v1.06.00-beta.34-linuxdev4-amd64.tar.gz`
+  - SHA256: `0e321c30d5317b1c5544457e0ec29d612af1aa5c79f75340792c7a84c956b6a7`
+  - size: 454,784 bytes
 
-Artifact checks:
+Artifact checks performed on the final files themselves:
 
 - exact protected source: 7/7 SHA256 PASS
 - packaged Linux runtime: 18/18 SHA256 PASS
 - `.deb` and portable bundle contain no `__pycache__`, `.pyc` or `.pyo`
-- launchers set `PYTHONDONTWRITEBYTECODE=1`
-- `.deb` offline self-test: 6/6 PASS
+- launch paths set `PYTHONDONTWRITEBYTECODE=1`
+- extracted `.deb` offline self-test: 6/6 PASS
 - portable offline self-test: 6/6 PASS
-- Unicode save/open/rename PASS
-- cumulative TRF backup PASS
-- TRF export PASS
-- local secret round-trip and `0600` PASS
-- HTTP-delivery / exact packaged UI source / canonical dev3 marker PASS
-- FIDE status PASS
-- Chess-Results Worker-only security boundary and URL allowlist PASS
-- DGT Linux diagnostics PASS
-- LocalEngine `/health`: `1.06.00-beta.34-linux-dev.3` / `0.4.0-linux-dev`
-- live-test without Organizer Token: fail-closed `BLOCKED` PASS
+- live-test without Organizer Token: `BLOCKED` before network PASS
+- LocalEngine `/health`: `1.06.00-beta.34-linux-dev.4` / `0.4.1-linux-dev`
+- exact served UI contains canonical dev4 marker and no delivered stale `linux-dev.2` marker
+- exact served UI and Linux shim HTTP delivery: PASS
 
-Installed self-test commands:
+Installed commands:
 
 ```bash
+chess-publisher
 chess-publisher-self-test
 chess-publisher-self-test --online-engines
 chess-publisher-self-test --dgt-connect
 chess-publisher-live-test
 ```
+
+For a one-process non-persistent live test on a networked Ubuntu machine, set `CP_ORGANIZER_TOKEN` only for the process invoking `chess-publisher-live-test`; do not commit it or put it in shell history.
 
 ## Dependencies
 
@@ -114,15 +119,13 @@ Debian package runtime dependencies:
 - `python3-networkx (>= 2.6)`
 - `xdg-utils`
 
-Ubuntu 24.04 package-manager acceptance used the distribution `python3-networkx 2.8.8`; installed Gacrux/BBP preparation passed with the system `/usr/bin/python3`.
-
 DGT serial transport uses Python standard-library `termios`, `select`, and the Linux kernel serial/FTDI stack; no `pyserial` dependency is required. A real USB DGT user may need membership in `dialout`.
 
 ## Remaining stable-release blockers
 
 - physical DGT e-Board test on actual Ubuntu hardware
-- real live Chess-Results Worker `test` using an Organizer Token stored in an actual Linux installation
-- explicit disposable `XXX` Chess-Results create/publish/admin/delete lifecycle acceptance; this is intentionally not run automatically
+- real live Chess-Results Worker `test` on a networked Ubuntu machine with a valid Organizer Token
+- explicit disposable `XXX` Chess-Results create/publish/admin/delete lifecycle acceptance; this is intentionally not run automatically until safe cleanup can be guaranteed
 - exact pinned full UI Chromium execution when CI can receive the authenticated raw source, or equivalent real Ubuntu desktop GUI acceptance
 - AppImage acceptance only if AppImage distribution is retained
 
