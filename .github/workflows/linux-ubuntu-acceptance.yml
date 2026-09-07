@@ -33,6 +33,7 @@ jobs:
             linux-port/ci/fide_contract_smoke.py \
             linux-port/ci/fide_endpoint_contract.py \
             linux-port/ci/fide_legacy_limits_contract.py \
+            linux-port/ci/fide_streaming_contract.py \
             linux-port/ci/localengine_contract_smoke.py \
             linux-port/ci/chess_results_contract_smoke.py \
             linux-port/ci/live_acceptance_contract.py \
@@ -40,6 +41,8 @@ jobs:
             linux-port/ci/dgt_contract_smoke.py \
             linux-port/ci/telegram_contract_smoke.py \
             linux-port/ci/desktop_contract_smoke.py \
+            linux-port/ci/browser_launcher_contract.py \
+            linux-port/ci/window_mode_contract.py \
             linux-port/ci/source_guard_contract.py \
             linux-port/ci/self_test_contract.py \
             linux-port/ci/deb_install_smoke.py \
@@ -54,6 +57,7 @@ jobs:
             linux-port/linux/bbp_runtime.py \
             linux-port/linux/fide_runtime.py \
             linux-port/linux/fide_payload_policy.py \
+            linux-port/linux/fide_streaming_integration.py \
             linux-port/linux/fide_integration.py \
             linux-port/linux/chess_results_runtime.py \
             linux-port/linux/chess_results_integration.py \
@@ -62,6 +66,8 @@ jobs:
             linux-port/linux/telegram_runtime.py \
             linux-port/linux/telegram_integration.py \
             linux-port/linux/desktop_integration.py \
+            linux-port/linux/browser_integration.py \
+            linux-port/linux/window_integration.py \
             linux-port/linux/chess_publisher_linux.py \
             linux-port/linux/chess_publisher_linux_entry.py \
             linux-port/linux/self_test.py \
@@ -91,6 +97,12 @@ jobs:
       - name: Run Linux desktop and report integration contract
         run: python linux-port/ci/desktop_contract_smoke.py
 
+      - name: Run Linux fullscreen browser launcher contract
+        run: python linux-port/ci/browser_launcher_contract.py
+
+      - name: Run fullscreen version and Pairing popup contract
+        run: python linux-port/ci/window_mode_contract.py
+
       - name: Run real Chromium Linux bridge smoke
         run: python linux-port/ci/chromium_runtime_smoke.py
 
@@ -115,6 +127,9 @@ jobs:
 
       - name: Run large FIDE legacy XML safety contract
         run: python linux-port/ci/fide_legacy_limits_contract.py
+
+      - name: Run streamed FIDE legacy ZIP index contract
+        run: python linux-port/ci/fide_streaming_contract.py
 
       - name: Run Chess-Results secure Worker contract
         run: python linux-port/ci/chess_results_contract_smoke.py
