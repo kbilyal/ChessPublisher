@@ -29,6 +29,7 @@ jobs:
         run: |
           python -m py_compile \
             linux-port/ci/real_acceptance.py \
+            linux-port/ci/trf_compat_acceptance.py \
             linux-port/ci/fide_contract_smoke.py \
             linux-port/ci/localengine_contract_smoke.py \
             linux-port/ci/chess_results_contract_smoke.py \
@@ -36,6 +37,7 @@ jobs:
             linux-port/ci/dgt_contract_smoke.py \
             linux-port/ci/source_guard_contract.py \
             linux-port/packaging/build_linux_bundle.py \
+            linux-port/packaging/build_deb.py \
             linux-port/linux/source_guard.py \
             linux-port/linux/gacrux_runtime.py \
             linux-port/linux/bbp_runtime.py \
@@ -70,6 +72,9 @@ jobs:
 
       - name: Run integrated LocalEngine HTTP contract
         run: python linux-port/ci/localengine_contract_smoke.py
+
+      - name: Run real TRF16 and TRF26 compatibility
+        run: python linux-port/ci/trf_compat_acceptance.py
 
       - name: Run real Gacrux BBP and Tie-Break acceptance
         run: python linux-port/ci/real_acceptance.py
