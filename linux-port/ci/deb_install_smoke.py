@@ -30,11 +30,20 @@ def main()->int:
             run(['sudo','apt-get','install','-y',str(deb)])
             info=run(['dpkg-query','-W','-f=${Status} ${Version}\n',PACKAGE],capture_output=True).stdout.strip()
             if not info.startswith('install ok installed '):raise RuntimeError('dpkg does not report package installed')
-            st=run(['/usr/bin/chess-publisher-self-test','--json'],capture_output=True,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'}).stdout
+            nx=run(['/usr/bin/python3','-c','import networkx; print(networkx.__version__)'],capture_output=True).stdout.strip()
+            major_minor=tuple(int(x) for x in nx.split('.')[:2])
+            if major_minor<(2,6):raise RuntimeError(f'installed system networkx is too old: {nx}')
+            env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'}
+            st=run(['/usr/bin/chess-publisher-self-test','--json'],capture_output=True,env=env).stdout
             result=json.loads(st)
             if result.get('ok') is not True or result.get('failed')!=0:raise RuntimeError('installed self-test did not pass')
+            online=run(['/usr/bin/chess-publisher-self-test','--online-engines','--json'],capture_output=True,env=env,timeout=150).stdout
+            online_result=json.loads(online)
+            if online_result.get('ok') is not True or online_result.get('failed')!=0:raise RuntimeError('installed online-engine self-test did not pass')
+            rows={x.get('name'):x for x in online_result.get('tests',[])};detail=rows.get('online-engines',{}).get('detail',{})
+            if detail.get('gacrux')!='1.9.57' or detail.get('bbp')!='6.0.0':raise RuntimeError(f'installed engine pin mismatch: {detail}')
             data_home=td/'data';port='18769'
-            proc=subprocess.Popen(['/usr/bin/chess-publisher','--no-browser','--quiet','--port',port,'--data-home',str(data_home)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})
+            proc=subprocess.Popen(['/usr/bin/chess-publisher','--no-browser','--quiet','--port',port,'--data-home',str(data_home)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=env)
             health=None
             for _ in range(50):
                 if proc.poll() is not None:break
@@ -46,7 +55,7 @@ def main()->int:
                 stdout,stderr=proc.communicate(timeout=2) if proc.poll() is not None else ('','')
                 raise RuntimeError(f'installed LocalEngine health failed stdout={stdout[-1000:]} stderr={stderr[-1000:]}')
             if health.get('appBuild')!='1.06.00-beta.34-linux-dev.3' or health.get('engineVersion')!='0.4.0-linux-dev':raise RuntimeError(f'installed build identity mismatch: {health}')
-            print(json.dumps({'installed':True,'selfTestPassed':True,'health':health},indent=2))
+            print(json.dumps({'installed':True,'systemNetworkx':nx,'selfTestPassed':True,'onlineEnginesPassed':True,'gacrux':'1.9.57','bbp':'6.0.0','health':health},indent=2))
         finally:
             if proc is not None and proc.poll() is None:
                 proc.send_signal(signal.SIGTERM)
