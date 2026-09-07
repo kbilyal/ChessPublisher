@@ -84,13 +84,27 @@ def validate_trf26_report(path:Path)->dict:
     if 'PTS' not in records['212']:raise RuntimeError('TRF26 report has no standings tie-break definition')
     players=[line for line in lines if line.startswith('001')]
     if len(players)!=27:raise RuntimeError(f'TRF26 report expected 27 player records, found {len(players)}')
-    # Every player record must carry exactly the configured seven 10-character
-    # result blocks (or be long enough to contain them); shorter lines indicate
-    # a broken TRF export even if a permissive parser can continue.
-    min_len=91+rounds*10
-    short=[int(line[4:8].strip() or 0) for line in players if len(line)<min_len]
-    if short:raise RuntimeError(f'TRF26 report has truncated player round blocks: {short[:10]}')
-    return {'rounds':rounds,'players':len(players),'requiredRecords':len(required),'pairingSystem':'FIDE_DUTCH_2025'}
+
+    # TRF is fixed-width, but trailing spaces at the physical end of a line may
+    # be omitted by exporters/editors. Validate the semantic 10-character round
+    # blocks after right-padding rather than rejecting a valid line for missing
+    # insignificant trailing blanks. Round blocks start at zero-based offset 91.
+    expected_width=91+rounds*10
+    allowed_colors={'w','b','-',' '}
+    allowed_results={'1','0','=','+','-','F','H','U','D','L','W','Z','X','A','?',' '}
+    invalid=[]
+    for line in players:
+        try:pid=int(line[4:8].strip())
+        except Exception:pid=0
+        padded=line.ljust(expected_width)
+        for r in range(rounds):
+            block=padded[91+r*10:91+(r+1)*10]
+            opponent=block[:4].strip();color=block[5:6];result=block[7:8]
+            if not opponent.isdigit() or color not in allowed_colors or result not in allowed_results:
+                invalid.append({'player':pid,'round':r+1,'block':block})
+                break
+    if invalid:raise RuntimeError(f'TRF26 report has invalid player round blocks: {invalid[:5]}')
+    return {'rounds':rounds,'players':len(players),'requiredRecords':len(required),'pairingSystem':'FIDE_DUTCH_2025','fixedWidthRoundBlocks':True}
 
 def main()->int:
     if not TRF16.is_file() or not TRF26.is_file() or not PAIRING_FIXTURE.is_file():raise RuntimeError('TRF compatibility fixture missing')
