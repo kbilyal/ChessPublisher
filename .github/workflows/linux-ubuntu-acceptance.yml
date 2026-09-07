@@ -33,12 +33,15 @@ jobs:
             linux-port/ci/localengine_contract_smoke.py \
             linux-port/ci/chess_results_contract_smoke.py \
             linux-port/ci/bbp_adapter_contract.py \
+            linux-port/ci/dgt_contract_smoke.py \
             linux-port/linux/gacrux_runtime.py \
             linux-port/linux/bbp_runtime.py \
             linux-port/linux/fide_runtime.py \
             linux-port/linux/fide_integration.py \
             linux-port/linux/chess_results_runtime.py \
             linux-port/linux/chess_results_integration.py \
+            linux-port/linux/dgt_runtime.py \
+            linux-port/linux/dgt_integration.py \
             linux-port/linux/chess_publisher_linux.py \
             linux-port/linux/chess_publisher_linux_entry.py
           node --check linux-port/linux/LinuxWebViewShim.js
@@ -47,7 +50,10 @@ jobs:
       - name: Run BBP runtime adapter contract
         run: python linux-port/ci/bbp_adapter_contract.py
 
-      - name: Run Linux WebView Chess-Results safety contract
+      - name: Run Linux DGT pseudo-hardware protocol contract
+        run: python linux-port/ci/dgt_contract_smoke.py
+
+      - name: Run Linux WebView safety and DGT PGN contract
         run: node linux-port/ci/webview_shim_contract.mjs
 
       - name: Run offline FIDE runtime contract
