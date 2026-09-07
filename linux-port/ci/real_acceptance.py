@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Real Ubuntu pairing equivalence gate for Chess-Publisher.
+"""Real Ubuntu pairing and standings equivalence gate for Chess-Publisher.
 
-Uses a real Chess-Publisher TRF fixture and the same protected architecture as
+Uses real Chess-Publisher TRF fixtures and the same protected architecture as
 the desktop application: Gacrux 1.9.57 generates the round, bbpPairings 6.0.0
-independently generates it, then white/black identities must be identical.
-Nothing in either upstream engine is modified.
+independently generates it, then Gacrux Tie-Break Checker recomputes final
+standings. Nothing in either upstream engine is modified.
 """
 from __future__ import annotations
 
@@ -21,6 +21,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "pairing-engine-r7.trf"
+RATING_FIXTURE = ROOT / "tests" / "fixtures" / "chesspublisher-test-tournament-trf26.TXT"
+TIE_BREAKS = ["PTS", "DE", "BH/C1", "SB", "TPR"]
 ROUND = 7
 ROUNDS = 7
 TOP_COLOR = "b"
@@ -144,13 +146,71 @@ def prepare_history(full_text: str, completed: int) -> tuple[str, list[tuple[int
 
 
 def mark_current_round_unpaired(history: str, round_no: int, unpaired: list[int]) -> str:
-    # BBP 6.0.0 expects future-round exclusions as TRF record 240.
-    # Do not add a future 001 block: BBP would count it as a played round.
     clean = history.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n")
     wanted = sorted({int(x) for x in unpaired if int(x) > 0})
     if wanted:
         clean += "\n" + f"240 Z {round_no:3d}" + "".join(f" {pid:4d}" for pid in wanted)
     return clean.replace("\n", "\r\n") + "\r\n"
+
+
+def parse_json_object(text: str, label: str) -> dict:
+    raw = str(text or "").strip()
+    candidates = [raw]
+    first, last = raw.find("{"), raw.rfind("}")
+    if 0 <= first < last:
+        candidates.append(raw[first:last + 1])
+    for item in candidates:
+        try:
+            value = json.loads(item)
+            if isinstance(value, dict):
+                return value
+        except Exception:
+            pass
+    raise RuntimeError(f"{label} did not return a valid JSON object")
+
+
+def expected_ranks_from_trf(text: str) -> dict[int, int]:
+    ranks: dict[int, int] = {}
+    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        if not line.startswith("001") or len(line) < 89:
+            continue
+        try:
+            start_no = int(line[4:8].strip())
+            rank = int(line[85:89].strip())
+        except Exception:
+            continue
+        if start_no > 0 and rank > 0:
+            ranks[start_no] = rank
+    return ranks
+
+
+def gacrux_tiebreak_ranks(gacrux: Path, trf_file: Path) -> tuple[dict[int, int], dict]:
+    cmd = [
+        sys.executable, str(gacrux / "tiebreakchecker.py"),
+        "-i", str(trf_file), "-f", "TRF", "-n", str(ROUNDS),
+        "-r", "-s", "-t", *TIE_BREAKS,
+    ]
+    cp = run(cmd, cwd=gacrux)
+    if cp.returncode != 0 or "Program error" in cp.stdout or "(Pdb)" in cp.stdout:
+        raise RuntimeError(f"Gacrux Tie-Break Checker failed with rc={cp.returncode}")
+    raw = parse_json_object(cp.stdout, "Gacrux Tie-Break Checker")
+    result = raw.get("tiebreakResult")
+    if not isinstance(result, dict):
+        result = raw.get("result") if isinstance(raw.get("result"), dict) else raw
+    competitors = result.get("competitors") if isinstance(result, dict) else None
+    if not isinstance(competitors, list):
+        raise RuntimeError("Gacrux Tie-Break output has no competitor list")
+    ranks: dict[int, int] = {}
+    for row in competitors:
+        if not isinstance(row, dict):
+            continue
+        try:
+            cid, rank = int(row.get("cid")), int(row.get("rank"))
+        except Exception:
+            continue
+        if cid > 0 and rank > 0:
+            ranks[cid] = rank
+    return ranks, result
 
 
 def canonical(pairs: list[tuple[int, int]]) -> list[tuple[int, int]]:
@@ -160,6 +220,8 @@ def canonical(pairs: list[tuple[int, int]]) -> list[tuple[int, int]]:
 def main() -> int:
     if not FIXTURE.is_file():
         raise RuntimeError(f"missing fixture: {FIXTURE}")
+    if not RATING_FIXTURE.is_file():
+        raise RuntimeError(f"missing rating fixture: {RATING_FIXTURE}")
     full = FIXTURE.read_text(encoding="ascii")
     history, expected = prepare_history(full, ROUND - 1)
     if len(expected) != 13:
@@ -215,6 +277,23 @@ def main() -> int:
         if bbp_c != gacrux_c:
             raise RuntimeError("bbpPairings Round 7 differs from Gacrux")
 
+        print("== Compute final standings with Gacrux Tie-Break Checker ==")
+        rating_text = RATING_FIXTURE.read_text(encoding="utf-8-sig")
+        expected_ranks = expected_ranks_from_trf(rating_text)
+        if len(expected_ranks) != 27 or len(set(expected_ranks.values())) != 27:
+            raise RuntimeError("rating fixture does not contain 27 unique Chess-Publisher ranks")
+        tb_ranks, _tb_result = gacrux_tiebreak_ranks(gacrux, RATING_FIXTURE)
+        missing = sorted(set(expected_ranks) - set(tb_ranks))
+        rank_mismatches = [
+            {"startNo": cid, "expected": expected_ranks[cid], "actual": tb_ranks.get(cid)}
+            for cid in sorted(expected_ranks) if tb_ranks.get(cid) != expected_ranks[cid]
+        ]
+        print("Tie-break chain:", " -> ".join(TIE_BREAKS))
+        print("Tie-break competitors:", len(tb_ranks), "mismatches:", len(rank_mismatches))
+        if missing or rank_mismatches:
+            raise RuntimeError(f"Gacrux final standings differ from Chess-Publisher: missing={missing}, mismatches={rank_mismatches[:10]}")
+        print("Gacrux Tie-Break standings: PASS (27/27 ranks)")
+
         result = {
             "fixture": FIXTURE.name,
             "round": ROUND,
@@ -223,6 +302,7 @@ def main() -> int:
             "bbp": {"version": BBP_VERSION, "archiveSha256": got, "pairs": [list(x) for x in bbp_c]},
             "expected": [list(x) for x in expected_c],
             "equivalent": True,
+            "tiebreak": {"chain": TIE_BREAKS, "players": len(tb_ranks), "rankMismatches": 0, "equivalent": True},
         }
         report = ROOT / "tests" / "logs" / "real-linux-acceptance.json"
         report.parent.mkdir(parents=True, exist_ok=True)
