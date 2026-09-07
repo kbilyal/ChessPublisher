@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "snapshotId": "cp-v1.06.00-beta.34-linux-source-20260907",
+  "baseRelease": "v1.06.00-beta.34",
+  "note": "Pinned current reconstructed desktop/web source snapshot used for the Linux port. Version strings inside the protected HTML are historical feature markers and are not used as source identity.",
+  "files": {
+    "ChessPublisher.html": {"size": 1526307, "sha256": "f51355b1a449870be6ed69d1bb941c19a9d8d2bdf3c8f91da845b4bc1275f310"},
+    "cloud/client/cloud-workspace-api.js": {"size": 8150, "sha256": "733b9f921af5f4986c0ef89df62c650d1e621011b40aeeb02f5ba4ba900a1ab5"},
+    "hub/client/hub-api-client.js": {"size": 11819, "sha256": "5dec709a5eda5969f2f0de0bc3dc3a3467ae4e6fe83fe1362921a63576b93f11"},
+    "hub/client/hub-snapshot.js": {"size": 13103, "sha256": "d980c520d74a71e66b3a3aa2a54e5ed626ea3618c53159145f9e48b445effac9"},
+    "webview/CloudWorkspaceAdapter.js": {"size": 72083, "sha256": "a25dba042e46d0f120f9cf721b68fdb70178ab323da902bbcc34c42e6947a602"},
+    "webview/HubAdapter.js": {"size": 45733, "sha256": "e5d61eb452f8b98e70e874cb5a90da2ab6dfe4669c9da363a5047332c9ae62c0"},
+    "webview/WebViewAdapter.js": {"size": 7025, "sha256": "d23af37ce1624fac96b46f62c85d7801ed733a66f7e03bab40f453ce4db67861"}
+  }
+}
