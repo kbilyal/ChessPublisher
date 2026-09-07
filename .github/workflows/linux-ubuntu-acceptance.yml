@@ -34,6 +34,9 @@ jobs:
             linux-port/ci/chess_results_contract_smoke.py \
             linux-port/ci/bbp_adapter_contract.py \
             linux-port/ci/dgt_contract_smoke.py \
+            linux-port/ci/source_guard_contract.py \
+            linux-port/packaging/build_linux_bundle.py \
+            linux-port/linux/source_guard.py \
             linux-port/linux/gacrux_runtime.py \
             linux-port/linux/bbp_runtime.py \
             linux-port/linux/fide_runtime.py \
@@ -46,6 +49,9 @@ jobs:
             linux-port/linux/chess_publisher_linux_entry.py
           node --check linux-port/linux/LinuxWebViewShim.js
           node --check linux-port/ci/webview_shim_contract.mjs
+
+      - name: Run protected source identity contract
+        run: python linux-port/ci/source_guard_contract.py
 
       - name: Run BBP runtime adapter contract
         run: python linux-port/ci/bbp_adapter_contract.py
