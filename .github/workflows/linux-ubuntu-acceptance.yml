@@ -41,6 +41,7 @@ jobs:
             linux-port/packaging/build_linux_bundle.py \
             linux-port/packaging/build_deb.py \
             linux-port/linux/build_info.py \
+            linux-port/linux/build_identity_integration.py \
             linux-port/linux/source_guard.py \
             linux-port/linux/gacrux_runtime.py \
             linux-port/linux/bbp_runtime.py \
@@ -74,7 +75,7 @@ jobs:
       - name: Run Chess-Results secure Worker contract
         run: python linux-port/ci/chess_results_contract_smoke.py
 
-      - name: Run integrated LocalEngine HTTP contract
+      - name: Run integrated LocalEngine HTTP and served UI identity contract
         run: python linux-port/ci/localengine_contract_smoke.py
 
       - name: Run installed Linux self-test contract
