@@ -39,6 +39,7 @@ jobs:
             linux-port/ci/self_test_contract.py \
             linux-port/packaging/build_linux_bundle.py \
             linux-port/packaging/build_deb.py \
+            linux-port/linux/build_info.py \
             linux-port/linux/source_guard.py \
             linux-port/linux/gacrux_runtime.py \
             linux-port/linux/bbp_runtime.py \
@@ -77,6 +78,9 @@ jobs:
 
       - name: Run installed Linux self-test contract
         run: python linux-port/ci/self_test_contract.py
+
+      - name: Run self-test pinned online engine install
+        run: python linux-port/ci/self_test_contract.py --online-engines
 
       - name: Run real TRF16 and TRF26 compatibility
         run: python linux-port/ci/trf_compat_acceptance.py
