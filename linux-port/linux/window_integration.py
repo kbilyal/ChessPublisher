@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Linux desktop window UX for Chess-Publisher.
+"""Linux fluid single-workspace UI for Chess-Publisher.
 
 The protected ChessPublisher.html remains byte-for-byte unchanged on disk.
-The Linux delivery layer leaves the protected main application window sizing
-intact and presents working tabs as movable, resizable in-app popup workspaces.
+This delivery-only layer removes the nested pseudo-window/popup behavior that
+made routine tab navigation feel fragmented in Chromium app mode. Dialog
+modals remain dialogs; main work pages stay in one viewport-filling workspace.
 """
 from __future__ import annotations
 from typing import Any
@@ -14,220 +15,148 @@ from build_info import APP_BUILD, DISPLAY_VERSION
 _APPLIED = False
 
 _STYLE = r'''
-<style id="cpLinuxWindowModeStyle">
-.cp-linux-version-badge{display:inline-flex;align-items:center;margin-left:8px;padding:1px 7px;border:1px solid rgba(255,255,255,.45);border-radius:10px;font-size:10px;font-weight:700;background:rgba(255,255,255,.12);white-space:nowrap}
-.modal-overlay{backdrop-filter:none}
-.modal-window{border:1px solid #7f8790!important;border-radius:3px!important;box-shadow:0 12px 34px rgba(0,0,0,.34)!important}
-.modal-titlebar{background:linear-gradient(#315f95,#234a78)!important;color:#fff!important;font-weight:700!important;min-height:29px!important;display:flex!important;align-items:center!important}
-#cpLinuxTabPopupBackdrop{display:none!important;position:fixed;inset:0;z-index:9050;background:transparent!important;pointer-events:none}
-body.cp-linux-tab-popup-open #cpLinuxTabPopupBackdrop{display:none!important}
-body.cp-linux-tab-popup-open .app-save-corner{z-index:9001!important}
-#main.cp-linux-base-visible{display:block!important}
-@media print{#cpLinuxTabPopupBackdrop,#cpLinuxDevBadge{display:none!important}}
-.page.cp-linux-popup-page.active{
-  display:block!important;position:fixed!important;z-index:9100!important;
-  left:50%!important;top:74px!important;transform:translateX(-50%);
-  width:min(1180px,calc(100vw - 64px));
-  height:min(700px,calc(100vh - 92px));
-  max-width:calc(100vw - 24px)!important;max-height:calc(100vh - 64px)!important;
-  min-width:min(760px,calc(100vw - 24px))!important;
-  min-height:min(480px,calc(100vh - 64px))!important;
-  margin:0!important;padding:0 10px 10px!important;overflow:auto!important;resize:both;
-  background:#d4d0c8!important;border:1px solid #59636e!important;border-top:0!important;
-  box-shadow:0 18px 42px rgba(0,0,0,.42)!important
+<style id="cpLinuxFluidWorkspaceStyle">
+html,body{width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#f3f3f3!important}
+#appWindow.window{
+  position:relative!important;left:auto!important;top:auto!important;transform:none!important;
+  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+  max-width:none!important;max-height:none!important;margin:0!important;resize:none!important;
+  border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden!important
 }
-.page.cp-linux-popup-page.active.cp-linux-popup-max{
-  left:8px!important;top:68px!important;transform:none!important;
-  width:calc(100vw - 16px)!important;height:calc(100vh - 76px)!important;
-  max-width:none!important;max-height:none!important;resize:none!important
+#appWindow>.app-resize-handle{display:none!important;pointer-events:none!important}
+#appWindow .titlebar{cursor:default!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#appWindow .file-menu,.modal-overlay{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#appWindow .window-controls button[title="Minimize"],
+#appWindow .window-controls button[title="Maximize / restore"],
+#appWindow .window-controls button.window-close{display:none!important}
+#appWindow .tabs{flex:0 0 auto!important;scrollbar-width:thin;overscroll-behavior-x:contain}
+#appWindow .content{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important}
+#appWindow .page{min-height:0!important;max-height:none!important;overscroll-behavior:contain;scroll-behavior:auto!important}
+#appWindow .page.active{display:block!important;width:100%!important;height:100%!important;overflow:auto!important}
+#appWindow .tab,#appWindow button,#appWindow input,#appWindow select,#appWindow textarea,
+#appWindow .autosave-slider,#appWindow .autosave-slider::after,#appWindow .next-round-manager{
+  transition:none!important
 }
-.cp-linux-popup-page .cp-linux-popup-titlebar{
-  position:sticky;top:0;z-index:9200;height:31px;margin:0 -10px 8px;padding:0 7px 0 10px;
-  display:flex;align-items:center;gap:8px;background:linear-gradient(#315f95,#234a78);
-  color:#fff;border-bottom:1px solid #163451;box-shadow:0 1px 0 rgba(255,255,255,.22) inset;
-  cursor:move;user-select:none
+#appWindow .groupbox{box-shadow:0 1px 2px rgba(0,0,0,.045)!important}
+#appWindow .modal-window{box-shadow:0 10px 28px rgba(0,0,0,.24)!important}
+#cpLinuxDevBadge{opacity:.56!important;font-size:10px!important;padding:3px 6px!important;right:7px!important;bottom:5px!important}
+body.cp-linux-fluid-ui #appWindow{visibility:visible}
+@media(max-width:980px){
+  #appWindow .content{padding:5px!important}
+  #appWindow .tabs{padding-left:4px!important;padding-right:4px!important}
 }
-.cp-linux-popup-page .cp-linux-popup-title{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cp-linux-popup-page .cp-linux-popup-version{margin-left:auto;opacity:.86;font-size:10px;white-space:nowrap}
-.cp-linux-popup-page .cp-linux-popup-controls{display:flex;gap:3px;margin-left:4px}
-.cp-linux-popup-page .cp-linux-popup-controls button{
-  width:30px!important;min-width:30px!important;height:23px!important;padding:0!important;
-  border:1px solid rgba(255,255,255,.45)!important;background:rgba(255,255,255,.10)!important;
-  color:#fff!important;font-weight:700!important;line-height:20px!important
-}
-.cp-linux-popup-page .cp-linux-popup-controls button:hover{background:rgba(255,255,255,.22)!important}
-.cp-linux-popup-page .pairing-quickbar{top:31px!important}
-@media(max-width:900px){
-  .page.cp-linux-popup-page.active{
-    left:6px!important;top:68px!important;transform:none!important;
-    width:calc(100vw - 12px)!important;height:calc(100vh - 74px)!important;
-    min-width:0!important;min-height:0!important;resize:none!important
-  }
+@media print{
+  html,body{height:auto!important;overflow:visible!important;background:#fff!important}
+  #appWindow.window{height:auto!important;overflow:visible!important}
+  #cpLinuxDevBadge{display:none!important}
 }
 </style>
 '''.encode('utf-8')
 
 _SCRIPT_TEMPLATE = r'''
-<script id="cpLinuxWindowModeScript">
+<script id="cpLinuxFluidWorkspaceScript">
 (function(){
   'use strict';
+  if(window.__cpLinuxFluidWorkspaceLoaded)return;
+  window.__cpLinuxFluidWorkspaceLoaded=true;
+
   const APP_BUILD=__APP_BUILD__;
   const DISPLAY_VERSION=__DISPLAY_VERSION__;
-  const POPUP_IDS=['registration','pairings','standings','exportPage','schedule','chessresults','dgt'];
+  const FAST_PAGE_IDS=new Set(['main','registration','pairings','standings','exportPage','schedule','chessresults']);
   const TAB_BY_PAGE={
-    registration:'tabRegistration',pairings:'tabPairings',standings:'tabStandings',
+    main:'tabMain',registration:'tabRegistration',pairings:'tabPairings',standings:'tabStandings',
     exportPage:'tabExport',schedule:'tabSchedule',chessresults:'tabChessResults',dgt:'tabDgt'
   };
-  const titleText='Chess-Publisher '+DISPLAY_VERSION+' — Tournament Manager & Publisher';
+  const stats={fastSwitches:0,dirtySwitches:0,guardedMissingTargets:0};
+  window.__cpLinuxFluidUiStats=stats;
 
   function syncTitle(){
+    const titleText='Chess-Publisher '+DISPLAY_VERSION+' — Tournament Manager & Publisher';
     const title=document.getElementById('windowDocumentTitle');
     if(title){title.textContent=titleText;title.title='Build '+APP_BUILD;}
     document.title=titleText;
   }
 
-  function popupTitle(id){
-    const tab=document.getElementById(TAB_BY_PAGE[id]||'');
-    const label=(tab?.textContent||'').trim();
-    return label||id;
+  function dirtyState(){
+    try{return typeof stateDirty!=='undefined'?!!stateDirty:true;}catch(_){return true;}
   }
 
-  function ensureBackdrop(){
-    let backdrop=document.getElementById('cpLinuxTabPopupBackdrop');
-    if(!backdrop){
-      backdrop=document.createElement('div');
-      backdrop.id='cpLinuxTabPopupBackdrop';
-      document.body.appendChild(backdrop);
-    }
-    return backdrop;
+  function normalizedTabButton(id,button){
+    if(button?.classList)return button;
+    return document.getElementById(TAB_BY_PAGE[id]||'');
   }
 
-  function closePopup(){
-    const mainTab=document.getElementById('tabMain');
-    if(mainTab){mainTab.click();return;}
-    if(typeof window.showTab==='function')window.showTab('main',mainTab);
-  }
-
-  function installPopup(page,id){
-    if(!page||page.dataset.cpLinuxPopupInstalled==='1')return;
-    page.dataset.cpLinuxPopupInstalled='1';
-    page.classList.add('cp-linux-popup-page');
-
-    const bar=document.createElement('div');
-    bar.className='cp-linux-popup-titlebar';
-    bar.setAttribute('data-cp-linux-popup-bar',id);
-    bar.innerHTML=
-      '<span class="cp-linux-popup-title"></span>'+ 
-      '<span class="cp-linux-popup-version">'+DISPLAY_VERSION+'</span>'+ 
-      '<span class="cp-linux-popup-controls">'+
-      '<button type="button" class="cp-linux-popup-max-btn" title="Maximize / restore">▢</button>'+ 
-      '<button type="button" class="cp-linux-popup-close-btn" title="Close window">×</button>'+ 
-      '</span>';
-    page.insertBefore(bar,page.firstChild);
-
-    const label=bar.querySelector('.cp-linux-popup-title');
-    if(label&&label.textContent!==popupTitle(id))label.textContent=popupTitle(id);
-
-    bar.querySelector('.cp-linux-popup-close-btn')?.addEventListener('click',e=>{
-      e.stopPropagation();closePopup();
-    });
-    let restoredPosition=null;
-    bar.querySelector('.cp-linux-popup-max-btn')?.addEventListener('click',e=>{
-      e.stopPropagation();
-      if(page.classList.toggle('cp-linux-popup-max')){
-        restoredPosition=['left','top','transform'].map(name=>[
-          name,page.style.getPropertyValue(name),page.style.getPropertyPriority(name)
-        ]);
-        for(const [name] of restoredPosition)page.style.removeProperty(name);
-      }else{
-        for(const [name,value,priority] of restoredPosition||[]){
-          if(value)page.style.setProperty(name,value,priority);
-        }
-        restoredPosition=null;
-        requestAnimationFrame(()=>clampCurrentPosition());
-      }
-    });
-
-    let drag=null;
-    bar.addEventListener('pointerdown',e=>{
-      if(e.button!==0||e.target.closest('button')||page.classList.contains('cp-linux-popup-max'))return;
-      const r=page.getBoundingClientRect();
-      page.style.setProperty('transform','none','important');
-      page.style.setProperty('left',r.left+'px','important');
-      page.style.setProperty('top',r.top+'px','important');
-      drag={x:e.clientX,y:e.clientY,left:r.left,top:r.top};
-      bar.setPointerCapture?.(e.pointerId);
-      e.preventDefault();
-    });
-    function clampPosition(left,top){
-      const maxL=Math.max(0,window.innerWidth-page.offsetWidth);
-      const minT=32;
-      const maxT=Math.max(minT,window.innerHeight-page.offsetHeight);
-      return {left:Math.max(0,Math.min(maxL,left)),top:Math.max(minT,Math.min(maxT,top))};
-    }
-    function clampCurrentPosition(){
-      if(page.classList.contains('cp-linux-popup-max'))return;
-      const r=page.getBoundingClientRect();
-      const pos=clampPosition(r.left,r.top);
-      if(Math.abs(pos.left-r.left)<0.5&&Math.abs(pos.top-r.top)<0.5)return;
-      page.style.setProperty('transform','none','important');
-      page.style.setProperty('left',pos.left+'px','important');
-      page.style.setProperty('top',pos.top+'px','important');
-    }
-    bar.addEventListener('pointermove',e=>{
-      if(!drag)return;
-      const pos=clampPosition(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);
-      page.style.setProperty('left',pos.left+'px','important');
-      page.style.setProperty('top',pos.top+'px','important');
-    });
-    const stop=()=>{drag=null;clampCurrentPosition();};
-    bar.addEventListener('pointerup',stop);
-    bar.addEventListener('pointercancel',stop);
-    window.addEventListener('resize',()=>requestAnimationFrame(clampCurrentPosition));
-  }
-
-  function syncPopupState(){
-    let activePopup=null;
-    for(const id of POPUP_IDS){
-      const page=document.getElementById(id);
-      if(!page)continue;
-      installPopup(page,id);
-      const label=page.querySelector('.cp-linux-popup-title');
-      if(label&&label.textContent!==popupTitle(id))label.textContent=popupTitle(id);
-      if(page.classList.contains('active'))activePopup=page;
-    }
-    const main=document.getElementById('main');
-    if(main)main.classList.toggle('cp-linux-base-visible',!!activePopup);
-    document.body.classList.toggle('cp-linux-tab-popup-open',!!activePopup);
-  }
-
-  function wrapNavigation(){
+  function installFastNavigation(){
     const original=window.showTab;
-    if(typeof original!=='function'||window.__cpLinuxPopupShowTabWrapped)return;
-    window.showTab=function(){
-      const out=original.apply(this,arguments);
-      setTimeout(syncPopupState,0);
-      return out;
+    if(typeof original!=='function'||window.__cpLinuxFluidShowTabWrapped)return;
+
+    window.showTab=function(id,button){
+      const pageId=String(id||'');
+      const target=document.getElementById(pageId);
+      const tab=normalizedTabButton(pageId,button);
+      if(!target||!tab){
+        stats.guardedMissingTargets++;
+        return undefined;
+      }
+
+      const previousId=document.querySelector('.page.active')?.id||'';
+      const canFast=FAST_PAGE_IDS.has(pageId)&&previousId!=='dgt'&&!dirtyState();
+      if(!canFast){
+        if(dirtyState())stats.dirtySwitches++;
+        return original.call(this,pageId,tab);
+      }
+
+      // The protected showTab() deliberately calls saveAll() and saveData() on
+      // every navigation. When there are no unsaved changes those calls only
+      // serialize the entire tournament and schedule an autosave because the
+      // active-tab preference changed. Suppress that clean-navigation churn;
+      // any real input/change marks stateDirty synchronously, so dirty edits
+      // still use the original persistence path without modification.
+      const originalSaveAll=window.saveAll;
+      const originalSaveData=window.saveData;
+      if(typeof originalSaveAll==='function')window.saveAll=function(){};
+      if(typeof originalSaveData==='function')window.saveData=function(){};
+      try{
+        stats.fastSwitches++;
+        return original.call(this,pageId,tab);
+      }finally{
+        if(typeof originalSaveAll==='function')window.saveAll=originalSaveAll;
+        if(typeof originalSaveData==='function')window.saveData=originalSaveData;
+      }
     };
-    window.__cpLinuxPopupShowTabWrapped=true;
+    window.__cpLinuxFluidShowTabWrapped=true;
+  }
+
+  function stopNestedWindowDragging(){
+    const titlebar=document.querySelector('#appWindow>.titlebar');
+    if(!titlebar||titlebar.dataset.cpLinuxFluidGuard==='1')return;
+    titlebar.dataset.cpLinuxFluidGuard='1';
+    titlebar.addEventListener('pointerdown',event=>{
+      if(event.target?.closest?.('.window-controls'))return;
+      event.stopImmediatePropagation();
+    },true);
+  }
+
+  function normalizeLegacyWindowState(){
+    const app=document.getElementById('appWindow');
+    if(!app)return;
+    app.classList.remove('app-window-minimized');
+    delete app.dataset.restoreWindowStyle;
+    for(const name of ['position','left','top','width','height','margin','max-width','max-height','transform']){
+      app.style.removeProperty(name);
+    }
   }
 
   function install(){
     syncTitle();
-    ensureBackdrop();
-    wrapNavigation();
-    syncPopupState();
-    const content=document.querySelector('.content');
-    if(content){
-      new MutationObserver(()=>syncPopupState()).observe(content,{
-        subtree:true,childList:true,attributes:true,attributeFilter:['class']
-      });
-    }
+    normalizeLegacyWindowState();
+    stopNestedWindowDragging();
+    installFastNavigation();
+    document.body.classList.add('cp-linux-fluid-ui');
   }
 
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',()=>setTimeout(install,0),{once:true});
-  }else setTimeout(install,0);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>requestAnimationFrame(install),{once:true});
+  else requestAnimationFrame(install);
 })();
 </script>
 '''
@@ -239,7 +168,7 @@ _SCRIPT = (_SCRIPT_TEMPLATE
 
 
 def inject_window_mode(data: bytes) -> bytes:
-    if b'id="cpLinuxWindowModeScript"' in data:
+    if b'id="cpLinuxFluidWorkspaceScript"' in data:
         return data
     head = data.lower().rfind(b'</head>')
     if head >= 0:
