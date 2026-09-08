@@ -116,6 +116,9 @@ jobs:
       - name: Run fullscreen version and Pairing popup contract
         run: python linux-port/ci/window_mode_contract.py
 
+      - name: Run popup navigation and geometry in Chromium
+        run: python linux-port/ci/window_browser_contract.py
+
       - name: Run real Chromium Linux bridge smoke
         run: python linux-port/ci/chromium_runtime_smoke.py
 

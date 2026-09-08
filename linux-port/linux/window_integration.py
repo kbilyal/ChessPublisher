@@ -35,8 +35,8 @@ body.cp-linux-tab-popup-open .app-save-corner{z-index:9001!important}
 .page.cp-linux-popup-page.active{
   display:block!important;position:fixed!important;z-index:9100!important;
   left:50%!important;top:74px!important;transform:translateX(-50%);
-  width:min(1180px,calc(100vw - 64px))!important;
-  height:min(700px,calc(100vh - 92px))!important;
+  width:min(1180px,calc(100vw - 64px));
+  height:min(700px,calc(100vh - 92px));
   max-width:calc(100vw - 24px)!important;max-height:calc(100vh - 64px)!important;
   min-width:min(760px,calc(100vw - 24px))!important;
   min-height:min(480px,calc(100vh - 64px))!important;
@@ -134,13 +134,25 @@ _SCRIPT_TEMPLATE = r'''
     page.insertBefore(bar,page.firstChild);
 
     const label=bar.querySelector('.cp-linux-popup-title');
-    if(label)label.textContent=popupTitle(id);
+    if(label&&label.textContent!==popupTitle(id))label.textContent=popupTitle(id);
 
     bar.querySelector('.cp-linux-popup-close-btn')?.addEventListener('click',e=>{
       e.stopPropagation();closePopup();
     });
+    let restoredPosition=null;
     bar.querySelector('.cp-linux-popup-max-btn')?.addEventListener('click',e=>{
-      e.stopPropagation();page.classList.toggle('cp-linux-popup-max');
+      e.stopPropagation();
+      if(page.classList.toggle('cp-linux-popup-max')){
+        restoredPosition=['left','top','transform'].map(name=>[
+          name,page.style.getPropertyValue(name),page.style.getPropertyPriority(name)
+        ]);
+        for(const [name] of restoredPosition)page.style.removeProperty(name);
+      }else{
+        for(const [name,value,priority] of restoredPosition||[]){
+          if(value)page.style.setProperty(name,value,priority);
+        }
+        restoredPosition=null;
+      }
     });
 
     let drag=null;
@@ -173,7 +185,7 @@ _SCRIPT_TEMPLATE = r'''
       if(!page)continue;
       installPopup(page,id);
       const label=page.querySelector('.cp-linux-popup-title');
-      if(label)label.textContent=popupTitle(id);
+      if(label&&label.textContent!==popupTitle(id))label.textContent=popupTitle(id);
       if(page.classList.contains('active'))activePopup=page;
     }
     const main=document.getElementById('main');
