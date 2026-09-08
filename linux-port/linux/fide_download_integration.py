@@ -32,7 +32,9 @@ FIDE_DOWNLOAD_ROOTS = (
     "https://ratings.fide.com/download",
     "http://ratings.fide.com/download",
 )
-DIRECTORY_XML_ARCHIVES = (fr.LEGACY_XML_ARCHIVE, "players_list_xml.zip")
+# FIDE's current combined XML is the primary local player directory.  The
+# legacy-format archive remains a compatibility fallback only.
+DIRECTORY_XML_ARCHIVES = ("players_list_xml.zip", fr.LEGACY_XML_ARCHIVE)
 USER_AGENT = "Chess-Publisher/1.06 Linux (FIDE rating-list updater)"
 REFERER = "https://ratings.fide.com/download_lists.phtml"
 CONNECT_TIMEOUT = 15
@@ -232,9 +234,6 @@ def _download_to(
                     staged.unlink()
                 except OSError:
                     pass
-                # curl is the preferred installed desktop transport.  Do not
-                # repeat the same failing endpoint with urllib; move to the
-                # alternate official FIDE endpoint immediately.
                 continue
         try:
             meta = _urllib_download(url, target, max_bytes, timeout)
