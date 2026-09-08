@@ -4,6 +4,8 @@ import argparse,hashlib,json,shutil,subprocess,sys,tempfile
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'linux'))
+from build_info import APP_BUILD,ENGINE_VERSION
 
 def sha(path:Path)->str:
     h=hashlib.sha256()
@@ -39,7 +41,7 @@ def main()->int:
             if names.get(required,{}).get('status')!='PASS':raise RuntimeError(f'missing self-test PASS: {required}')
         if names['runtime-integrity'].get('detail',{}).get('verified') is not True:raise RuntimeError('runtime integrity was not verified')
         delivery=names['http-delivery'].get('detail',{})
-        if delivery.get('appBuild')!='1.06.00-beta.34-linux-dev.7' or delivery.get('engineVersion')!='0.6.0-linux-dev':raise RuntimeError('HTTP self-test build identity mismatch')
+        if delivery.get('appBuild')!=APP_BUILD or delivery.get('engineVersion')!=ENGINE_VERSION:raise RuntimeError('HTTP self-test build identity mismatch')
         if args.online_engines:
             row=names.get('online-engines',{})
             if row.get('status')!='PASS':raise RuntimeError('online engine self-test did not pass')
