@@ -1,0 +1,83 @@
+        status==="IN_SYNC"?`Desktop and Cloud fingerprints are equal at revision r${cloud.revision}.`:
+        status==="LOCAL_CHANGES"?"Desktop has unpublished changes. Use Push Desktop → Cloud.":
+        status==="REMOTE_CHANGES"?"Cloud contains newer changes. Pull Cloud → Desktop first.":
+        "Desktop and Cloud both contain changes. Nothing has been overwritten.",
+        {remoteRevision:cloud.revision,remoteFingerprint:cloud.fingerprint,localFingerprint:localHash,baseFingerprint:base.fingerprint}
+      );
+      return {status,localHash,baseHash:base.fingerprint,cloud,...cloud};
+    }catch(error){
+      const offline=error?.code==="network_error"||error?.code==="timeout";
+      setStatus(offline?"OFFLINE":"CONFLICT",offline?"Cloud is unreachable. Local tournament is unchanged.":(error?.message||"Cloud status check failed."));
+      if(!quiet&&!offline)console.error(error);
+      return {status:offline?"OFFLINE":"CONFLICT",error};
+    }
+  }
+
+  async function applyLocalTournament(next,oldMapKey){
+    const newName=text(next?.name)||oldMapKey;
+    const existing=data?.tournaments?.[newName];
+    if(existing&&existing!==data?.tournaments?.[oldMapKey]&&text(existing?.cloud?.internalId)!==text(next?.cloud?.internalId))throw new Error(`A different local tournament already uses the name “${newName}”.`);
+    if(oldMapKey!==newName)delete data.tournaments[oldMapKey];
+    data.tournaments[newName]=next;data.currentTournament=newName;
+    try{if(typeof normalizeData==="function")normalizeData();}catch(_){ }
+    try{stateDirty=true;}catch(_){ }
+    try{if(typeof refreshEverything==="function")refreshEverything();}catch(_){ }
+    if(typeof fileSaveTournament==="function"){
+      const ok=await fileSaveTournament(true);if(!ok)throw new Error("Merged/pulled tournament could not be saved locally.");
+    }else persistMeta();
+    return newName;
+  }
+
+  async function pullCloudToDesktop(){
+    const record=currentRecord();const {mapKey,name,tournament}=record;ensureIdentity(tournament);
+    await saveActiveLocal();
+    const token=await getOrganizerToken();if(!token)throw new Error("Organizer Token is not connected.");
+    const remote=await findRemoteReadOnly(token,tournament);
+    if(!remote){setStatus("LOCAL_CHANGES","Desktop has no Cloud copy yet. Use Push Desktop → Cloud.");return {status:"LOCAL_CHANGES",skipped:true};}
+    const cloud=await getRemoteState(token,remote,name);if(!cloud.exists){setStatus("LOCAL_CHANGES","Cloud record has no snapshot. Use Push Desktop → Cloud.",{remoteRevision:0});return {status:"LOCAL_CHANGES",skipped:true};}
+    assertRemoteIdentity(tournament,cloud.meta,cloud.tournament);
+    const localHash=await fingerprintTournament(tournament,name);const base=await resolveBase(token,tournament,cloud.id,name);const remoteHash=cloud.fingerprint;
+    const stamp=nowIso();
+    if(localHash===remoteHash){
+      updateBase(tournament,{revision:cloud.revision,fingerprint:remoteHash,remoteFingerprint:remoteHash,lastPullAt:stamp,status:"IN_SYNC"});
+      setStatus("IN_SYNC",`Pulled Cloud revision r${cloud.revision} → Desktop · already identical.`,{remoteRevision:cloud.revision,remoteFingerprint:remoteHash,localFingerprint:localHash,baseFingerprint:remoteHash});
+      return {status:"IN_SYNC",unchanged:true,revision:cloud.revision};
+    }
+    if(base.fingerprint&&localHash===base.fingerprint&&remoteHash!==base.fingerprint){
+      let pulled=restoreInstallationLocalFields(cloud.tournament,tournament,{cloudTournamentId:cloud.id,internalId:ensureIdentity(tournament).internalId,baseRevision:cloud.revision,baseFingerprint:remoteHash});
+      pulled.name=cloud.name;
+      pulled.cloud.lastPullAt=stamp;pulled.cloud.syncStatus="IN_SYNC";
+      await applyLocalTournament(pulled,mapKey);
+      runtime.conflict=null;
+      setStatus("IN_SYNC",`Pulled Cloud revision r${cloud.revision} → Desktop`,{remoteRevision:cloud.revision,remoteFingerprint:remoteHash,localFingerprint:remoteHash,baseFingerprint:remoteHash});
+      return {status:"IN_SYNC",pulled:true,revision:cloud.revision};
+    }
+    if(base.fingerprint&&localHash!==base.fingerprint&&remoteHash===base.fingerprint){
+      setStatus("LOCAL_CHANGES","Desktop has unpublished changes. Use Push Desktop → Cloud.",{remoteRevision:cloud.revision,remoteFingerprint:remoteHash,localFingerprint:localHash,baseFingerprint:base.fingerprint});
+      return {status:"LOCAL_CHANGES",skipped:true};
+    }
+
+    let baseTournament=base.tournament;
+    if(!baseTournament){
+      runtime.conflict={record,cloud,base,local:clone(tournament),remote:clone(cloud.tournament),merge:null};
+      setStatus("CONFLICT","Desktop and Cloud both changed and the common base could not be reconstructed. Nothing has been overwritten.",{remoteRevision:cloud.revision,remoteFingerprint:remoteHash,localFingerprint:localHash,baseFingerprint:base.fingerprint});
+      return {status:"CONFLICT",conflict:true};
+    }
+    const basePortable=contentObject(baseTournament,base.name||name);
+    const localPortable=contentObject(tournament,name);
+    const remotePortable=contentObject(cloud.tournament,cloud.name);
+    const merge=threeWayMerge(basePortable,localPortable,remotePortable);
+    if(merge.conflicts.length){
+      runtime.conflict={record,cloud,base,local:clone(tournament),remote:clone(cloud.tournament),merge};
+      setStatus("CONFLICT",`Desktop and Cloud both changed. ${merge.conflicts.length} field conflict(s) require a choice. Nothing has been overwritten.`,{remoteRevision:cloud.revision,remoteFingerprint:remoteHash,localFingerprint:localHash,baseFingerprint:base.fingerprint});
+      return {status:"CONFLICT",conflict:true,conflicts:merge.conflicts};
+    }
+
+    let merged=restoreInstallationLocalFields(merge.merged,tournament,{cloudTournamentId:cloud.id,internalId:ensureIdentity(tournament).internalId,baseRevision:cloud.revision,baseFingerprint:remoteHash});
+    merged.name=text(merge.merged.name||cloud.name||name)||name;
+    merged.cloud.lastPullAt=stamp;
+    const mergedHash=await fingerprintTournament(merged,merged.name);
+    merged.cloud.syncStatus=mergedHash===remoteHash?"IN_SYNC":"LOCAL_CHANGES";
+    await applyLocalTournament(merged,mapKey);
+    runtime.conflict=null;
+    const status=mergedHash===remoteHash?"IN_SYNC":"LOCAL_CHANGES";
