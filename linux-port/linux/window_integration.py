@@ -155,8 +155,12 @@ _SCRIPT_TEMPLATE = r'''
     document.body.classList.add('cp-linux-fluid-ui');
   }
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>requestAnimationFrame(install),{once:true});
-  else requestAnimationFrame(install);
+  // Injected at the end of <body>: install synchronously after DOMContentLoaded
+  // rather than waiting for an animation frame. This removes the startup race
+  // where the first navigation could hit the expensive protected path before
+  // the fluid navigation wrapper was ready on slower Chromium sessions.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
+  else install();
 })();
 </script>
 '''
