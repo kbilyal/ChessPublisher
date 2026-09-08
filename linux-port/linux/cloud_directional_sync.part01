@@ -1,0 +1,134 @@
+(()=>{
+  "use strict";
+  if(window.__cpDirectionalCloudSyncLoaded)return;
+  window.__cpDirectionalCloudSyncLoaded=true;
+
+  const AUTO_SYNC_KEY="ChessPublisherCloudWorkspace_AutoSync_v1";
+  const WEB_APP_URL="https://web.chess-publisher.org/";
+  const FINGERPRINT_SCHEMA=6;
+  const apiLib=window.ChessPublisherCloudWorkspaceApi;
+  const api=apiLib?.createClient?.({clientVersion:String(document.documentElement?.dataset?.chesspublisherVersion||"1.06.00-beta.34").trim()});
+  const runtime={status:"UNKNOWN",message:"Cloud status not checked yet.",remoteRevision:0,remoteFingerprint:"",localFingerprint:"",baseFingerprint:"",conflict:null,busy:false};
+  let publishBypass=false;
+  let hubPublishBypass=false;
+  const MISSING=Symbol("missing");
+
+  try{localStorage.setItem(AUTO_SYNC_KEY,"0");}catch(_){ }
+
+  const text=v=>v==null?"":String(v).trim();
+  const clone=v=>v===undefined?undefined:JSON.parse(JSON.stringify(v));
+  const isObject=v=>!!v&&typeof v==="object"&&!Array.isArray(v);
+  const nowIso=()=>new Date().toISOString();
+  const uuid=()=>globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const esc=v=>String(v??"").replace(/[&<>\"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;","'":"&#39;"}[ch]));
+
+  const LOCAL_ONLY_KEYS=new Set([
+    "organizertoken","managetoken","managekey","authtoken","accesstoken","refreshtoken","devicetoken",
+    "password","secret","devicesecret","aeskey","aes","iv","filepath","folderpath","installationpath",
+    "windowspath","linuxpath","executablepath","workingdirectory","serialport","usbpath","dgtport"
+  ]);
+
+  function stableCanonicalize(value){
+    if(Array.isArray(value))return value.map(stableCanonicalize);
+    if(isObject(value)){
+      const out={};
+      for(const key of Object.keys(value).sort()){
+        if(value[key]===undefined)continue;
+        out[key]=stableCanonicalize(value[key]);
+      }
+      return out;
+    }
+    return value;
+  }
+  const stableStringify=value=>JSON.stringify(stableCanonicalize(value));
+  function deepEqual(a,b){
+    if(a===MISSING||b===MISSING)return a===b;
+    return stableStringify(a)===stableStringify(b);
+  }
+
+  function sanitizeSecrets(value){
+    if(Array.isArray(value))return value.map(sanitizeSecrets);
+    if(!isObject(value))return value;
+    const out={};
+    for(const [key,item] of Object.entries(value)){
+      if(LOCAL_ONLY_KEYS.has(String(key).toLowerCase()))continue;
+      out[key]=sanitizeSecrets(item);
+    }
+    return out;
+  }
+
+  function currentRecord(){
+    let mapKey="";let tournament=null;
+    try{mapKey=text(data?.currentTournament);tournament=typeof getCurrentTournament==="function"?getCurrentTournament():data?.tournaments?.[mapKey];}catch(_){ }
+    if(!mapKey||!tournament)throw new Error("No tournament is open.");
+    if(!text(tournament.name))tournament.name=mapKey;
+    return {mapKey,name:text(tournament.name)||mapKey,tournament};
+  }
+
+  function chooseInternalId(tournament){
+    const existing=text(tournament?.cloud?.internalId);if(existing)return existing;
+    const shared=text(tournament?.online?.hubTournamentId||tournament?.hub?.tournamentId||tournament?.publication?.hubTournamentId);
+    return shared||`cp-tournament:${uuid()}`;
+  }
+
+  function ensureIdentity(tournament){
+    if(!tournament.cloud||!isObject(tournament.cloud))tournament.cloud={};
+    const meta=tournament.cloud;
+    if(!text(meta.localKey))meta.localKey=`cp-cloud:${uuid()}`;
+    if(!text(meta.internalId))meta.internalId=chooseInternalId(tournament);
+    meta.schemaVersion=4;
+    meta.internalId=text(meta.internalId);
+    meta.cloudTournamentId=text(meta.cloudTournamentId);
+    meta.baseRevision=Math.max(0,Number(meta.baseRevision??meta.revision)||0);
+    meta.revision=Math.max(0,Number(meta.revision??meta.baseRevision)||0);
+    meta.baseFingerprint=text(meta.baseFingerprint||meta.lastSyncedContentHash).toLowerCase();
+    meta.lastSyncedContentHash=text(meta.lastSyncedContentHash||meta.baseFingerprint).toLowerCase();
+    meta.fingerprintSchema=FINGERPRINT_SCHEMA;
+    return meta;
+  }
+
+  function portableTournament(tournament,name,cloudTournamentId=""){
+    const src=sanitizeSecrets(clone(tournament||{}));
+    const internalId=chooseInternalId(tournament||src);
+    const cloudId=text(cloudTournamentId||tournament?.cloud?.cloudTournamentId||src?.cloud?.cloudTournamentId);
+    src.name=text(name||src.name)||"Tournament";
+    src.cloud={schemaVersion:4,internalId,...(cloudId?{cloudTournamentId:cloudId}:{})};
+    delete src.dgt;
+    delete src.savedAt;
+    delete src.uiState;
+    delete src.runtimeState;
+    if(src.telegram&&isObject(src.telegram)){delete src.telegram.token;delete src.telegram.botToken;}
+    if(src.hub&&isObject(src.hub)){delete src.hub.manageToken;delete src.hub.manageKey;delete src.hub.adminToken;}
+    return src;
+  }
+
+  function contentObject(tournament,name){
+    const out=portableTournament(tournament,name);
+    delete out.cloud;
+    return stableCanonicalize(out);
+  }
+  function fingerprintPayload(tournament,name){return stableStringify(contentObject(tournament,name));}
+  async function sha256Text(raw){
+    const bytes=new TextEncoder().encode(raw);
+    const digest=await crypto.subtle.digest("SHA-256",bytes);
+    return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+  }
+  async function fingerprintTournament(tournament,name){return sha256Text(fingerprintPayload(tournament,name));}
+
+  function buildPortableSnapshot(name,tournament){
+    const meta=ensureIdentity(tournament);
+    const clean=portableTournament(tournament,name,meta.cloudTournamentId);
+    clean.name=text(clean.name||name)||"Tournament";
+    let base=null;
+    try{base=typeof getPersistentSnapshot==="function"?getPersistentSnapshot():null;}catch(_){ }
+    let snapshot;
+    try{snapshot=base&&typeof cpSnapshotForExternalFile==="function"?cpSnapshotForExternalFile(base):clone(base||{});}catch(_){snapshot=clone(base||{});}
+    if(!snapshot||!isObject(snapshot))snapshot={version:"V99"};
+    snapshot.data={currentTournament:clean.name,tournaments:{[clean.name]:clean},preferences:{}};
+    snapshot.currentTournament=clean.name;
+    snapshot.preferences={};
+    snapshot.telegramGlobal={};
+    snapshot.cloudWorkspace={schemaVersion:5,scope:"single-tournament",private:true,internalId:meta.internalId,cloudTournamentId:text(meta.cloudTournamentId),clientVersion:"desktop-directional-sync-v1"};
+    delete snapshot.savedAt;
+    return sanitizeSecrets(snapshot);
+  }
