@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Resilient native FIDE rating-list downloader for Chess-Publisher Linux.
 
-Vesus Pairings' desktop model keeps rating lists local: download from the
-federation source, validate/read/index them, then search offline. This Linux
-integration applies the same reliability model without changing the protected
-Chess-Publisher HTML or tournament core.
+The Linux desktop follows the same offline-first model documented by Vesus
+Pairings: rating lists are downloaded from their federation source, validated,
+indexed/stored locally, and then used without requiring a live network request.
 
-The original FIDE runtime remains intact; this layer only replaces network
-transport and the two refresh methods. Existing valid local lists are never
-replaced unless a complete official ZIP and its payload pass validation.
+This integration changes only the FIDE network/update layer.  The protected
+Chess-Publisher HTML and tournament core remain untouched.  A previously valid
+local list is never replaced until a complete official ZIP and its payload have
+passed validation.
 """
 from __future__ import annotations
 
@@ -35,9 +35,9 @@ FIDE_DOWNLOAD_ROOTS = (
 DIRECTORY_XML_ARCHIVES = (fr.LEGACY_XML_ARCHIVE, "players_list_xml.zip")
 USER_AGENT = "Chess-Publisher/1.06 Linux (FIDE rating-list updater)"
 REFERER = "https://ratings.fide.com/download_lists.phtml"
-CONNECT_TIMEOUT = 25
-DOWNLOAD_TIMEOUT = 300
-RETRIES = 2
+CONNECT_TIMEOUT = 15
+DOWNLOAD_TIMEOUT = 120
+RETRIES = 1
 MIN_RATING_LIST_BYTES = 1000
 
 
@@ -90,7 +90,7 @@ def _curl_download(url: str, target: Path, max_bytes: int, timeout: int) -> dict
         str(RETRIES),
         "--retry-delay",
         "1",
-        "--retry-all-errors",
+        "--retry-connrefused",
         "--connect-timeout",
         str(CONNECT_TIMEOUT),
         "--max-time",
@@ -210,17 +210,20 @@ def _download_to(
     target.parent.mkdir(parents=True, exist_ok=True)
     errors: list[str] = []
     attempts: list[dict[str, str]] = []
+    curl_available = bool(shutil.which("curl"))
     for url in candidates:
         if not re.match(r"^https?://", url, flags=re.I):
             errors.append(f"{url}: unsupported URL scheme")
             continue
-        if shutil.which("curl"):
+        if curl_available:
             staged = target.with_name(f".{target.name}.curl-{os.getpid()}-{time.time_ns()}")
             try:
                 meta = _curl_download(url, staged, max_bytes, timeout)
                 if meta is not None:
                     os.replace(staged, target)
-                    meta["attempts"] = attempts + [{"url": url, "transport": "curl", "result": "success"}]
+                    meta["attempts"] = attempts + [
+                        {"url": url, "transport": "curl", "result": "success"}
+                    ]
                     return meta
             except Exception as exc:
                 attempts.append({"url": url, "transport": "curl", "result": "failed"})
@@ -229,9 +232,15 @@ def _download_to(
                     staged.unlink()
                 except OSError:
                     pass
+                # curl is the preferred installed desktop transport.  Do not
+                # repeat the same failing endpoint with urllib; move to the
+                # alternate official FIDE endpoint immediately.
+                continue
         try:
             meta = _urllib_download(url, target, max_bytes, timeout)
-            meta["attempts"] = attempts + [{"url": url, "transport": "python-urllib", "result": "success"}]
+            meta["attempts"] = attempts + [
+                {"url": url, "transport": "python-urllib", "result": "success"}
+            ]
             return meta
         except Exception as exc:
             attempts.append({"url": url, "transport": "python-urllib", "result": "failed"})
@@ -329,7 +338,6 @@ def apply() -> None:
     if _APPLIED:
         return
     _APPLIED = True
-    # Preserve the original runtime API while replacing only the network/update layer.
     fr._download_to = _download_to  # type: ignore[assignment]
     fr.FideRuntime._update_list = _update_list  # type: ignore[assignment]
     fr.FideRuntime._update_legacy = _update_legacy  # type: ignore[assignment]
