@@ -1,0 +1,82 @@
+        const {tournament:local,mapKey}=context.record;const cloud=context.cloud;
+        let resolved=restoreInstallationLocalFields(merged,local,{cloudTournamentId:cloud.id,internalId:ensureIdentity(local).internalId,baseRevision:cloud.revision,baseFingerprint:cloud.fingerprint});
+        resolved.name=text(merged.name||cloud.name||context.record.name)||context.record.name;
+        resolved.cloud.lastPullAt=nowIso();resolved.cloud.mergeResolvedAt=nowIso();
+        const mergedHash=await fingerprintTournament(resolved,resolved.name);
+        resolved.cloud.syncStatus=mergedHash===cloud.fingerprint?"IN_SYNC":"LOCAL_CHANGES";
+        await applyLocalTournament(resolved,mapKey);
+        runtime.conflict=null;modal.classList.remove("open");
+        const status=mergedHash===cloud.fingerprint?"IN_SYNC":"LOCAL_CHANGES";
+        setStatus(status,status==="IN_SYNC"?`Conflict resolved locally · matches Cloud revision r${cloud.revision}`:`Conflict resolved and saved locally. Use Push Desktop → Cloud.`,{remoteRevision:cloud.revision,remoteFingerprint:cloud.fingerprint,localFingerprint:mergedHash,baseFingerprint:cloud.fingerprint});
+      }catch(error){save.disabled=false;alert(error?.message||String(error));}
+    };
+  }
+
+  async function publishGate(label){
+    const status=(await checkCloudStatus({quiet:true})).status;
+    if(status==="IN_SYNC")return true;
+    if(status==="LOCAL_CHANGES"){
+      const msg=`Desktop has unpublished changes.\n\nPush Desktop → Cloud now and continue with ${label}?`;
+      let ok=false;if(typeof appConfirm==="function")ok=await appConfirm(msg,`${label} — Cloud check`,"warning");else ok=window.confirm(msg);
+      if(!ok)return false;
+      const pushed=await pushDesktopToCloud();if(pushed?.status!=="IN_SYNC")return false;
+      const verified=await checkCloudStatus({quiet:true});return verified.status==="IN_SYNC";
+    }
+    if(status==="REMOTE_CHANGES"){
+      const msg="Cloud has newer changes. Pull Cloud → Desktop first.";if(typeof appAlert==="function")await appAlert(msg,label,"warning");else alert(msg);return false;
+    }
+    if(status==="CONFLICT"){
+      const msg="Resolve synchronization conflict before publishing.";if(typeof appAlert==="function")await appAlert(msg,label,"warning");else alert(msg);return false;
+    }
+    const msg="Cloud status cannot be verified while offline. Publishing was stopped.";if(typeof appAlert==="function")await appAlert(msg,label,"warning");else alert(msg);return false;
+  }
+
+  function statusLabel(status){return status==="IN_SYNC"?"✓ In sync":status==="LOCAL_CHANGES"?"↑ Desktop changes not pushed":status==="REMOTE_CHANGES"?"↓ Cloud has newer changes":status==="CONFLICT"?"⚠ Conflict — Desktop and Cloud changed":"○ Offline";}
+  function shortTime(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?"—":d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false});}
+
+  function render(){
+    const root=document.getElementById("cpDirectionalCloudPanel");if(!root)return;
+    let tournament=null,name="";try{({tournament,name}=currentRecord());}catch(_){ }
+    const meta=tournament?.cloud||{};const status=runtime.status==="UNKNOWN"?(text(meta.syncStatus)||"OFFLINE"):runtime.status;
+    const badge=document.getElementById("cpDirectionalStatusBadge");if(badge){badge.textContent=statusLabel(status);badge.className=`cp-directional-status status-${status.toLowerCase()}`;}
+    const n=document.getElementById("cpDirectionalTournamentName");if(n)n.textContent=name||"No tournament open";
+    const msg=document.getElementById("cpDirectionalStatusMessage");if(msg)msg.textContent=runtime.message||"";
+    const base=document.getElementById("cpDirectionalBaseRevision");if(base)base.textContent=`r${Math.max(0,Number(meta.baseRevision)||0)}`;
+    const remote=document.getElementById("cpDirectionalRemoteRevision");if(remote)remote.textContent=`r${Math.max(0,Number(runtime.remoteRevision||meta.remoteRevision)||0)}`;
+    const lp=document.getElementById("cpDirectionalLastPull");if(lp)lp.textContent=shortTime(meta.lastPullAt);
+    const ls=document.getElementById("cpDirectionalLastPush");if(ls)ls.textContent=shortTime(meta.lastPushAt);
+    const resolve=document.getElementById("cpDirectionalResolveBtn");if(resolve)resolve.hidden=status!=="CONFLICT"||!runtime.conflict?.merge?.conflicts?.length;
+    const buttons=root.querySelectorAll("button");buttons.forEach(btn=>btn.disabled=runtime.busy||(btn.id==="cpDirectionalResolveBtn"&&resolve.hidden));
+  }
+
+  async function foreground(label,fn){
+    if(runtime.busy)return;runtime.busy=true;runtime.message=label;render();
+    try{return await fn();}
+    catch(error){const offline=error?.code==="network_error"||error?.code==="timeout";setStatus(offline?"OFFLINE":"CONFLICT",error?.message||String(error));if(typeof appAlert==="function")await appAlert(error?.message||String(error),"Online & Cloud","error");else alert(error?.message||String(error));return {status:offline?"OFFLINE":"CONFLICT",error};}
+    finally{runtime.busy=false;render();}
+  }
+
+  function installPublishGuards(){
+    if(window.__cpDirectionalPublishGuards)return;window.__cpDirectionalPublishGuards=true;
+    const originalChess=window.publishChessResultsTournament;
+    if(typeof originalChess==="function"){
+      window.publishChessResultsTournament=async function(){
+        if(publishBypass)return originalChess.apply(this,arguments);
+        if(!await publishGate("Chess-Results"))return false;
+        publishBypass=true;try{return await originalChess.apply(this,arguments);}finally{publishBypass=false;}
+      };
+    }
+    document.addEventListener("click",async event=>{
+      const btn=event.target.closest?.("#hubPublishOnlineBtn,#hubPublishBtn,#pairingsHubPublishBtn");
+      if(!btn||hubPublishBypass)return;
+      event.preventDefault();event.stopImmediatePropagation();
+      if(!await publishGate("Publish to Hub"))return;
+      hubPublishBypass=true;try{btn.click();}finally{setTimeout(()=>{hubPublishBypass=false;},0);}
+    },true);
+  }
+
+  function installUi(){
+    const workspace=document.getElementById("cloudWorkspace");if(!workspace)return false;
+    if(document.getElementById("cpDirectionalCloudPanel")){render();return true;}
+    try{localStorage.setItem(AUTO_SYNC_KEY,"0");}catch(_){ }
+    const oldPrimary=workspace.querySelector(".cloud-primary-box");if(!oldPrimary)return false;
