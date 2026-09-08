@@ -37,6 +37,7 @@ jobs:
             linux-port/ci/localengine_contract_smoke.py \
             linux-port/ci/chess_results_contract_smoke.py \
             linux-port/ci/online_token_runtime_contract.py \
+            linux-port/ci/linux_adapter_order_contract.py \
             linux-port/ci/live_acceptance_contract.py \
             linux-port/ci/bbp_adapter_contract.py \
             linux-port/ci/dgt_contract_smoke.py \
@@ -53,6 +54,7 @@ jobs:
             linux-port/packaging/build_deb.py \
             linux-port/linux/build_info.py \
             linux-port/linux/build_identity_integration.py \
+            linux-port/linux/hub_proxy_integration.py \
             linux-port/linux/source_guard.py \
             linux-port/linux/gacrux_runtime.py \
             linux-port/linux/bbp_runtime.py \
@@ -83,6 +85,9 @@ jobs:
 
       - name: Run BBP runtime adapter contract
         run: python linux-port/ci/bbp_adapter_contract.py
+
+      - name: Run Linux adapter load-order contract
+        run: python linux-port/ci/linux_adapter_order_contract.py
 
       - name: Run Linux DGT pseudo-hardware protocol contract
         run: python linux-port/ci/dgt_contract_smoke.py
