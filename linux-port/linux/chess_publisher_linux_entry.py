@@ -5,6 +5,7 @@ from pathlib import Path
 import chess_publisher_linux as app
 from build_info import APP_BUILD,ENGINE_VERSION
 from build_identity_integration import apply as apply_build_identity
+from hub_proxy_integration import apply as apply_hub_proxy
 from source_guard import require_package_source,SourceIdentityError
 from fide_payload_policy import apply as apply_fide_payload_policy
 from fide_streaming_integration import apply as apply_fide_streaming
@@ -17,6 +18,7 @@ from browser_integration import apply as apply_browser
 from window_integration import apply as apply_window
 
 apply_build_identity()
+apply_hub_proxy()
 apply_fide_payload_policy()
 apply_fide_streaming()
 apply_fide()
