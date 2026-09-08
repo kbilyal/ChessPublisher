@@ -32,6 +32,8 @@ jobs:
             linux-port/ci/trf_compat_acceptance.py \
             linux-port/ci/fide_contract_smoke.py \
             linux-port/ci/fide_endpoint_contract.py \
+            linux-port/ci/fide_download_strategy_contract.py \
+            linux-port/ci/fide_live_download_contract.py \
             linux-port/ci/fide_legacy_limits_contract.py \
             linux-port/ci/fide_streaming_contract.py \
             linux-port/ci/localengine_contract_smoke.py \
@@ -61,6 +63,7 @@ jobs:
             linux-port/linux/fide_runtime.py \
             linux-port/linux/fide_payload_policy.py \
             linux-port/linux/fide_streaming_integration.py \
+            linux-port/linux/fide_download_integration.py \
             linux-port/linux/fide_integration.py \
             linux-port/linux/chess_results_runtime.py \
             linux-port/linux/chess_results_integration.py \
@@ -137,6 +140,12 @@ jobs:
 
       - name: Run offline FIDE runtime contract
         run: python linux-port/ci/fide_contract_smoke.py
+
+      - name: Run resilient FIDE download strategy contract
+        run: python linux-port/ci/fide_download_strategy_contract.py
+
+      - name: Probe official FIDE Standard rating-list download
+        run: python linux-port/ci/fide_live_download_contract.py
 
       - name: Run FIDE LocalEngine update endpoint contract
         run: python linux-port/ci/fide_endpoint_contract.py
