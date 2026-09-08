@@ -2,4 +2,5 @@
 set -euo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export PYTHONDONTWRITEBYTECODE=1
+python3 "$HERE/source_bootstrap.py"
 exec python3 "$HERE/chess_publisher_linux_entry.py" "$@"
