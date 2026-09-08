@@ -34,17 +34,17 @@ def main()->int:
         'FAST_PAGE_IDS','installFastNavigation','normalizedTabButton','stateDirty','originalSaveAll','originalSaveData',
         "previousId!=='dgt'",'stats.fastSwitches','guardedMissingTargets','stopNestedWindowDragging',
         'backdrop-filter:none!important','transition:none!important',APP_BUILD,DISPLAY_VERSION,'document.title=titleText',
-        '@media print','requestAnimationFrame(install)'
+        '@media print',"addEventListener('DOMContentLoaded',install,{once:true})",'else install();'
     )
     for marker in required:
         if marker not in out: raise RuntimeError(f'missing Linux fluid-workspace marker: {marker}')
     forbidden=(
         'cpLinuxTabPopupBackdrop','cp-linux-popup-page','cp-linux-popup-titlebar','cp-linux-popup-max',
         'MutationObserver','resize:both','clampCurrentPosition','body.cp-linux-tab-popup-open',
-        'backdrop-filter:blur(1px)',"'--start-fullscreen'"
+        'backdrop-filter:blur(1px)',"'--start-fullscreen'",'requestAnimationFrame(install)'
     )
     for marker in forbidden:
-        if marker in out: raise RuntimeError(f'fragmented/legacy popup marker still present: {marker}')
+        if marker in out: raise RuntimeError(f'fragmented/legacy/racy UI marker still present: {marker}')
     if out.count('id="cpLinuxFluidWorkspaceScript"')!=1: raise RuntimeError('fluid workspace integration injected more than once')
     again=wi.inject_window_mode(out.encode('utf-8')).decode('utf-8')
     if again!=out: raise RuntimeError('fluid workspace integration is not idempotent')
@@ -63,6 +63,7 @@ def main()->int:
     if desk_again!=desk: raise RuntimeError('Result Desk integration is not idempotent')
 
     print('LINUX_FLUID_WORKSPACE=PASS (single workspace, no routine-tab popups, native window chrome)')
+    print('LINUX_FLUID_STARTUP_RACE=PASS (navigation wrapper installed before window load)')
     print('LINUX_CLEAN_NAVIGATION_FAST_PATH=PASS (clean tab switches skip full tournament persistence churn)')
     print('LINUX_PAIRINGS_RESULT_DESK=PASS (controls fixed; board table scroll only)')
     return 0
