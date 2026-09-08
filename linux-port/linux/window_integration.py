@@ -2,8 +2,9 @@
 """Linux desktop window UX for Chess-Publisher.
 
 The protected ChessPublisher.html remains byte-for-byte unchanged on disk.
-The Linux delivery layer keeps the main application window normal/windowed and
-presents working tabs as movable, resizable in-app popup workspaces.
+The Linux delivery layer expands the main application surface to the full
+available browser viewport and presents working tabs as movable, resizable
+in-app popup workspaces.
 """
 from __future__ import annotations
 from typing import Any
@@ -15,6 +16,14 @@ _APPLIED = False
 
 _STYLE = r'''
 <style id="cpLinuxWindowModeStyle">
+html,body{width:100%!important;height:100%!important}
+body{padding:0!important;overflow:hidden!important}
+#appWindow.window{
+  width:100vw!important;height:100vh!important;
+  min-width:0!important;min-height:0!important;
+  max-width:none!important;max-height:none!important;
+  margin:0!important;resize:none!important
+}
 .cp-linux-version-badge{display:inline-flex;align-items:center;margin-left:8px;padding:1px 7px;border:1px solid rgba(255,255,255,.45);border-radius:10px;font-size:10px;font-weight:700;background:rgba(255,255,255,.12);white-space:nowrap}
 .modal-overlay{backdrop-filter:blur(1px)}
 .modal-window{border:1px solid #7f8790!important;border-radius:3px!important;box-shadow:0 12px 34px rgba(0,0,0,.34)!important}
