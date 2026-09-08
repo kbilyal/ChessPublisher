@@ -1,0 +1,100 @@
+    if(remoteInternal&&meta.internalId&&remoteInternal!==meta.internalId){
+      throw new Error("Cloud tournament identity does not match the Desktop internalId. Nothing was overwritten.");
+    }
+    const snapshotCloudId=text(remoteTournament?.cloud?.cloudTournamentId);
+    if(snapshotCloudId&&text(remoteMeta?.id)&&snapshotCloudId!==text(remoteMeta.id)){
+      throw new Error("Cloud snapshot identity does not match its cloudTournamentId. Nothing was overwritten.");
+    }
+  }
+
+  async function findRemoteReadOnly(token,tournament){
+    const meta=ensureIdentity(tournament);
+    if(meta.cloudTournamentId)return {id:meta.cloudTournamentId};
+    const listed=await api.listTournaments(token);
+    const rows=Array.isArray(listed?.tournaments)?listed.tournaments:[];
+    const matches=rows.filter(row=>text(row?.localKey)===meta.internalId);
+    if(matches.length>1)throw new Error("Multiple Cloud tournaments share this internalId. No automatic link was made.");
+    if(matches.length===1){
+      meta.cloudTournamentId=text(matches[0].id);meta.remoteRevision=Math.max(0,Number(matches[0].revision)||0);persistMeta();return matches[0];
+    }
+    return null;
+  }
+
+  async function ensureRemoteForPush(token,name,tournament){
+    let remote=await findRemoteReadOnly(token,tournament);
+    if(remote)return remote;
+    const meta=ensureIdentity(tournament);
+    const result=await api.createTournament(token,{localKey:meta.internalId,name,deviceId:deviceId(),deviceLabel:deviceLabel()});
+    remote=result?.tournament||null;
+    if(!text(remote?.id))throw new Error("Cloud Workspace did not return a tournament ID.");
+    meta.cloudTournamentId=text(remote.id);meta.remoteRevision=Math.max(0,Number(remote.revision)||0);persistMeta();
+    return remote;
+  }
+
+  async function getRemoteState(token,remote,fallbackName){
+    const id=text(remote?.id||remote);if(!id)throw new Error("Cloud tournament ID is missing.");
+    let metaResponse=await api.getTournament(token,id);
+    let meta=metaResponse?.tournament||remote||{};
+    const revision=Math.max(0,Number(meta?.revision)||0);
+    if(revision<=0)return {id,meta,revision:0,exists:false,tournament:null,name:text(meta?.name||fallbackName),fingerprint:"",response:null};
+    const response=await api.getCurrentSnapshot(token,id);
+    meta=response?.tournament||meta;
+    const parsed=extractPortableTournament(response?.snapshot,text(meta?.name||fallbackName));
+    const fingerprint=await fingerprintTournament(parsed.tournament,parsed.name);
+    return {id,meta,revision:Math.max(0,Number(meta?.revision)||revision),exists:true,tournament:parsed.tournament,name:parsed.name,fingerprint,response};
+  }
+
+  async function resolveBase(token,tournament,remoteId,fallbackName){
+    const meta=ensureIdentity(tournament);
+    let fingerprint=Number(meta.fingerprintSchema)===FINGERPRINT_SCHEMA?text(meta.baseFingerprint||meta.lastSyncedContentHash).toLowerCase():"";
+    const revision=Math.max(0,Number(meta.baseRevision??meta.revision)||0);
+    let tournamentBase=null;let name=fallbackName;
+    if(revision>0){
+      try{
+        const historical=await api.getRevision(token,remoteId,revision);
+        const parsed=extractPortableTournament(historical?.snapshot,fallbackName);
+        tournamentBase=parsed.tournament;name=parsed.name;
+        const actual=await fingerprintTournament(parsed.tournament,parsed.name);
+        if(!fingerprint||fingerprint!==actual)fingerprint=actual;
+      }catch(error){console.warn(`Base revision r${revision} could not be loaded:`,error);}
+    }
+    return {revision,fingerprint,tournament:tournamentBase,name};
+  }
+
+  function updateBase(tournament,{revision,fingerprint,remoteFingerprint,lastPullAt,lastPushAt,status}={}){
+    const meta=ensureIdentity(tournament);
+    const rev=Math.max(0,Number(revision)||0);const fp=text(fingerprint).toLowerCase();
+    meta.revision=rev;meta.baseRevision=rev;meta.baseFingerprint=fp;meta.lastSyncedContentHash=fp;meta.fingerprintSchema=FINGERPRINT_SCHEMA;
+    if(remoteFingerprint!==undefined)meta.remoteFingerprint=text(remoteFingerprint).toLowerCase();
+    meta.remoteRevision=rev;
+    if(lastPullAt)meta.lastPullAt=lastPullAt;
+    if(lastPushAt)meta.lastPushAt=lastPushAt;
+    if(status)meta.syncStatus=status;
+    meta.lastSyncAt=nowIso();meta.lastSyncedAt=meta.lastSyncAt;
+    persistMeta();return meta;
+  }
+
+  function setStatus(status,message="",extra={}){
+    runtime.status=status;runtime.message=message||"";
+    if(extra.remoteRevision!==undefined)runtime.remoteRevision=Math.max(0,Number(extra.remoteRevision)||0);
+    if(extra.remoteFingerprint!==undefined)runtime.remoteFingerprint=text(extra.remoteFingerprint).toLowerCase();
+    if(extra.localFingerprint!==undefined)runtime.localFingerprint=text(extra.localFingerprint).toLowerCase();
+    if(extra.baseFingerprint!==undefined)runtime.baseFingerprint=text(extra.baseFingerprint).toLowerCase();
+    try{const {tournament}=currentRecord();const meta=ensureIdentity(tournament);meta.syncStatus=status;if(extra.remoteRevision!==undefined)meta.remoteRevision=runtime.remoteRevision;persistMeta();}catch(_){ }
+    render();return status;
+  }
+
+  async function checkCloudStatus({quiet=false}={}){
+    if(!api)throw new Error("Cloud Workspace API is unavailable.");
+    let record;try{record=currentRecord();}catch(error){setStatus("OFFLINE",error.message);return {status:"OFFLINE",error};}
+    const {name,tournament}=record;const meta=ensureIdentity(tournament);
+    const token=await getOrganizerToken();if(!token){setStatus("OFFLINE","Organizer Token is not connected.");return {status:"OFFLINE",noToken:true};}
+    try{
+      const remote=await findRemoteReadOnly(token,tournament);
+      const localHash=await fingerprintTournament(tournament,name);
+      if(!remote){setStatus("LOCAL_CHANGES","Desktop tournament is not yet linked to Cloud. Use Push Desktop → Cloud.",{localFingerprint:localHash,remoteRevision:0});return {status:"LOCAL_CHANGES",localHash,remote:null};}
+      const cloud=await getRemoteState(token,remote,name);if(cloud.exists)assertRemoteIdentity(tournament,cloud.meta,cloud.tournament);
+      const base=await resolveBase(token,tournament,cloud.id,name);
+      const status=classifyThreeWay(localHash,base.fingerprint,cloud.fingerprint,{remoteExists:cloud.exists});
+      if(status==="IN_SYNC")updateBase(tournament,{revision:cloud.revision,fingerprint:cloud.fingerprint,remoteFingerprint:cloud.fingerprint,status:"IN_SYNC"});
+      setStatus(status,
