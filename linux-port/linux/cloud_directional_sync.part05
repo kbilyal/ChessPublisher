@@ -1,0 +1,72 @@
+    setStatus(status,status==="IN_SYNC"?`Pulled Cloud revision r${cloud.revision} → Desktop`:`Pulled Cloud revision r${cloud.revision} → Desktop · non-overlapping Desktop changes preserved. Use Push Desktop → Cloud.`,{remoteRevision:cloud.revision,remoteFingerprint:remoteHash,localFingerprint:mergedHash,baseFingerprint:remoteHash});
+    return {status,pulled:true,merged:true,revision:cloud.revision};
+  }
+
+  async function pushDesktopToCloud(){
+    const {name,tournament}=currentRecord();ensureIdentity(tournament);await saveActiveLocal();
+    const token=await getOrganizerToken();if(!token)throw new Error("Organizer Token is not connected.");
+    const remote=await ensureRemoteForPush(token,name,tournament);
+    const cloud=await getRemoteState(token,remote,name);
+    if(cloud.exists)assertRemoteIdentity(tournament,cloud.meta,cloud.tournament);
+    const meta=ensureIdentity(tournament);meta.cloudTournamentId=cloud.id;
+    const localHash=await fingerprintTournament(tournament,name);
+    const base=await resolveBase(token,tournament,cloud.id,name);
+    if(cloud.exists&&localHash===cloud.fingerprint){
+      updateBase(tournament,{revision:cloud.revision,fingerprint:cloud.fingerprint,remoteFingerprint:cloud.fingerprint,lastPushAt:nowIso(),status:"IN_SYNC"});
+      setStatus("IN_SYNC",`Pushed Desktop → Cloud · already identical at revision r${cloud.revision}`,{remoteRevision:cloud.revision,remoteFingerprint:cloud.fingerprint,localFingerprint:localHash,baseFingerprint:cloud.fingerprint});
+      return {status:"IN_SYNC",unchanged:true,revision:cloud.revision};
+    }
+    if(cloud.exists){
+      if(!base.fingerprint){
+        setStatus("CONFLICT","Cloud contains an existing snapshot but the common base is unavailable. Pull Cloud → Desktop first.",{remoteRevision:cloud.revision,remoteFingerprint:cloud.fingerprint,localFingerprint:localHash});
+        return {status:"CONFLICT",blocked:true};
+      }
+      if(cloud.fingerprint!==base.fingerprint){
+        const status=localHash===base.fingerprint?"REMOTE_CHANGES":"CONFLICT";
+        setStatus(status,"Cloud contains newer changes. Pull Cloud → Desktop first.",{remoteRevision:cloud.revision,remoteFingerprint:cloud.fingerprint,localFingerprint:localHash,baseFingerprint:base.fingerprint});
+        return {status,blocked:true};
+      }
+    }
+    const snapshot=buildPortableSnapshot(name,tournament);
+    const expectedRevision=cloud.exists?cloud.revision:0;
+    try{
+      const result=await api.putSnapshot(token,{tournamentId:cloud.id,baseRevision:expectedRevision,snapshot,deviceId:deviceId(),deviceLabel:deviceLabel()});
+      const newRevision=Math.max(0,Number(result?.revision)||expectedRevision||0);
+      updateBase(tournament,{revision:newRevision,fingerprint:localHash,remoteFingerprint:localHash,lastPushAt:nowIso(),status:"IN_SYNC"});
+      setStatus("IN_SYNC",`Pushed Desktop → Cloud · revision r${newRevision}`,{remoteRevision:newRevision,remoteFingerprint:localHash,localFingerprint:localHash,baseFingerprint:localHash});
+      return {status:"IN_SYNC",pushed:true,revision:newRevision};
+    }catch(error){
+      if(error?.code==="cloud_revision_conflict"){
+        setStatus("REMOTE_CHANGES","Cloud changed during Push. Nothing was uploaded. Pull Cloud → Desktop first.");return {status:"REMOTE_CHANGES",blocked:true,error};
+      }
+      throw error;
+    }
+  }
+
+  function conflictDisplayValue(value,missing=false){
+    if(missing)return "<deleted>";
+    if(value===undefined)return "<undefined>";
+    if(typeof value==="string"||typeof value==="number"||typeof value==="boolean"||value===null)return String(value??"null");
+    const raw=JSON.stringify(value,null,2);return raw.length>1400?raw.slice(0,1400)+"\n…":raw;
+  }
+
+  function ensureConflictModal(){
+    let modal=document.getElementById("cpDirectionalConflictModal");if(modal)return modal;
+    modal=document.createElement("div");modal.id="cpDirectionalConflictModal";modal.className="cp-directional-conflict-modal";modal.innerHTML=`<div class="cp-directional-conflict-window"><div class="cp-directional-conflict-title">⚠ SYNC CONFLICT</div><div class="cp-directional-conflict-body" id="cpDirectionalConflictBody"></div><div class="cp-directional-conflict-footer"><button id="cpDirectionalConflictCancel" type="button">Cancel</button><button id="cpDirectionalConflictSave" class="primary" type="button" disabled>Save merged version locally</button></div></div>`;document.body.appendChild(modal);
+    document.getElementById("cpDirectionalConflictCancel").onclick=()=>modal.classList.remove("open");
+    return modal;
+  }
+
+  async function resolveConflictUi(){
+    const context=runtime.conflict;if(!context?.merge?.conflicts?.length)throw new Error("No field-level synchronization conflict is waiting for resolution.");
+    const modal=ensureConflictModal();const body=document.getElementById("cpDirectionalConflictBody");const save=document.getElementById("cpDirectionalConflictSave");
+    const choices=new Map();
+    body.innerHTML=`<p>Desktop and Cloud both contain changes. Nothing has been overwritten. Choose one value for every conflicting field.</p>`+context.merge.conflicts.map((c,i)=>`<div class="cp-conflict-card" data-index="${i}"><b>Conflict: ${esc(c.path)}</b><div class="cp-conflict-cols"><div><span>Desktop</span><pre>${esc(conflictDisplayValue(c.local,c.localMissing))}</pre><button type="button" data-choice="local" data-index="${i}">Keep Desktop</button></div><div><span>Cloud</span><pre>${esc(conflictDisplayValue(c.remote,c.remoteMissing))}</pre><button type="button" data-choice="remote" data-index="${i}">Keep Cloud</button></div></div></div>`).join("");
+    body.onclick=event=>{const btn=event.target.closest("button[data-choice]");if(!btn)return;const index=Number(btn.dataset.index);choices.set(index,btn.dataset.choice);const card=body.querySelector(`.cp-conflict-card[data-index="${index}"]`);card?.querySelectorAll("button[data-choice]").forEach(x=>x.classList.toggle("chosen",x===btn));save.disabled=choices.size!==context.merge.conflicts.length;};
+    save.disabled=true;modal.classList.add("open");
+    save.onclick=async()=>{
+      if(choices.size!==context.merge.conflicts.length)return;
+      save.disabled=true;
+      try{
+        const merged=clone(context.merge.merged);
+        context.merge.conflicts.forEach((c,i)=>{const choice=choices.get(i);const useLocal=choice==="local";setResolvedPath(merged,c.path,useLocal?c.local:c.remote,useLocal?c.localMissing:c.remoteMissing);});
