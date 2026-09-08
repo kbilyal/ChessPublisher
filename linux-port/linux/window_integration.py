@@ -2,9 +2,8 @@
 """Linux desktop window UX for Chess-Publisher.
 
 The protected ChessPublisher.html remains byte-for-byte unchanged on disk.
-The Linux delivery layer expands the main application surface to the full
-available browser viewport and presents working tabs as movable, resizable
-in-app popup workspaces.
+The Linux delivery layer leaves the protected main application window sizing
+intact and presents working tabs as movable, resizable in-app popup workspaces.
 """
 from __future__ import annotations
 from typing import Any
@@ -16,14 +15,6 @@ _APPLIED = False
 
 _STYLE = r'''
 <style id="cpLinuxWindowModeStyle">
-html,body{width:100%!important;height:100%!important}
-body{padding:0!important;overflow:hidden!important}
-#appWindow.window{
-  width:100vw!important;height:100vh!important;
-  min-width:0!important;min-height:0!important;
-  max-width:none!important;max-height:none!important;
-  margin:0!important;resize:none!important
-}
 .cp-linux-version-badge{display:inline-flex;align-items:center;margin-left:8px;padding:1px 7px;border:1px solid rgba(255,255,255,.45);border-radius:10px;font-size:10px;font-weight:700;background:rgba(255,255,255,.12);white-space:nowrap}
 .modal-overlay{backdrop-filter:blur(1px)}
 .modal-window{border:1px solid #7f8790!important;border-radius:3px!important;box-shadow:0 12px 34px rgba(0,0,0,.34)!important}
@@ -152,6 +143,7 @@ _SCRIPT_TEMPLATE = r'''
           if(value)page.style.setProperty(name,value,priority);
         }
         restoredPosition=null;
+        requestAnimationFrame(()=>clampCurrentPosition());
       }
     });
 
@@ -166,16 +158,31 @@ _SCRIPT_TEMPLATE = r'''
       bar.setPointerCapture?.(e.pointerId);
       e.preventDefault();
     });
+    function clampPosition(left,top){
+      const maxL=Math.max(0,window.innerWidth-page.offsetWidth);
+      const minT=32;
+      const maxT=Math.max(minT,window.innerHeight-page.offsetHeight);
+      return {left:Math.max(0,Math.min(maxL,left)),top:Math.max(minT,Math.min(maxT,top))};
+    }
+    function clampCurrentPosition(){
+      if(page.classList.contains('cp-linux-popup-max'))return;
+      const r=page.getBoundingClientRect();
+      const pos=clampPosition(r.left,r.top);
+      if(Math.abs(pos.left-r.left)<0.5&&Math.abs(pos.top-r.top)<0.5)return;
+      page.style.setProperty('transform','none','important');
+      page.style.setProperty('left',pos.left+'px','important');
+      page.style.setProperty('top',pos.top+'px','important');
+    }
     bar.addEventListener('pointermove',e=>{
       if(!drag)return;
-      const maxL=Math.max(0,window.innerWidth-page.offsetWidth);
-      const maxT=Math.max(32,window.innerHeight-72);
-      page.style.setProperty('left',Math.max(0,Math.min(maxL,drag.left+e.clientX-drag.x))+'px','important');
-      page.style.setProperty('top',Math.max(32,Math.min(maxT,drag.top+e.clientY-drag.y))+'px','important');
+      const pos=clampPosition(drag.left+e.clientX-drag.x,drag.top+e.clientY-drag.y);
+      page.style.setProperty('left',pos.left+'px','important');
+      page.style.setProperty('top',pos.top+'px','important');
     });
-    const stop=()=>{drag=null};
+    const stop=()=>{drag=null;clampCurrentPosition();};
     bar.addEventListener('pointerup',stop);
     bar.addEventListener('pointercancel',stop);
+    window.addEventListener('resize',()=>requestAnimationFrame(clampCurrentPosition));
   }
 
   function syncPopupState(){

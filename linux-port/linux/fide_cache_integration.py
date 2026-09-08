@@ -83,7 +83,13 @@ def _seed_lists(runtime: fr.FideRuntime) -> dict[str, Any]:
         for key, (archive_name, _) in fr.LISTS.items():
             target = runtime.list_path(key)
             if target.is_file() and target.stat().st_size >= fd.MIN_RATING_LIST_BYTES:
-                continue
+                try:
+                    fd._validate_rating_txt(target, key)
+                    continue
+                except Exception:
+                    # A large-but-corrupt local TXT is not a usable cache. Heal it
+                    # from a verified bundled seed when one is available.
+                    pass
             cached = _find_cache(archive_name, fr.MAX_ARCHIVE_BYTES)
             if cached is None:
                 continue
