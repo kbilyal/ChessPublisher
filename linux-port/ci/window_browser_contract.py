@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise windowed shell and popup navigation/geometry in real Chromium."""
+"""Exercise fluid single-workspace navigation in real Chromium."""
 from __future__ import annotations
 
 import os
@@ -17,61 +17,80 @@ from chromium_runtime_smoke import _browser
 
 def main() -> int:
     fixture = '''<!doctype html><html><head><style>
-body{margin:0;padding:12px;overflow:auto}.window{width:1000px;height:700px;margin:0 auto}.page{display:none}.page.active{display:block}
+html,body{margin:0;width:100%;height:100%}.window{width:1000px;height:700px;margin:20px auto}.content{height:620px}.page{display:none}.page.active{display:block}
 </style></head><body>
-<div id="appWindow" class="window"><button id="tabMain" onclick="showTab('main')">Setup</button>
-<button id="tabPairings" onclick="showTab('pairings')">Pairings</button>
-<div class="content"><section id="main" class="page active"></section>
-<section id="pairings" class="page"></section><section id="registration" class="page"></section>
-<section id="standings" class="page"></section><section id="exportPage" class="page"></section>
-<section id="schedule" class="page"></section><section id="chessresults" class="page"></section>
-<section id="dgt" class="page"></section></div></div>
+<div id="appWindow" class="window"><div class="app-resize-handle"></div><div class="titlebar"><span id="windowDocumentTitle">Old</span><span class="window-controls"><button title="Minimize">-</button><button title="Maximize / restore">[]</button><button class="window-close">X</button></span></div>
+<div class="tabs"><button id="tabDgt" onclick="showTab('dgt',this)">DGT</button><button id="tabMain" onclick="showTab('main',this)">Setup</button>
+<button id="tabRegistration" onclick="showTab('registration',this)">Players</button><button id="tabPairings" onclick="showTab('pairings',this)">Pairings</button>
+<button id="tabStandings" onclick="showTab('standings',this)">Standings</button><button id="tabExport" onclick="showTab('exportPage',this)">Export</button>
+<button id="tabSchedule" onclick="showTab('schedule',this)">Schedule</button><button id="tabChessResults" onclick="showTab('chessresults',this)">Chess-Results</button></div>
+<div class="content"><section id="main" class="page active"></section><section id="pairings" class="page"></section><section id="registration" class="page"></section>
+<section id="standings" class="page"></section><section id="exportPage" class="page"></section><section id="schedule" class="page"></section><section id="chessresults" class="page"></section><section id="dgt" class="page"></section></div></div>
 <script>
-window.showTab=function(id){for(const p of document.querySelectorAll('.page'))p.classList.toggle('active',p.id===id);};
-const pause=()=>new Promise(resolve=>setTimeout(resolve,40));
+let stateDirty=false;let saveAllCalls=0;let saveDataCalls=0;const data={preferences:{}};
+function saveAll(){saveAllCalls++;}
+function saveData(){saveDataCalls++;stateDirty=true;}
+function updateWorkflowTabs(){}
+function dgtOnTabLeave(){}
+function dgtOnTabEnter(){}
+function refreshChessResultsXmlUi(){}
+window.showTab=function(id,button){
+  updateWorkflowTabs();if(button?.classList?.contains('disabled'))return;
+  const previousId=document.querySelector('.page.active')?.id||'';
+  if(previousId===id&&button?.classList?.contains('active'))return;
+  if(previousId==='dgt'&&id!=='dgt')dgtOnTabLeave();
+  saveAll();document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tabs button').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');button.classList.add('active');data.preferences.activeTab=id;saveData();
+  if(id==='dgt')dgtOnTabEnter();if(id==='chessresults')setTimeout(refreshChessResultsXmlUi,0);
+};
+const pause=()=>new Promise(resolve=>setTimeout(resolve,30));
 function check(value,message){if(!value)throw new Error(message);}
-function pointer(target,type,x,y){target.dispatchEvent(new PointerEvent(type,{bubbles:true,button:0,buttons:type==='pointerup'?0:1,clientX:x,clientY:y,pointerId:7,pointerType:'mouse'}));}
 window.addEventListener('load',()=>setTimeout(async()=>{
   try{
-    const shell=document.getElementById('appWindow');
-    check(Math.abs(shell.getBoundingClientRect().width-1000)<2,'main shell width was forced to viewport');
-    check(getComputedStyle(document.body).overflow!=='hidden','body overflow was forced hidden');
-    for(const id of ['pairings','registration','standings','exportPage','schedule','chessresults','dgt']){
-      showTab(id);await pause();const page=document.getElementById(id);
-      check(document.body.classList.contains('cp-linux-tab-popup-open'),'popup missing: '+id);
-      check(getComputedStyle(page).display==='block','hidden popup: '+id);
-      page.querySelector('.cp-linux-popup-close-btn').click();await pause();
-      check(!document.body.classList.contains('cp-linux-tab-popup-open'),'close failed: '+id);
-    }
-    showTab('pairings');await pause();const page=document.getElementById('pairings');
-    const label=page.querySelector('.cp-linux-popup-title');
-    document.getElementById('tabPairings').textContent='Updated pairings';page.classList.add('probe');await pause();
-    check(label.textContent==='Updated pairings','title did not update');
-    page.style.setProperty('left','123px','important');page.style.setProperty('top','111px','important');page.style.setProperty('transform','none','important');
-    page.style.width='980px';page.style.height='550px';
-    check(getComputedStyle(page).width==='980px','resize width overridden');check(getComputedStyle(page).height==='550px','resize height overridden');
-    const max=page.querySelector('.cp-linux-popup-max-btn');max.click();await pause();
-    check(Math.abs(page.getBoundingClientRect().left-8)<1,'maximize left overridden by drag');check(Math.abs(page.getBoundingClientRect().top-68)<1,'maximize top overridden by drag');
-    max.click();await pause();
-    check(Math.abs(page.getBoundingClientRect().left-123)<1,'restore left lost');check(Math.abs(page.getBoundingClientRect().top-111)<1,'restore top lost');check(getComputedStyle(page).width==='980px','restore width lost');
-    const bar=page.querySelector('.cp-linux-popup-titlebar');bar.setPointerCapture=()=>{};
-    let r=page.getBoundingClientRect();pointer(bar,'pointerdown',r.left+30,r.top+15);pointer(bar,'pointermove',10000,10000);pointer(bar,'pointerup',10000,10000);await pause();
-    r=page.getBoundingClientRect();check(r.right<=innerWidth+1,'drag escaped right viewport');check(r.bottom<=innerHeight+1,'drag escaped bottom viewport');
-    pointer(bar,'pointerdown',r.left+30,r.top+15);pointer(bar,'pointermove',-10000,-10000);pointer(bar,'pointerup',-10000,-10000);await pause();
-    r=page.getBoundingClientRect();check(r.left>=-1,'drag escaped left viewport');check(r.top>=31,'drag escaped above usable viewport');
-    check(page.querySelectorAll('.cp-linux-popup-titlebar').length===1,'duplicate titlebar');
+    const shell=document.getElementById('appWindow');const r=shell.getBoundingClientRect();
+    check(Math.abs(r.width-innerWidth)<2,'workspace does not fill browser width');
+    check(Math.abs(r.height-innerHeight)<2,'workspace does not fill browser height');
+    check(getComputedStyle(document.body).overflow==='hidden','body still creates a second scroll surface');
+    check(getComputedStyle(document.querySelector('.app-resize-handle')).display==='none','nested resize handle remains active');
+    check(getComputedStyle(document.querySelector('button[title="Minimize"]')).display==='none','nested minimize control remains visible');
+    check(getComputedStyle(document.querySelector('button[title="Maximize / restore"]')).display==='none','nested maximize control remains visible');
+    check(getComputedStyle(document.querySelector('.window-close')).display==='none','nested close control remains visible');
+    check(!document.querySelector('.cp-linux-popup-titlebar'),'routine tab popup chrome was injected');
+
+    showTab('pairings',document.getElementById('tabPairings'));await pause();
+    check(document.getElementById('pairings').classList.contains('active'),'Pairings did not activate');
+    check(saveAllCalls===0&&saveDataCalls===0,'clean navigation still performs persistence churn');
+    check(stateDirty===false,'clean navigation incorrectly marked tournament dirty');
+
+    showTab('standings');await pause();
+    check(document.getElementById('standings').classList.contains('active'),'missing tab-button fallback failed');
+    check(saveAllCalls===0&&saveDataCalls===0,'button fallback lost clean fast path');
+
+    const ids=['main','registration','pairings','standings','exportPage','schedule','chessresults'];
+    for(let i=0;i<70;i++)showTab(ids[i%ids.length]);
+    await pause();
+    check(saveAllCalls===0&&saveDataCalls===0,'repeated clean navigation serialized tournament state');
+    check(document.querySelectorAll('.page.active').length===1,'navigation left multiple active pages');
+
+    stateDirty=true;
+    showTab('registration',document.getElementById('tabRegistration'));await pause();
+    check(saveAllCalls===1,'dirty navigation skipped protected saveAll');
+    check(saveDataCalls===1,'dirty navigation skipped protected saveData');
+    check(window.__cpLinuxFluidUiStats.fastSwitches>=3,'fluid navigation stats missing');
+    check(window.__cpLinuxFluidUiStats.dirtySwitches>=1,'dirty-path stats missing');
+    check(document.title.includes('Chess-Publisher'),'build title was not synchronized');
     document.body.setAttribute('data-window-test','PASS');
   }catch(error){document.body.setAttribute('data-window-test','FAIL: '+error.message);}
 },50));
 </script></body></html>'''
-    with tempfile.TemporaryDirectory(prefix='cp-window-browser-') as raw:
-        temp = Path(raw);html = temp / 'window.html';html.write_bytes(inject_window_mode(fixture.encode()))
+    with tempfile.TemporaryDirectory(prefix='cp-fluid-browser-') as raw:
+        temp = Path(raw);html = temp / 'fluid.html';html.write_bytes(inject_window_mode(fixture.encode()))
         proc = subprocess.Popen([_browser(), '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1440,1000',f'--user-data-dir={temp / "profile"}','--virtual-time-budget=4000','--dump-dom',html.as_uri()],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,start_new_session=True)
         try: out, err = proc.communicate(timeout=20)
         except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL);proc.communicate();raise RuntimeError('Popup navigation blocked the browser event loop') from None
-        if proc.returncode or 'data-window-test="PASS"' not in out: raise RuntimeError(f'Popup browser test failed: {out}\n{err[-2000:]}')
-    print('LINUX_WINDOW_BROWSER=PASS (windowed shell, 7 tabs, close, resize, maximize, restore, drag clamp)')
+            os.killpg(proc.pid, signal.SIGKILL);proc.communicate();raise RuntimeError('Fluid navigation blocked the browser event loop') from None
+        if proc.returncode or 'data-window-test="PASS"' not in out: raise RuntimeError(f'Fluid workspace browser test failed: {out}\n{err[-2000:]}')
+    print('LINUX_FLUID_WINDOW_BROWSER=PASS (single workspace, 70 clean switches without persistence churn, dirty path preserved)')
     return 0
 
 if __name__ == '__main__': raise SystemExit(main())
