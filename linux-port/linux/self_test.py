@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import stat
 import sys
 import tempfile
@@ -36,9 +37,24 @@ app.ENGINE_VERSION = ENGINE_VERSION
 apply_build_identity()
 LinuxEngine = app.LinuxEngine
 
+_STALE_DEV2_RE = re.compile(r"linux-dev\.2(?!\d)", re.IGNORECASE)
+
 
 class SelfTestFailure(RuntimeError):
     pass
+
+
+def _contains_stale_dev2_identity(text: str) -> bool:
+    """Reject the retired dev.2 identity without misclassifying dev.20+."""
+    return _STALE_DEV2_RE.search(text or "") is not None
+
+
+def _assert_identity_detector() -> None:
+    if not _contains_stale_dev2_identity("1.06.00-beta.34-linux-dev.2"):
+        raise SelfTestFailure("Stale identity detector no longer catches linux-dev.2.")
+    for current in ("linux-dev.20", "linux-dev.21", "linux-dev.200"):
+        if _contains_stale_dev2_identity(current):
+            raise SelfTestFailure(f"Stale identity detector falsely matched current build token: {current}")
 
 
 def _sha256(path: Path) -> str:
@@ -146,7 +162,7 @@ def _offline_http_delivery(package_root: Path) -> dict[str, Any]:
                 shim = r.read().decode("utf-8", "replace")
             if APP_BUILD not in served:
                 raise SelfTestFailure("Served UI does not contain the canonical Linux build marker.")
-            if "linux-dev.2" in served:
+            if _contains_stale_dev2_identity(served):
                 raise SelfTestFailure("Served UI contains stale linux-dev.2 build identity.")
             if "/linux/LinuxWebViewShim.js" not in served:
                 raise SelfTestFailure("Served UI does not inject LinuxWebViewShim.js.")
@@ -162,6 +178,7 @@ def _offline_http_delivery(package_root: Path) -> dict[str, Any]:
                 "servedUiBytes": len(served.encode("utf-8")),
                 "shimBytes": len(shim.encode("utf-8")),
                 "canonicalBuildMarker": True,
+                "staleBuildRejectedSafely": True,
             }
         finally:
             srv.shutdown()
@@ -238,6 +255,7 @@ def main() -> int:
     root = args.package_root.expanduser().resolve()
     results: list[dict[str, Any]] = []
 
+    _assert_identity_detector()
     _record(results, "platform", lambda: {
         "system": platform.system(), "machine": platform.machine(), "python": platform.python_version(),
         "linux": platform.system().lower() == "linux", "python310Plus": sys.version_info >= (3, 10),
