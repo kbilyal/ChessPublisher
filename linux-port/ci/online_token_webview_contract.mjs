@@ -42,3 +42,4 @@ assert.equal(JSON.stringify(crBody).includes('TOKEN-SECRET'),false);
 
 console.log('LINUX_ORGANIZER_TOKEN_WEBVIEW_CONTRACT=PASS');
 await import('./cloud_directional_sync_contract.mjs');
+await import('./cloud_directional_sync_spec_contract.mjs');
