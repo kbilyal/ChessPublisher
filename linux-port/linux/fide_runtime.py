@@ -143,7 +143,7 @@ def build_legacy_index(xml_file: Path, db_target: Path) -> dict[str, Any]:
         conn = sqlite3.connect(tmp)
         try:
             conn.executescript("""PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF; PRAGMA temp_store=MEMORY; CREATE TABLE players(fideid INTEGER PRIMARY KEY,name TEXT NOT NULL,name_fold TEXT NOT NULL,country TEXT,sex TEXT,title TEXT,w_title TEXT,o_title TEXT,foa_title TEXT,rating INTEGER NOT NULL DEFAULT 0,games INTEGER NOT NULL DEFAULT 0,k INTEGER NOT NULL DEFAULT 0,rapid_rating INTEGER NOT NULL DEFAULT 0,rapid_games INTEGER NOT NULL DEFAULT 0,rapid_k INTEGER NOT NULL DEFAULT 0,blitz_rating INTEGER NOT NULL DEFAULT 0,blitz_games INTEGER NOT NULL DEFAULT 0,blitz_k INTEGER NOT NULL DEFAULT 0,birthday TEXT,flag TEXT);""")
-            sql="INSERT OR REPLACE INTO players VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?); batch=[]; count=0
+            sql="INSERT OR REPLACE INTO players VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"; batch=[]; count=0
             for _, elem in ET.iterparse(xml_file, events=("end",)):
                 if elem.tag.rsplit("}",1)[-1] != "player": continue
                 row=_player_tuple(elem); elem.clear()
@@ -200,9 +200,58 @@ class FideRuntime:
         for key in LISTS:
             path=self.list_path(key); item=dict((meta.get('lists') or {}).get(key) or {}); item['ready']=_rating_list_header_ready(path); item['bytes']=path.stat().st_size if path.is_file() else 0; rows[key]=item; all_lists=all_lists and item['ready']
         legacy=dict(meta.get('legacy') or {}); legacy_ready=self.legacy_db.is_file() and self.legacy_db.stat().st_size>4096
-        return FideStatus(all_lists,rows,legacy_ready,int(legacy.get('players') or 0),str(meta.get('updatedAt') or ''))
+        return FideStatus(all_lists and legacy_ready,rows,legacy_ready,int(legacy.get('players') or 0),str(meta.get('updatedAt') or ''))
     def _update_list(self,key:str,work:Path)->dict[str,Any]:
         archive_name,_=LISTS[key]; url=f'{FIDE_DOWNLOAD_ROOT}/{archive_name}'; archive=work/archive_name; dl=_download_to(url,archive); target=self.list_path(key); extract=_extract_single(archive,target,'.txt',MAX_EXTRACTED_LIST_BYTES)
         return {"source":url,"archiveSha256":dl['sha256'],"archiveBytes":dl['bytes'],**extract,"updatedAt":time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())}
     def _update_legacy(self,work:Path)->dict[str,Any]:
-        url=f'{FIDE_DOWNLOAD_ROOT}/{LEGACY_XML_ARCHIVE}'; archive=work/LEGACY_XML_ARCHIVE; dl=_download_to(url,archive); xml=work/'players_list_xml_legacy.xml'; extract=_extract_single(archive,xml,'.xml',MAX_LEGACY_XML_BYTES)
+        url=f'{FIDE_DOWNLOAD_ROOT}/{LEGACY_XML_ARCHIVE}'; archive=work/LEGACY_XML_ARCHIVE; dl=_download_to(url,archive); xml=work/'players_list_xml_legacy.xml'; extract=_extract_single(archive,xml,'.xml',MAX_LEGACY_XML_BYTES); indexed=build_legacy_index(xml,self.legacy_db)
+        return {"source":url,"archiveSha256":dl['sha256'],"archiveBytes":dl['bytes'],"xmlSha256":extract['sha256'],"xmlBytes":extract['bytes'],**indexed,"updatedAt":time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())}
+    def update(self)->dict[str,Any]:
+        self.data_dir.mkdir(parents=True,exist_ok=True); self.lists_dir.mkdir(parents=True,exist_ok=True); self.legacy_dir.mkdir(parents=True,exist_ok=True); previous=self._metadata(); report={"ok":True,"lists":{},"legacy":{},"updatedAt":time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())}; errors=[]
+        with tempfile.TemporaryDirectory(prefix='cp-fide-update-') as td:
+            work=Path(td)
+            for key in LISTS:
+                try: report['lists'][key]=self._update_list(key,work)
+                except Exception as exc:
+                    errors.append(f'{key}: {exc}'); old=dict((previous.get('lists') or {}).get(key) or {}); old['keptPrevious']=self.list_path(key).is_file(); old['error']=str(exc); report['lists'][key]=old
+            try: report['legacy']=self._update_legacy(work)
+            except Exception as exc:
+                errors.append(f'legacy: {exc}'); old=dict(previous.get('legacy') or {}); old['keptPrevious']=self.legacy_db.is_file(); old['error']=str(exc); report['legacy']=old
+        _atomic_json(self.metadata_file,{"updatedAt":report['updatedAt'],"lists":report['lists'],"legacy":report['legacy'],"errors":errors}); status=self.status(); report.update({"ready":status.ready,"legacyReady":status.legacy_ready,"legacyPlayers":status.legacy_players,"errors":errors})
+        if errors and not status.ready: report['ok']=False; report['error']='FIDE database update incomplete: '+'; '.join(errors)
+        return report
+    @staticmethod
+    def _row_to_player(row:sqlite3.Row)->dict[str,Any]:
+        return {"fideId":str(row['fideid']),"name":str(row['name'] or ''),"fed":str(row['country'] or 'FIDE').upper(),"gender":str(row['sex'] or '').lower(),"birth":str(row['birthday'] or '-') or '-',"title":str(row['title'] or '').upper(),"wTitle":str(row['w_title'] or '').upper(),"std":int(row['rating'] or 0),"rapid":int(row['rapid_rating'] or 0),"blitz":int(row['blitz_rating'] or 0),"stdK":int(row['k'] or 0),"rapidK":int(row['rapid_k'] or 0),"blitzK":int(row['blitz_k'] or 0),"stdAvailable":bool(int(row['rating'] or 0)),"rapidAvailable":bool(int(row['rapid_rating'] or 0)),"blitzAvailable":bool(int(row['blitz_rating'] or 0)),"flag":str(row['flag'] or ''),"otherTitle":str(row['o_title'] or ''),"foaTitle":str(row['foa_title'] or '')}
+    def _connect(self)->sqlite3.Connection:
+        if not self.legacy_db.is_file(): raise FileNotFoundError("Full FIDE LEGACY directory has not been downloaded yet.")
+        conn=sqlite3.connect(self.legacy_db.resolve().as_uri()+'?mode=ro',uri=True,timeout=5); conn.row_factory=sqlite3.Row; return conn
+    def lookup(self,fide_ids:Iterable[Any])->dict[str,Any]:
+        ids=[]
+        for value in fide_ids:
+            s=str(value or '').strip()
+            if re.fullmatch(r'\d{5,15}',s):
+                n=int(s)
+                if n not in ids:ids.append(n)
+            if len(ids)>=MAX_LOOKUP_IDS:break
+        if not ids:return {"ok":True,"players":[],"requested":0,"source":"FIDE LEGACY XML directory"}
+        with self._connect() as conn:
+            out=[]
+            for start in range(0,len(ids),400):
+                chunk=ids[start:start+400]; qs=','.join('?' for _ in chunk); out.extend(self._row_to_player(row) for row in conn.execute(f'SELECT * FROM players WHERE fideid IN ({qs})',chunk).fetchall())
+        by_id={p['fideId']:p for p in out}; ordered=[by_id[str(i)] for i in ids if str(i) in by_id]
+        return {"ok":True,"players":ordered,"requested":len(ids),"matched":len(ordered),"source":"FIDE LEGACY XML directory"}
+    def search(self,query:Any,limit:Any=60)->dict[str,Any]:
+        q=str(query or '').strip()
+        if len(q)<2:return {"ok":True,"players":[],"query":q,"source":"FIDE LEGACY XML directory"}
+        try:lim=max(1,min(MAX_SEARCH_LIMIT,int(limit or 60)))
+        except Exception:lim=60
+        with self._connect() as conn:
+            if re.fullmatch(r'\d{2,15}',q): rows=conn.execute('SELECT * FROM players WHERE CAST(fideid AS TEXT) LIKE ? ORDER BY fideid LIMIT ?',(q+'%',lim)).fetchall()
+            else:
+                terms=[t.casefold() for t in re.split(r'[\s,]+',q) if t]
+                if not terms:return {"ok":True,"players":[],"query":q,"source":"FIDE LEGACY XML directory"}
+                where=' AND '.join('name_fold LIKE ?' for _ in terms); rows=conn.execute(f'SELECT * FROM players WHERE {where} ORDER BY name_fold, fideid LIMIT ?',[f'%{t}%' for t in terms]+[lim]).fetchall()
+        players=[self._row_to_player(row) for row in rows]
+        return {"ok":True,"players":players,"query":q,"count":len(players),"source":"FIDE LEGACY XML directory"}
