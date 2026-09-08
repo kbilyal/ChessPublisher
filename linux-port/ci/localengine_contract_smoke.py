@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Ubuntu localhost HTTP contract smoke for the integrated Linux LocalEngine."""
 from __future__ import annotations
-import json, shutil, sys, tempfile, threading, urllib.error, urllib.request
+import json, re, shutil, sys, tempfile, threading, urllib.error, urllib.request
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -12,6 +12,20 @@ from build_identity_integration import apply as apply_build_identity
 from fide_integration import apply as apply_fide
 from fide_runtime import build_legacy_index
 apply_build_identity();apply_fide()
+
+_STALE_DEV2_RE=re.compile(r'linux-dev\.2(?!\d)',re.IGNORECASE)
+
+
+def contains_stale_dev2_identity(text:str)->bool:
+    return _STALE_DEV2_RE.search(text or '') is not None
+
+
+def assert_identity_detector()->None:
+    if not contains_stale_dev2_identity('1.06.00-beta.34-linux-dev.2'):
+        raise RuntimeError('LocalEngine stale identity detector no longer catches dev.2')
+    for current in ('linux-dev.20','linux-dev.21','linux-dev.200'):
+        if contains_stale_dev2_identity(current):
+            raise RuntimeError(f'LocalEngine stale identity detector falsely matched {current}')
 
 
 def xml_fixture()->str:
@@ -31,6 +45,7 @@ def post(url:str,obj:dict,origin:str|None=None)->tuple[int,dict]:
 
 
 def main()->int:
+    assert_identity_detector()
     with tempfile.TemporaryDirectory(prefix='cp-linux-http-') as td_raw:
         td=Path(td_raw);pkg=td/'package';data=td/'data';source=pkg/'source';linux=pkg/'linux'
         source.mkdir(parents=True);linux.mkdir(parents=True)
@@ -52,7 +67,7 @@ def main()->int:
             with urllib.request.urlopen(base+'/',timeout=3) as r:served=r.read().decode('utf-8')
             marker=f"document.documentElement.dataset.chesspublisherLinuxBuild='{APP_BUILD}';"
             if served.count(marker)!=1:raise RuntimeError('served UI does not contain exactly one canonical Linux build marker')
-            if 'linux-dev.2' in served:raise RuntimeError('served UI still contains stale linux-dev.2 marker')
+            if contains_stale_dev2_identity(served):raise RuntimeError('served UI still contains stale linux-dev.2 marker')
             if '<script src="/linux/LinuxWebViewShim.js"></script>' not in served:raise RuntimeError('Linux WebView shim injection is missing')
             with urllib.request.urlopen(base+'/linux/LinuxWebViewShim.js',timeout=3) as r:shim=r.read().decode('utf-8')
             if '__cpLinuxWebViewShimLoaded' not in shim or 'chesspublisherPlatform="linux"' not in shim:raise RuntimeError('Linux WebView shim static route/identity failed')
