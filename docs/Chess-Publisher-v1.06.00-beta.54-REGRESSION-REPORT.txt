@@ -1,0 +1,19 @@
+Chess-Publisher v1.06.00-beta.54 — REGRESSION REPORT
+Date: 2026-09-08
+Parent: v1.06.00-beta.53
+
+VCL RESULT
+==========
+Q141 PASS — a user-requested rating consistency check verifies the maintained/effective FIDE rating list before comparison.
+
+TEST EVIDENCE
+=============
+Dedicated beta.54: 23/23 PASS.
+Static audit: PASS.
+Cumulative standalone suites: 38 PASS / 3 known historical exceptions / 1 browser-runner skip.
+Unexpected functional beta.54 failures: 0.
+Protected core: 70/70 byte-identical to beta.53.
+
+NEXT ACTIONABLE
+===============
+Q135 — keep maintained FIDE lists within the required freshness window while Chess-Publisher is running; then Q139 automatic first-opportunity consistency check.
