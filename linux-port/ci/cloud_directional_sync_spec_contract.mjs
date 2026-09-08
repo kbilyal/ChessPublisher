@@ -7,6 +7,7 @@ const parts=Array.from({length:8},(_,i)=>new URL(`../linux/cloud_directional_syn
 const source=parts.map(p=>fs.readFileSync(p,'utf8')).join('');
 const loader=fs.readFileSync(new URL('../linux/cloud_directional_sync.js',import.meta.url),'utf8');
 const clone=v=>JSON.parse(JSON.stringify(v));
+const jsonEq=(a,b,msg)=>assert.equal(JSON.stringify(a),JSON.stringify(b),msg);
 
 const tournament={
   name:'Tournament Ubuntu',
@@ -39,13 +40,13 @@ const p=snap.data.tournaments['Tournament Ubuntu'];
 assert.equal(snap.data.currentTournament,'Tournament Ubuntu');
 assert.equal(p.name,'Tournament Ubuntu');
 assert.equal(p.players.length,83);
-for(const key of ['organizer','chiefArbiter','arbiter','director','venue','city','country','timeControl','startDate','endDate','rounds','tournamentFormat','pairingSystem','fideRated','tournamentRatingType','tournamentType','fideEventId','website','email','phone','liveLink','generalNotes','generalRegistrationDeadline','scoringWin'])assert.deepEqual(p.settings[key],tournament.settings[key],`settings.${key} parity failed`);
-assert.deepEqual(p.regulations,tournament.regulations);
-assert.deepEqual(p.schedule,tournament.schedule);
-assert.deepEqual(p.pairings,tournament.pairings);
-assert.deepEqual(p.attendance,tournament.attendance);
-assert.deepEqual(p.requestedByes,tournament.requestedByes);
-assert.deepEqual(p.specialPrizeConfig,tournament.specialPrizeConfig);
+for(const key of ['organizer','chiefArbiter','arbiter','director','venue','city','country','timeControl','startDate','endDate','rounds','tournamentFormat','pairingSystem','fideRated','tournamentRatingType','tournamentType','fideEventId','website','email','phone','liveLink','generalNotes','generalRegistrationDeadline','scoringWin'])assert.equal(p.settings[key],tournament.settings[key],`settings.${key} parity failed`);
+jsonEq(p.regulations,tournament.regulations,'regulations parity failed');
+jsonEq(p.schedule,tournament.schedule,'schedule parity failed');
+jsonEq(p.pairings,tournament.pairings,'pairings parity failed');
+jsonEq(p.attendance,tournament.attendance,'attendance parity failed');
+jsonEq(p.requestedByes,tournament.requestedByes,'requestedByes parity failed');
+jsonEq(p.specialPrizeConfig,tournament.specialPrizeConfig,'specialPrizeConfig parity failed');
 assert.equal(p.cloud.internalId,'tournament:ABC');
 assert.equal(p.cloud.cloudTournamentId,'cloud-77');
 assert.equal(p.hub.tournamentId,'hub-42');
