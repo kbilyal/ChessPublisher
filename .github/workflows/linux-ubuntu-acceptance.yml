@@ -36,6 +36,7 @@ jobs:
             linux-port/ci/fide_streaming_contract.py \
             linux-port/ci/localengine_contract_smoke.py \
             linux-port/ci/chess_results_contract_smoke.py \
+            linux-port/ci/online_token_runtime_contract.py \
             linux-port/ci/live_acceptance_contract.py \
             linux-port/ci/bbp_adapter_contract.py \
             linux-port/ci/dgt_contract_smoke.py \
@@ -75,6 +76,7 @@ jobs:
           node --check linux-port/linux/LinuxWebViewShim.js
           node --check linux-port/ci/webview_shim_contract.mjs
           node --check linux-port/ci/telegram_webview_contract.mjs
+          node --check linux-port/ci/online_token_webview_contract.mjs
 
       - name: Run protected source identity contract
         run: python linux-port/ci/source_guard_contract.py
@@ -87,6 +89,12 @@ jobs:
 
       - name: Run Linux WebView safety and DGT PGN contract
         run: node linux-port/ci/webview_shim_contract.mjs
+
+      - name: Run Organizer Token and Web sync WebView contract
+        run: node linux-port/ci/online_token_webview_contract.mjs
+
+      - name: Run Organizer Token scope and Hub Cloud proxy contract
+        run: python linux-port/ci/online_token_runtime_contract.py
 
       - name: Run Telegram Linux transport contract
         run: python linux-port/ci/telegram_contract_smoke.py
