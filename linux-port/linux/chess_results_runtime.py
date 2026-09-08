@@ -14,6 +14,8 @@ from typing import Any, Callable
 API_PREFIX="https://chess-publisher-chess-results.kyamranbilyal.workers.dev/api/chess-results/"
 WEB_ORIGIN="https://web.chess-publisher.org"
 ORGANIZER_SECRET_KEY="organizer-primary"
+SCOPED_ORGANIZER_SECRET_RE=re.compile(r"^organizer-primary:install:[A-Za-z0-9._:-]{8,256}$")
+INTERNAL_SECRET_KEY_FIELD="_cpOrganizerSecretKey"
 TIMEOUT=60
 MAX_BODY_BYTES=12*1024*1024
 ALLOWED={"test","create","claim","publish","admin-link","delete-authorize","unlink"}
@@ -46,8 +48,22 @@ def _trusted_chess_results_url(value:Any)->str:
 class ChessResultsRuntime:
     def __init__(self,secrets_provider:Callable[[],dict[str,str]],ownership_file:Path,cloud_identity_resolver:Callable[[str,str],str]|None=None,transport:Callable[[str,dict[str,Any],str],dict[str,Any]]|None=None):
         self.secrets_provider=secrets_provider;self.ownership_file=ownership_file.expanduser().resolve();self.cloud_identity_resolver=cloud_identity_resolver;self.transport=transport or self._http_post
-    def _token(self)->str:
-        token=str((self.secrets_provider() or {}).get(ORGANIZER_SECRET_KEY) or '').strip()
+    def _token(self,secret_key:str='')->str:
+        secrets=self.secrets_provider() or {}
+        requested=str(secret_key or '').strip()
+        keys:list[str]=[]
+        if requested:
+            if not SCOPED_ORGANIZER_SECRET_RE.fullmatch(requested):
+                raise ChessResultsRuntimeError('Organizer Token installation scope is invalid.')
+            keys.append(requested)
+        # Bare key remains only as an explicit migration/CLI fallback. Never scan
+        # other installation-scoped keys: a fresh installation must not inherit
+        # another installation's organizer credential.
+        keys.append(ORGANIZER_SECRET_KEY)
+        token=''
+        for key in keys:
+            token=str(secrets.get(key) or '').strip()
+            if token:break
         if not token:raise ChessResultsRuntimeError('Organizer Token is not connected. Connect it first in Online & Cloud.')
         if len(token)>4096:raise ChessResultsRuntimeError('Organizer Token is invalid.')
         return token
@@ -89,7 +105,7 @@ class ChessResultsRuntime:
     def request(self,operation:str,body:dict[str,Any]|None=None)->dict[str,Any]:
         op=str(operation or '').strip().lower()
         if op not in ALLOWED:raise ChessResultsRuntimeError('Unsupported Chess-Results backend operation.')
-        payload=dict(body or {});token=self._token();key=str(payload.get('key') or payload.get('tnr') or '').strip();client_id=str(payload.get('clientId') or '').strip()
+        payload=dict(body or {});secret_key=str(payload.pop(INTERNAL_SECRET_KEY_FIELD,'') or '').strip();token=self._token(secret_key);key=str(payload.get('key') or payload.get('tnr') or '').strip();client_id=str(payload.get('clientId') or '').strip()
         if op not in {'test','create','claim'}:
             if not re.fullmatch(r'\d+',key):raise ChessResultsRuntimeError('Chess-Results TNR is missing or invalid.')
             proof=str(payload.get('ownershipProof') or '').strip() or self._stored_proof(key)
