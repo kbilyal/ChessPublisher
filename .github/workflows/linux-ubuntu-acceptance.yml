@@ -46,6 +46,7 @@ jobs:
             linux-port/ci/dgt_contract_smoke.py \
             linux-port/ci/telegram_contract_smoke.py \
             linux-port/ci/desktop_contract_smoke.py \
+            linux-port/ci/export_contract_smoke.py \
             linux-port/ci/browser_launcher_contract.py \
             linux-port/ci/window_mode_contract.py \
             linux-port/ci/source_guard_contract.py \
@@ -68,6 +69,7 @@ jobs:
             linux-port/linux/fide_streaming_integration.py \
             linux-port/linux/fide_download_integration.py \
             linux-port/linux/fide_cache_integration.py \
+            linux-port/linux/fide_readiness_integration.py \
             linux-port/linux/fide_integration.py \
             linux-port/linux/chess_results_runtime.py \
             linux-port/linux/chess_results_integration.py \
@@ -76,6 +78,7 @@ jobs:
             linux-port/linux/telegram_runtime.py \
             linux-port/linux/telegram_integration.py \
             linux-port/linux/desktop_integration.py \
+            linux-port/linux/export_runtime_integration.py \
             linux-port/linux/browser_integration.py \
             linux-port/linux/window_integration.py \
             linux-port/linux/chess_publisher_linux.py \
@@ -83,9 +86,11 @@ jobs:
             linux-port/linux/self_test.py \
             linux-port/linux/live_acceptance.py
           node --check linux-port/linux/LinuxWebViewShim.js
+          node --check linux-port/linux/export_integration.js
           node --check linux-port/ci/webview_shim_contract.mjs
           node --check linux-port/ci/telegram_webview_contract.mjs
           node --check linux-port/ci/online_token_webview_contract.mjs
+          node --check linux-port/ci/export_webview_contract.mjs
 
       - name: Run protected source identity contract
         run: python linux-port/ci/source_guard_contract.py
@@ -119,6 +124,12 @@ jobs:
 
       - name: Run Linux desktop and report integration contract
         run: python linux-port/ci/desktop_contract_smoke.py
+
+      - name: Run Linux native export contract
+        run: python linux-port/ci/export_contract_smoke.py
+
+      - name: Run Starting List and Pairings TXT WebView export contract
+        run: node linux-port/ci/export_webview_contract.mjs
 
       - name: Run Linux fullscreen browser launcher contract
         run: python linux-port/ci/browser_launcher_contract.py
