@@ -21,6 +21,7 @@ from export_runtime_integration import apply as apply_export_runtime
 from browser_integration import apply as apply_browser
 from window_integration import apply as apply_window
 from pairings_result_desk_integration import apply as apply_pairings_result_desk
+from cloud_directional_sync_integration import apply as apply_cloud_directional_sync
 
 apply_build_identity()
 apply_hub_proxy()
@@ -38,6 +39,7 @@ apply_export_runtime()
 apply_browser()
 apply_window()
 apply_pairings_result_desk()
+apply_cloud_directional_sync()
 
 if __name__=='__main__':
     package_root=Path(__file__).resolve().parent.parent
