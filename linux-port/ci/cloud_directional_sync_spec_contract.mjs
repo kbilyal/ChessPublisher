@@ -8,6 +8,7 @@ const source=parts.map(p=>fs.readFileSync(p,'utf8')).join('');
 const loader=fs.readFileSync(new URL('../linux/cloud_directional_sync.js',import.meta.url),'utf8');
 const clone=v=>JSON.parse(JSON.stringify(v));
 const jsonEq=(a,b,msg)=>assert.equal(JSON.stringify(a),JSON.stringify(b),msg);
+const sha256=async raw=>{const d=await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('');};
 
 const tournament={
   name:'Tournament Ubuntu',
@@ -16,7 +17,7 @@ const tournament={
   schedule:{rounds:[{round:1,date:'2026-10-01'},{round:7,date:'2026-10-05'}]},
   players:Array.from({length:83},(_,i)=>({id:`p${i+1}`,localKey:`player:${i+1}`,pairingNumber:i+1,name:`Player ${i+1}`,rating:2000-i})),
   pairings:{rounds:[{round:1,pairings:[]}]},attendance:{p1:true},requestedByes:{p2:[3]},standings:{round:1},specialPrizeConfig:{groups:[{name:'U18'}]},
-  chessResults:{tnr:'123456'},online:{hubTournamentId:'hub-42',publicSlug:'ubuntu-open'},
+  chessResults:{tnr:'123456'},online:{hubTournamentId:'hub-42',publicSlug:'ubuntu-open',revision:19,lastPublishedAt:'2026-09-08T16:31:00Z'},
   hub:{tournamentId:'hub-42',manageToken:'LOCAL-HUB-SECRET',publicSlug:'ubuntu-open'},
   dgt:{port:'/dev/ttyUSB0',boardMapping:[{serial:'DGT-1'}]},
   telegram:{chatId:'123',token:'LOCAL-TELEGRAM-SECRET'},
@@ -49,6 +50,7 @@ jsonEq(p.requestedByes,tournament.requestedByes,'requestedByes parity failed');
 jsonEq(p.specialPrizeConfig,tournament.specialPrizeConfig,'specialPrizeConfig parity failed');
 assert.equal(p.cloud.internalId,'tournament:ABC');
 assert.equal(p.cloud.cloudTournamentId,'cloud-77');
+assert.equal(snap.cloudWorkspace.fingerprintContentSchema,6);
 assert.equal(p.hub.tournamentId,'hub-42');
 assert.equal('manageToken' in p.hub,false);
 assert.equal('dgt' in p,false);
@@ -69,6 +71,23 @@ const renameSnap=I.buildPortableSnapshot(renamed.name,renamed);
 assert.equal(renameSnap.data.currentTournament,'Sofia Open 2026');
 assert.equal(renameSnap.data.tournaments['Sofia Open 2026'].cloud.internalId,'tournament:ABC');
 assert.equal(renameSnap.data.tournaments['Sofia Open 2026'].cloud.cloudTournamentId,'cloud-77');
+
+const goldenFingerprintTournament={
+  name:'Tournament Ubuntu',
+  settings:{organizer:'Chess Club',city:'Sofia'},
+  players:[{id:'p1',localKey:'player:1',pairingNumber:1,name:'Alpha'}],
+  online:{hubTournamentId:'hub-42',revision:19,lastPublishedAt:'2026-09-08T16:31:00Z'},
+  hub:{tournamentId:'hub-42',manageToken:'LOCAL-HUB'},
+  telegram:{chatId:'123',token:'LOCAL-TG'},
+  dgt:{port:'/dev/ttyUSB0'},
+  cloud:{schemaVersion:4,internalId:'tournament:ABC',cloudTournamentId:'cloud-77'},
+  adminToken:'LOCAL-ADMIN'
+};
+const GOLDEN_PAYLOAD='{"hub":{"tournamentId":"hub-42"},"name":"Tournament Ubuntu","online":{"hubTournamentId":"hub-42"},"players":[{"id":"p1","localKey":"player:1","name":"Alpha","pairingNumber":1}],"settings":{"city":"Sofia","organizer":"Chess Club"},"telegram":{"chatId":"123"}}';
+const GOLDEN_HASH='80b55443d01dd5de0f128dfa022bbbf829656707d2ae06914ced013c4511c8ff';
+const actualGoldenPayload=I.fingerprintPayload(goldenFingerprintTournament,goldenFingerprintTournament.name);
+assert.equal(actualGoldenPayload,GOLDEN_PAYLOAD,'Desktop fingerprint payload must exactly match the shared Web schema');
+assert.equal(await sha256(actualGoldenPayload),GOLDEN_HASH,'Desktop golden fingerprint hash mismatch');
 
 assert.ok(loader.includes('ChessPublisherCloudWorkspace_AutoSync_v1'));
 assert.ok(loader.includes('"0"'),'legacy Cloud autosync must be forced OFF');
@@ -101,3 +120,4 @@ console.log('DESKTOP_WEB_FULL_SNAPSHOT_PARITY_EXTENDED=PASS');
 console.log('INSTALLATION_LOCAL_PRESERVATION=PASS');
 console.log('RENAME_IDENTITY_CONTINUITY=PASS');
 console.log('AUTOSAVE_LOCAL_ONLY_POLICY=PASS');
+console.log('DESKTOP_WEB_GOLDEN_FINGERPRINT=PASS');
