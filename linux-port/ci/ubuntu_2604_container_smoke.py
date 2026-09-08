@@ -11,6 +11,8 @@ import hashlib,json,shutil,subprocess,sys,tempfile
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'linux'))
+from build_info import APP_BUILD,ENGINE_VERSION
 BUILDER=ROOT/'packaging'/'build_deb.py'
 IMAGE='ubuntu:26.04'
 
@@ -21,7 +23,6 @@ def run(cmd:list[str],**kwargs)->subprocess.CompletedProcess[str]:
     return subprocess.run(cmd,text=True,check=True,**kwargs)
 
 def main()->int:
-    if not shutil.which('docker'):raise RuntimeError('Docker is not available on this runner.')
     with tempfile.TemporaryDirectory(prefix='cp-ubuntu2604-') as td_raw:
         td=Path(td_raw);source=td/'source';out=td/'out';source.mkdir();out.mkdir()
         html=b'<!doctype html><html><body>Chess-Publisher Ubuntu 26.04 Tournament Setup Pairings Chess-Results Registration DGT</body></html>\n'
@@ -85,14 +86,14 @@ for _ in range(50):
         if x.get('ok'):break
     except Exception:time.sleep(.1)
 else:raise SystemExit('LocalEngine health timeout')
-assert x.get('appBuild')=='1.06.00-beta.34-linux-dev.7',x
-assert x.get('engineVersion')=='0.6.0-linux-dev',x
+assert x.get('appBuild')=='__APP_BUILD__',x
+assert x.get('engineVersion')=='__ENGINE_VERSION__',x
 print('UBUNTU2604_LOCALENGINE=PASS')
 PY
 kill "$pid";wait "$pid" || true
 trap - EXIT
 printf 'UBUNTU_26_04_CONTAINER_SMOKE=PASS\n'
-'''
+'''.replace('__APP_BUILD__',APP_BUILD).replace('__ENGINE_VERSION__',ENGINE_VERSION)
         cp=subprocess.run(['docker','run','--rm','-v',f'{deb}:/pkg/chess-publisher.deb:ro',IMAGE,'bash','-lc',shell],text=True,capture_output=True,timeout=240,check=False)
         if cp.stdout:print(cp.stdout)
         if cp.stderr:print(cp.stderr,file=sys.stderr)
