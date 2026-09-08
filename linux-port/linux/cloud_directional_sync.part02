@@ -1,0 +1,126 @@
+
+  function extractPortableTournament(snapshot,fallbackName=""){
+    const tournaments=snapshot?.data?.tournaments;
+    const keys=isObject(tournaments)?Object.keys(tournaments):[];
+    const requested=text(snapshot?.data?.currentTournament||snapshot?.currentTournament||fallbackName);
+    const name=requested&&tournaments?.[requested]?requested:(keys[0]||requested||text(fallbackName));
+    if(!name||!tournaments?.[name])throw new Error("Cloud snapshot does not contain its tournament.");
+    const tournament=clone(tournaments[name]);
+    if(!text(tournament.name))tournament.name=name;
+    return {name:text(tournament.name)||name,tournament};
+  }
+
+  function restoreNamedLocalFields(remote,local){
+    if(!isObject(remote)||!isObject(local))return remote;
+    for(const [key,value] of Object.entries(local)){
+      const lower=String(key).toLowerCase();
+      if(LOCAL_ONLY_KEYS.has(lower)){remote[key]=clone(value);continue;}
+      if(isObject(value)&&isObject(remote[key]))restoreNamedLocalFields(remote[key],value);
+    }
+    return remote;
+  }
+
+  function restoreInstallationLocalFields(remoteTournament,currentLocal,{cloudTournamentId,internalId,baseRevision,baseFingerprint}={}){
+    const out=clone(remoteTournament||{});
+    const local=currentLocal||{};
+    restoreNamedLocalFields(out,local);
+    if(local.dgt!==undefined)out.dgt=clone(local.dgt);
+    if(local.telegram&&isObject(local.telegram)){
+      if(!out.telegram||!isObject(out.telegram))out.telegram={};
+      if(local.telegram.token!==undefined)out.telegram.token=local.telegram.token;
+      if(local.telegram.botToken!==undefined)out.telegram.botToken=local.telegram.botToken;
+    }
+    if(local.hub&&isObject(local.hub)){
+      if(!out.hub||!isObject(out.hub))out.hub={};
+      for(const key of ["manageToken","manageKey","adminToken"])if(local.hub[key]!==undefined)out.hub[key]=clone(local.hub[key]);
+    }
+    const localCloud=isObject(local.cloud)?local.cloud:{};
+    out.cloud={
+      ...clone(localCloud),schemaVersion:4,
+      internalId:text(internalId||out?.cloud?.internalId||localCloud.internalId)||chooseInternalId(out),
+      cloudTournamentId:text(cloudTournamentId||out?.cloud?.cloudTournamentId||localCloud.cloudTournamentId),
+      baseRevision:Math.max(0,Number(baseRevision??localCloud.baseRevision??localCloud.revision)||0),
+      revision:Math.max(0,Number(baseRevision??localCloud.baseRevision??localCloud.revision)||0),
+      baseFingerprint:text(baseFingerprint??localCloud.baseFingerprint??localCloud.lastSyncedContentHash).toLowerCase(),
+      lastSyncedContentHash:text(baseFingerprint??localCloud.baseFingerprint??localCloud.lastSyncedContentHash).toLowerCase(),
+      fingerprintSchema:FINGERPRINT_SCHEMA
+    };
+    return out;
+  }
+
+  function classifyThreeWay(localHash,baseHash,remoteHash,{remoteExists=true}={}){
+    localHash=text(localHash).toLowerCase();baseHash=text(baseHash).toLowerCase();remoteHash=text(remoteHash).toLowerCase();
+    if(!remoteExists)return "LOCAL_CHANGES";
+    if(localHash&&remoteHash&&localHash===remoteHash)return "IN_SYNC";
+    if(!baseHash)return "CONFLICT";
+    const localChanged=localHash!==baseHash;
+    const remoteChanged=remoteHash!==baseHash;
+    if(!localChanged&&!remoteChanged)return "IN_SYNC";
+    if(localChanged&&!remoteChanged)return "LOCAL_CHANGES";
+    if(!localChanged&&remoteChanged)return "REMOTE_CHANGES";
+    return "CONFLICT";
+  }
+
+  function threeWayMerge(base,local,remote){
+    const conflicts=[];
+    function walk(b,l,r,path){
+      if(deepEqual(l,r))return l===MISSING?MISSING:clone(l);
+      if(deepEqual(l,b))return r===MISSING?MISSING:clone(r);
+      if(deepEqual(r,b))return l===MISSING?MISSING:clone(l);
+      if(isObject(b===MISSING?{}:b)&&isObject(l===MISSING?{}:l)&&isObject(r===MISSING?{}:r)){
+        const bo=b===MISSING?{}:b,lo=l===MISSING?{}:l,ro=r===MISSING?{}:r;
+        const out={};
+        const keys=new Set([...Object.keys(bo),...Object.keys(lo),...Object.keys(ro)]);
+        for(const key of keys){
+          const child=walk(Object.prototype.hasOwnProperty.call(bo,key)?bo[key]:MISSING,Object.prototype.hasOwnProperty.call(lo,key)?lo[key]:MISSING,Object.prototype.hasOwnProperty.call(ro,key)?ro[key]:MISSING,path?`${path}.${key}`:key);
+          if(child!==MISSING)out[key]=child;
+        }
+        return out;
+      }
+      conflicts.push({
+        path:path||"(root)",
+        base:b===MISSING?undefined:clone(b),local:l===MISSING?undefined:clone(l),remote:r===MISSING?undefined:clone(r),
+        localMissing:l===MISSING,remoteMissing:r===MISSING
+      });
+      return l===MISSING?MISSING:clone(l);
+    }
+    const merged=walk(base??{},local??{},remote??{},"");
+    return {merged:merged===MISSING?{}:merged,conflicts};
+  }
+
+  function pathParts(path){return String(path||"").split(".").filter(Boolean);}
+  function setResolvedPath(target,path,value,missing=false){
+    const parts=pathParts(path);if(!parts.length)return;
+    let cursor=target;
+    for(let i=0;i<parts.length-1;i++){
+      if(!isObject(cursor[parts[i]]))cursor[parts[i]]={};
+      cursor=cursor[parts[i]];
+    }
+    const key=parts.at(-1);
+    if(missing)delete cursor[key];else cursor[key]=clone(value);
+  }
+
+  async function getOrganizerToken(){
+    if(typeof window.cpNativeHubSecretGet!=="function"||typeof window.cpOnlineOrganizerSecretKey!=="function")return "";
+    return text(await window.cpNativeHubSecretGet(window.cpOnlineOrganizerSecretKey()));
+  }
+  function deviceId(){
+    const key="ChessPublisherCloudWorkspace_DeviceId_v1";let v="";try{v=text(localStorage.getItem(key));}catch(_){ }
+    if(!v){v=`device:${uuid()}`;try{localStorage.setItem(key,v);}catch(_){ }}return v;
+  }
+  function deviceLabel(){
+    const key="ChessPublisherCloudWorkspace_DeviceLabel_v1";let v="";try{v=text(localStorage.getItem(key));}catch(_){ }
+    return v||"Chess-Publisher Desktop";
+  }
+
+  function persistMeta(){try{if(typeof saveData==="function")saveData();}catch(_){ }}
+  async function saveActiveLocal(){
+    try{if(typeof saveAll==="function")saveAll();}catch(error){console.warn("Directional sync saveAll:",error);}
+    if(typeof fileSaveTournament==="function"){
+      const ok=await fileSaveTournament(true);if(!ok)throw new Error("Local tournament could not be saved.");
+    }else persistMeta();
+  }
+
+  function assertRemoteIdentity(tournament,remoteMeta,remoteTournament){
+    const meta=ensureIdentity(tournament);
+    const remoteInternal=text(remoteTournament?.cloud?.internalId||remoteMeta?.localKey);
