@@ -5,7 +5,9 @@ import io,sys,tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'linux'))
 import chess_publisher_linux as cp
+from hub_proxy_integration import apply as apply_hub_proxy
 from chess_results_runtime import ChessResultsRuntime,ChessResultsRuntimeError
+apply_hub_proxy()
 
 
 def scoped_token_contract()->None:
@@ -51,6 +53,7 @@ def hub_proxy_origin_contract()->None:
     if headers.get('authorization')!='Bearer tok':raise RuntimeError('Organizer Authorization header was not forwarded')
     if headers.get('origin')!='https://web.chess-publisher.org':raise RuntimeError('Hub/Cloud upstream Origin is not normalized to WEB_ORIGIN')
     if headers.get('user-agent')!='Chess-Publisher-Linux-HubProxy/1':raise RuntimeError('Linux Hub proxy user-agent marker missing')
+    if 'x-client-version' in headers:raise RuntimeError('forbidden X-Client-Version header was reintroduced')
 
 
 def main()->int:
