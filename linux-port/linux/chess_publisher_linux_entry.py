@@ -9,6 +9,7 @@ from hub_proxy_integration import apply as apply_hub_proxy
 from source_guard import require_package_source,SourceIdentityError
 from fide_payload_policy import apply as apply_fide_payload_policy
 from fide_streaming_integration import apply as apply_fide_streaming
+from fide_download_integration import apply as apply_fide_download
 from fide_integration import apply as apply_fide
 from chess_results_integration import apply as apply_chess_results
 from dgt_integration import apply as apply_dgt
@@ -21,6 +22,7 @@ apply_build_identity()
 apply_hub_proxy()
 apply_fide_payload_policy()
 apply_fide_streaming()
+apply_fide_download()
 apply_fide()
 apply_chess_results()
 apply_dgt()
