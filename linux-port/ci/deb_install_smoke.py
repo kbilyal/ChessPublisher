@@ -4,6 +4,8 @@ import hashlib,json,os,signal,subprocess,sys,tempfile,time,urllib.request
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'linux'))
+from build_info import APP_BUILD,ENGINE_VERSION
 BUILDER=ROOT/'packaging'/'build_deb.py'
 PACKAGE='chess-publisher'
 
@@ -57,7 +59,7 @@ def main()->int:
             if not isinstance(health,dict) or health.get('ok') is not True:
                 stdout,stderr=proc.communicate(timeout=2) if proc.poll() is not None else ('','')
                 raise RuntimeError(f'installed LocalEngine health failed stdout={stdout[-1000:]} stderr={stderr[-1000:]}')
-            if health.get('appBuild')!='1.06.00-beta.34-linux-dev.7' or health.get('engineVersion')!='0.6.0-linux-dev':raise RuntimeError(f'installed build identity mismatch: {health}')
+            if health.get('appBuild')!=APP_BUILD or health.get('engineVersion')!=ENGINE_VERSION:raise RuntimeError(f'installed build identity mismatch: {health}')
             print(json.dumps({'installed':True,'selfTestPassed':True,'httpDeliverySelfTest':True,'onlineEnginesPassed':True,'liveTestFailClosed':True,'health':health},indent=2))
         finally:
             if proc is not None and proc.poll() is None:
