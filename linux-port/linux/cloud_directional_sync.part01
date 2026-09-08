@@ -23,7 +23,7 @@
   const esc=v=>String(v??"").replace(/[&<>\"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;","'":"&#39;"}[ch]));
 
   const LOCAL_ONLY_KEYS=new Set([
-    "organizertoken","managetoken","managekey","authtoken","accesstoken","refreshtoken","devicetoken",
+    "organizertoken","managetoken","managekey","admintoken","authtoken","accesstoken","refreshtoken","devicetoken",
     "password","secret","devicesecret","aeskey","aes","iv","filepath","folderpath","installationpath",
     "windowspath","linuxpath","executablepath","workingdirectory","serialport","usbpath","dgtport"
   ]);
@@ -105,6 +105,10 @@
   function contentObject(tournament,name){
     const out=portableTournament(tournament,name);
     delete out.cloud;
+    if(out.online&&isObject(out.online)){
+      delete out.online.revision;
+      delete out.online.lastPublishedAt;
+    }
     return stableCanonicalize(out);
   }
   function fingerprintPayload(tournament,name){return stableStringify(contentObject(tournament,name));}
@@ -128,7 +132,7 @@
     snapshot.currentTournament=clean.name;
     snapshot.preferences={};
     snapshot.telegramGlobal={};
-    snapshot.cloudWorkspace={schemaVersion:5,scope:"single-tournament",private:true,internalId:meta.internalId,cloudTournamentId:text(meta.cloudTournamentId),clientVersion:"desktop-directional-sync-v1"};
+    snapshot.cloudWorkspace={schemaVersion:5,scope:"single-tournament",private:true,internalId:meta.internalId,cloudTournamentId:text(meta.cloudTournamentId),fingerprintContentSchema:FINGERPRINT_SCHEMA,clientVersion:"desktop-directional-sync-v1"};
     delete snapshot.savedAt;
     return sanitizeSecrets(snapshot);
   }
