@@ -25,16 +25,16 @@ def main()->int:
       </div>
     </div></body></html>"""
     out=wi.inject_window_mode(src).decode('utf-8')
-    required=('cpLinuxWindowModeStyle','cpLinuxWindowModeScript','cpLinuxTabPopupBackdrop','cp-linux-popup-page','cp-linux-popup-titlebar','cp-linux-popup-max','registration','pairings','standings','exportPage','schedule','chessresults','dgt','closePopup','syncPopupState','cp-linux-base-visible','clampPosition','clampCurrentPosition','window.innerHeight-page.offsetHeight',APP_BUILD,DISPLAY_VERSION,'document.title=titleText')
+    required=('cpLinuxWindowModeStyle','cpLinuxWindowModeScript','cpLinuxTabPopupBackdrop','cp-linux-popup-page','cp-linux-popup-titlebar','cp-linux-popup-max','registration','pairings','standings','exportPage','schedule','chessresults','dgt','closePopup','syncPopupState','cp-linux-base-visible','clampPosition','clampCurrentPosition','window.innerHeight-page.offsetHeight',APP_BUILD,DISPLAY_VERSION,'document.title=titleText','body.cp-linux-tab-popup-open #cpLinuxTabPopupBackdrop{display:none!important}','@media print{#cpLinuxTabPopupBackdrop,#cpLinuxDevBadge{display:none!important}}')
     for marker in required:
         if marker not in out: raise RuntimeError(f'missing Linux windowed/popup marker: {marker}')
-    forbidden=('forceMainFullscreen','#appWindow.window{','width:100vw!important;height:100vh!important','body{padding:0!important;overflow:hidden!important}',"'--start-fullscreen'",'window.toggleMaximizeAppWindow=function','window.minimizeAppWindow=function')
+    forbidden=('forceMainFullscreen','#appWindow.window{','width:100vw!important;height:100vh!important','body{padding:0!important;overflow:hidden!important}',"'--start-fullscreen'",'window.toggleMaximizeAppWindow=function','window.minimizeAppWindow=function','body.cp-linux-tab-popup-open #cpLinuxTabPopupBackdrop{display:block}','backdrop-filter:blur(1px)')
     for marker in forbidden:
-        if marker in out: raise RuntimeError(f'legacy forced-fullscreen marker still present: {marker}')
+        if marker in out: raise RuntimeError(f'legacy forced-fullscreen/dimming marker still present: {marker}')
     if out.count('id="cpLinuxWindowModeScript"')!=1: raise RuntimeError('window integration injected more than once')
     again=wi.inject_window_mode(out.encode('utf-8')).decode('utf-8')
     if again!=out: raise RuntimeError('window integration is not idempotent')
-    print('LINUX_WINDOWED_MAIN_TAB_POPUPS=PASS')
+    print('LINUX_WINDOWED_MAIN_TAB_POPUPS=PASS (no dimming backdrop + print overlays hidden)')
     return 0
 
 if __name__=='__main__': raise SystemExit(main())
