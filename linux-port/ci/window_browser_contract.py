@@ -2,9 +2,6 @@
 """Exercise fluid single-workspace navigation in real Chromium."""
 from __future__ import annotations
 
-import os
-import signal
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -12,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'linux'))
 from window_integration import inject_window_mode
-from chromium_runtime_smoke import _browser
+from chromium_runtime_smoke import _browser, _run_browser
 
 
 def main() -> int:
@@ -41,11 +38,10 @@ window.showTab=function(id,button){
   if(previousId==='dgt'&&id!=='dgt')dgtOnTabLeave();
   saveAll();document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tabs button').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');button.classList.add('active');data.preferences.activeTab=id;saveData();
-  if(id==='dgt')dgtOnTabEnter();if(id==='chessresults')setTimeout(refreshChessResultsXmlUi,0);
+  if(id==='dgt')dgtOnTabEnter();if(id==='chessresults')queueMicrotask(refreshChessResultsXmlUi);
 };
-const pause=()=>new Promise(resolve=>setTimeout(resolve,30));
 function check(value,message){if(!value)throw new Error(message);}
-window.addEventListener('load',()=>setTimeout(async()=>{
+window.addEventListener('load',()=>{
   try{
     const shell=document.getElementById('appWindow');const r=shell.getBoundingClientRect();
     check(Math.abs(r.width-innerWidth)<2,'workspace does not fill browser width');
@@ -56,24 +52,24 @@ window.addEventListener('load',()=>setTimeout(async()=>{
     check(getComputedStyle(document.querySelector('button[title="Maximize / restore"]')).display==='none','nested maximize control remains visible');
     check(getComputedStyle(document.querySelector('.window-close')).display==='none','nested close control remains visible');
     check(!document.querySelector('.cp-linux-popup-titlebar'),'routine tab popup chrome was injected');
+    check(window.__cpLinuxFluidShowTabWrapped===true,'fluid navigation wrapper was not ready before load');
 
-    showTab('pairings',document.getElementById('tabPairings'));await pause();
+    showTab('pairings',document.getElementById('tabPairings'));
     check(document.getElementById('pairings').classList.contains('active'),'Pairings did not activate');
     check(saveAllCalls===0&&saveDataCalls===0,'clean navigation still performs persistence churn');
     check(stateDirty===false,'clean navigation incorrectly marked tournament dirty');
 
-    showTab('standings');await pause();
+    showTab('standings');
     check(document.getElementById('standings').classList.contains('active'),'missing tab-button fallback failed');
     check(saveAllCalls===0&&saveDataCalls===0,'button fallback lost clean fast path');
 
     const ids=['main','registration','pairings','standings','exportPage','schedule','chessresults'];
     for(let i=0;i<70;i++)showTab(ids[i%ids.length]);
-    await pause();
     check(saveAllCalls===0&&saveDataCalls===0,'repeated clean navigation serialized tournament state');
     check(document.querySelectorAll('.page.active').length===1,'navigation left multiple active pages');
 
     stateDirty=true;
-    showTab('registration',document.getElementById('tabRegistration'));await pause();
+    showTab('registration',document.getElementById('tabRegistration'));
     check(saveAllCalls===1,'dirty navigation skipped protected saveAll');
     check(saveDataCalls===1,'dirty navigation skipped protected saveData');
     check(window.__cpLinuxFluidUiStats.fastSwitches>=3,'fluid navigation stats missing');
@@ -81,16 +77,18 @@ window.addEventListener('load',()=>setTimeout(async()=>{
     check(document.title.includes('Chess-Publisher'),'build title was not synchronized');
     document.body.setAttribute('data-window-test','PASS');
   }catch(error){document.body.setAttribute('data-window-test','FAIL: '+error.message);}
-},50));
+});
 </script></body></html>'''
     with tempfile.TemporaryDirectory(prefix='cp-fluid-browser-') as raw:
-        temp = Path(raw);html = temp / 'fluid.html';html.write_bytes(inject_window_mode(fixture.encode()))
-        proc = subprocess.Popen([_browser(), '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1440,1000',f'--user-data-dir={temp / "profile"}','--virtual-time-budget=4000','--dump-dom',html.as_uri()],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,start_new_session=True)
-        try: out, err = proc.communicate(timeout=20)
-        except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL);proc.communicate();raise RuntimeError('Fluid navigation blocked the browser event loop') from None
-        if proc.returncode or 'data-window-test="PASS"' not in out: raise RuntimeError(f'Fluid workspace browser test failed: {out}\n{err[-2000:]}')
-    print('LINUX_FLUID_WINDOW_BROWSER=PASS (single workspace, 70 clean switches without persistence churn, dirty path preserved)')
+        temp = Path(raw)
+        html = temp / 'fluid.html'
+        html.write_bytes(inject_window_mode(fixture.encode()))
+        cp = _run_browser(_browser(), html.as_uri(), 1000)
+        if cp.returncode != 0:
+            raise RuntimeError(f'Fluid workspace Chromium failed rc={cp.returncode}: {cp.stderr[-2000:]}')
+        if 'data-window-test="PASS"' not in cp.stdout:
+            raise RuntimeError(f'Fluid workspace browser test failed: {cp.stdout[-4000:]}\n{cp.stderr[-2000:]}')
+    print('LINUX_FLUID_WINDOW_BROWSER=PASS (single workspace, 70 synchronous clean switches without persistence churn, dirty path preserved)')
     return 0
 
 if __name__ == '__main__': raise SystemExit(main())
