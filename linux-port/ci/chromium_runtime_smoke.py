@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse,hashlib,shutil,subprocess,sys,tempfile,threading,urllib.request
+import argparse,hashlib,re,shutil,subprocess,sys,tempfile,threading,urllib.request
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -14,8 +14,24 @@ EXACT_HTML_DRIVE_ID='1IaTP11vp1IK_flqHaZCE9AQA52hlz3H-'
 EXACT_HTML_BYTES=1526307
 EXACT_HTML_SHA256='f51355b1a449870be6ed69d1bb941c19a9d8d2bdf3c8f91da845b4bc1275f310'
 EXACT_MARKERS=('Tournament Setup','Pairings','Chess-Results','Registration','Participants','DGT')
+_STALE_DEV2_RE=re.compile(r'linux-dev\.2(?!\d)',re.IGNORECASE)
 
 class SourceAccessBlocked(RuntimeError):pass
+
+
+def _contains_stale_dev2_identity(text:str)->bool:
+    """Match the retired dev.2 build, but never dev.20/dev.21/etc."""
+    return _STALE_DEV2_RE.search(text or '') is not None
+
+
+def _assert_identity_detector()->None:
+    if not _contains_stale_dev2_identity('1.06.00-beta.34-linux-dev.2'):
+        raise RuntimeError('Stale build detector no longer catches linux-dev.2.')
+    if not _contains_stale_dev2_identity('1.06.00-beta.34-linux-dev.2-old'):
+        raise RuntimeError('Stale build detector no longer catches suffixed linux-dev.2.')
+    for current in ('linux-dev.20','linux-dev.21','linux-dev.200'):
+        if _contains_stale_dev2_identity(current):
+            raise RuntimeError(f'Stale build detector falsely matched current build token: {current}')
 
 
 def _looks_like_google_wrapper(data:bytes,content_type:str)->bool:
@@ -90,7 +106,7 @@ window.addEventListener('load',()=>setTimeout(()=>{
             if cp.returncode!=0:raise RuntimeError(f'Chromium failed rc={cp.returncode}: {cp.stderr[-2000:]}')
             expected=f'linux|{APP_BUILD}|true|true'
             if expected not in cp.stdout:raise RuntimeError(f'Chromium bridge probe did not reach {expected!r}. DOM tail={cp.stdout[-2000:]} stderr={cp.stderr[-1000:]}')
-            if 'linux-dev.2' in cp.stdout:raise RuntimeError('Chromium DOM contains stale linux-dev.2 build identity.')
+            if _contains_stale_dev2_identity(cp.stdout):raise RuntimeError('Chromium DOM contains stale linux-dev.2 build identity.')
             print('Synthetic probe:',expected)
         finally:
             srv.shutdown();srv.server_close();th.join(timeout=2)
@@ -111,7 +127,7 @@ def exact_ui(browser:str)->None:
             dom=cp.stdout;lower=dom.lower()
             if 'data-chesspublisher-platform="linux"' not in lower:raise RuntimeError('Exact UI Chromium DOM has no Linux platform dataset marker.')
             if f'data-chesspublisher-linux-build="{APP_BUILD}"'.lower() not in lower:raise RuntimeError('Exact UI Chromium DOM has no canonical Linux build marker.')
-            if 'linux-dev.2' in dom:raise RuntimeError('Exact UI Chromium DOM contains stale linux-dev.2 identity.')
+            if _contains_stale_dev2_identity(dom):raise RuntimeError('Exact UI Chromium DOM contains stale linux-dev.2 identity.')
             for marker in EXACT_MARKERS:
                 if marker not in dom:raise RuntimeError(f'Exact UI Chromium DOM is missing UI marker: {marker}')
             if 'Chess-Publisher' not in dom:raise RuntimeError('Exact UI Chromium DOM does not identify Chess-Publisher.')
@@ -122,6 +138,7 @@ def exact_ui(browser:str)->None:
 
 
 def main()->int:
+    _assert_identity_detector()
     ap=argparse.ArgumentParser();ap.add_argument('--exact-drive-ui',action='store_true');args=ap.parse_args()
     browser=_browser();print('Browser:',browser)
     try:
