@@ -38,7 +38,6 @@ ENGINE_VERSION = "0.2.0-linux-dev"
 APP_BUILD = "1.06.00-beta.34-linux-dev.2"
 DEFAULT_PORT = 18765
 WORKER_ORIGIN = "https://chess-publisher-hub-api-beta.kyamranbilyal.workers.dev"
-WORKER_WEB_ORIGIN = "https://web.chess-publisher.org"
 
 
 def utc_now() -> str:
@@ -46,6 +45,8 @@ def utc_now() -> str:
 
 
 def safe_storage_name(name: str) -> str:
+    # Mirrors the application's Windows-compatible storage identity on Linux so
+    # tournament folders can be moved between operating systems without renaming.
     s = str(name or "").strip()
     s = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", s)
     s = s.rstrip(". ").strip()
@@ -184,6 +185,7 @@ class LinuxEngine:
         result: dict[str, Any] = {"round": round_no, "file": str(target)}
         sm_text = str(trf_backup.get("swissManagerText") or "")
         if sm_text:
+            # Compatibility-only internal filename; no public UI wording is changed.
             sm_target = backup_dir / f"Round_{round_no:02d}_compat.trf"
             atomic_write_bytes(sm_target, sm_text.encode("utf-8"))
             result["compatFile"] = str(sm_target)
@@ -255,7 +257,7 @@ class Handler(BaseHTTPRequestHandler):
         return self.server.engine  # type: ignore[attr-defined]
 
     def log_message(self, fmt: str, *args: Any) -> None:
-        if getattr(self.server, "quiet", False):
+        if getattr(self.server, "quiet", False):  # type: ignore[attr-defined]
             return
         sys.stderr.write("[%s] %s\n" % (self.log_date_time_string(), fmt % args))
 
@@ -349,148 +351,115 @@ class Handler(BaseHTTPRequestHandler):
         except FileNotFoundError as e:
             self._json(404, {"error": str(e)})
         except Exception as e:
-            self._json(500, {"error": str(e)})
+            self._json(500, {"error": str(e), "type": type(e).__name__})
+
+    def _proxy_method_only(self) -> None:
+        try:
+            if not self._require_local_origin():
+                return
+            u = urllib.parse.urlsplit(self.path)
+            path = u.path
+            if path.startswith("/proxy/hub-api/") or path == "/proxy/hub-api":
+                return self._proxy_worker(path, u.query)
+            return self._json(404, {"error": "Not found", "path": path})
+        except Exception as e:
+            self._json(500, {"error": str(e), "type": type(e).__name__})
+
+    def do_PUT(self) -> None:
+        return self._proxy_method_only()
+
+    def do_DELETE(self) -> None:
+        return self._proxy_method_only()
 
     def do_POST(self) -> None:
         try:
+            if not self._require_local_origin():
+                return
             u = urllib.parse.urlsplit(self.path)
             path = u.path
+            if path == "/tournament/save":
+                b = self._body_json()
+                snapshot = b.get("snapshot")
+                if not isinstance(snapshot, dict):
+                    raise ValueError("Tournament snapshot is required.")
+                return self._json(200, self.engine.save_tournament(str(b.get("name") or "Tournament"), snapshot, b.get("trfBackup")))
+            if path == "/tournament/open":
+                b = self._body_json()
+                return self._json(200, self.engine.open_tournament(str(b.get("id") or ""), str(b.get("name") or "")))
+            if path == "/tournament/rename":
+                b = self._body_json()
+                snapshot = b.get("snapshot")
+                if not isinstance(snapshot, dict):
+                    raise ValueError("Renamed tournament snapshot is required.")
+                return self._json(200, self.engine.rename_tournament(str(b.get("oldName") or ""), str(b.get("newName") or ""), snapshot))
+            if path == "/tournament/trf-export":
+                b = self._body_json()
+                return self._json(200, self.engine.write_trf_export(str(b.get("tournamentName") or ""), str(b.get("fileName") or "TRF.txt"), str(b.get("text") or "")))
+            if path == "/native/secret":
+                b = self._body_json(1024 * 1024)
+                return self._json(200, self.engine.secret_op(str(b.get("operation") or ""), str(b.get("key") or ""), str(b.get("value") or "")))
             if path.startswith("/proxy/hub-api/") or path == "/proxy/hub-api":
                 return self._proxy_worker(path, u.query)
-            if path == "/tournament/save":
-                if not self._require_local_origin():
-                    return
-                b = self._body_json(64 * 1024 * 1024)
-                result = self.engine.save_tournament(str(b.get("name") or "Tournament"), b.get("snapshot") or {}, b.get("trfBackup"))
-                return self._json(200, result)
-            if path == "/tournament/open":
-                if not self._require_local_origin():
-                    return
-                b = self._body_json()
-                return self._json(200, self.engine.open_tournament(str(b.get("inventoryId") or ""), str(b.get("name") or "")))
-            if path == "/tournament/rename":
-                if not self._require_local_origin():
-                    return
-                b = self._body_json(64 * 1024 * 1024)
-                return self._json(200, self.engine.rename_tournament(str(b.get("oldName") or ""), str(b.get("newName") or ""), b.get("snapshot") or {}))
-            if path == "/tournament/trf-export":
-                if not self._require_local_origin():
-                    return
-                b = self._body_json(32 * 1024 * 1024)
-                return self._json(200, self.engine.write_trf_export(str(b.get("tournamentName") or b.get("name") or "Tournament"), str(b.get("fileName") or "TRF.txt"), str(b.get("text") or "")))
-            if path == "/native/secret":
-                if not self._require_local_origin():
-                    return
-                b = self._body_json(128 * 1024)
-                return self._json(200, self.engine.secret_op(str(b.get("operation") or ""), str(b.get("key") or ""), str(b.get("value") or "")))
-            if path == "/gacrux/install":
-                if not self._require_local_origin():
-                    return
-                return self._json(200, self.engine.gacrux.install().as_dict())
-            if path == "/pairing-checker/install":
-                if not self._require_local_origin():
-                    return
-                return self._json(200, self.engine.bbp.install().as_dict())
-            if path == "/tiebreak-checker/install":
-                if not self._require_local_origin():
-                    return
-                return self._json(200, self.engine.gacrux.install().as_dict())
             if path == "/pair":
-                if not self._require_local_origin():
-                    return
-                b = self._body_json(16 * 1024 * 1024)
-                try:
-                    trf_text = str(b.get("trfText") or b.get("trf") or "")
-                    round_no = int(b.get("roundNo") or b.get("round") or 0)
-                    rounds = int(b.get("rounds") or b.get("totalRounds") or round_no or 0)
-                    top_color = str(b.get("topColor") or b.get("topRatedColor") or "w")
-                    unpaired = b.get("unpaired") or b.get("unpairedIds") or []
-                    pairs = self.engine.gacrux.generate_pairing(trf_text, round_no, rounds, top_color, unpaired)
-                    checker = self.engine.bbp.compare_pairing(trf_text, pairs, round_no, unpaired)
-                    if checker.get("state") == "fail":
-                        return self._json(503, {"ok": False, "error": "Independent BBP pairing checker rejected the Gacrux pairing.", "pairs": pairs, "independentChecker": checker})
-                    return self._json(200, {"ok": True, "pairs": pairs, "source": "Gacrux 1.9.57 upstream Python", "upstreamCommit": UPSTREAM_COMMIT, "independentChecker": checker})
-                except (GacruxError, BBPError, ValueError) as e:
-                    return self._json(503, {"ok": False, "error": str(e), "source": "Gacrux 1.9.57 upstream Python", "independentChecker": self.engine.bbp.status().as_dict()})
+                b = self._body_json(10 * 1024 * 1024)
+                result = self.engine.gacrux.pair(b)
+                expected_pairs = [(int(x[0]), int(x[1])) for x in result.get("pairs", [])]
+                independent = self.engine.bbp.verify(b.get("trf"), expected_pairs, int(b.get("round") or 0), b.get("unpaired") or [])
+                result["independentChecker"] = independent
+                if independent.get("state") == "fail":
+                    raise GacruxError(str(independent.get("message") or "BBP Independent Pairing Checker found a concrete pairing discrepancy."))
+                return self._json(200, result)
+            if path == "/pairing-checker/install":
+                return self._json(200, self.engine.bbp.install())
+            if path in ("/tiebreak-checker/install", "/gacrux/install"):
+                return self._json(200, self.engine.gacrux.install())
             if path == "/tiebreak-checker/check":
-                if not self._require_local_origin():
-                    return
-                b = self._body_json(20 * 1024 * 1024)
-                try:
-                    result = self.engine.gacrux.check_tiebreak(
-                        str(b.get("trfText") or b.get("trf") or ""),
-                        int(b.get("roundNo") or b.get("round") or 0),
-                        b.get("descriptors") or b.get("tieBreaks") or [],
-                        str(b.get("resultType") or b.get("type") or "swiss"),
-                        b.get("expected") or b.get("competitors") or [],
-                        int(b.get("unratedRating") or 0),
-                    )
-                    return self._json(200, result)
-                except GacruxError as e:
-                    return self._json(503, {"ok": False, "error": str(e), "checker": "Gacrux 1.9.57 Tie-Break Checker"})
+                b = self._body_json(10 * 1024 * 1024)
+                return self._json(200, self.engine.gacrux.tiebreak_check(b))
             if path == "/trf26-exchange/check":
-                if not self._require_local_origin():
-                    return
-                b = self._body_json(20 * 1024 * 1024)
-                try:
-                    result = self.engine.gacrux.check_tiebreak(
-                        str(b.get("trfText") or b.get("trf") or ""),
-                        int(b.get("roundNo") or b.get("round") or 0),
-                        b.get("descriptors") if "descriptors" in b else None,
-                        str(b.get("resultType") or b.get("type") or "swiss"),
-                        b.get("expected") or b.get("competitors") or [],
-                        int(b.get("unratedRating") or 0),
-                    )
-                    result["exchange"] = "TRF26"
-                    return self._json(200, result)
-                except GacruxError as e:
-                    return self._json(503, {"ok": False, "error": str(e), "exchange": "TRF26"})
+                b = self._body_json(10 * 1024 * 1024)
+                return self._json(200, self.engine.gacrux.tiebreak_check(b, use_trf_descriptors=True))
+            if path == "/windows/open-text-report":
+                b = self._body_json()
+                text = str(b.get("text") or "")
+                title = safe_storage_name(str(b.get("title") or "report")) + ".txt"
+                out = self.engine.data_home / "reports" / title
+                atomic_write_bytes(out, text.encode("utf-8"))
+                return self._json(200, {"ok": True, "path": str(out), "opened": False, "platform": "linux"})
+            if path == "/fide-update":
+                return self._json(501, {"ok": False, "error": "Linux FIDE updater is pending in dev preview 1."})
             return self._json(404, {"error": "Not found", "path": path})
-        except FileNotFoundError as e:
-            self._json(404, {"error": str(e)})
         except FileExistsError as e:
             self._json(409, {"error": str(e)})
-        except ValueError as e:
-            self._json(400, {"error": str(e)})
+        except FileNotFoundError as e:
+            self._json(404, {"error": str(e)})
+        except (ValueError, json.JSONDecodeError) as e:
+            self._json(400, {"ok": False, "error": str(e)})
+        except GacruxError as e:
+            self._json(503, {"ok": False, "ready": False, "error": str(e), "checker": "Gacrux", "version": GACRUX_VERSION, "upstreamCommit": UPSTREAM_COMMIT, "platform": "linux"})
+        except BBPError as e:
+            self._json(503, {"ok": False, "ready": False, "error": str(e), "checker": "bbpPairings", "version": BBP_VERSION, "platform": "linux"})
         except Exception as e:
-            self._json(500, {"error": str(e)})
-
-    def do_PUT(self) -> None:
-        try:
-            u = urllib.parse.urlsplit(self.path)
-            path = u.path
-            if path.startswith("/proxy/hub-api/") or path == "/proxy/hub-api":
-                return self._proxy_worker(path, u.query)
-            return self._json(404, {"error": "Not found", "path": path})
-        except Exception as e:
-            self._json(500, {"error": str(e)})
-
-    def do_DELETE(self) -> None:
-        try:
-            u = urllib.parse.urlsplit(self.path)
-            path = u.path
-            if path.startswith("/proxy/hub-api/") or path == "/proxy/hub-api":
-                return self._proxy_worker(path, u.query)
-            return self._json(404, {"error": "Not found", "path": path})
-        except Exception as e:
-            self._json(500, {"error": str(e)})
+            self._json(500, {"ok": False, "error": str(e), "type": type(e).__name__})
 
     def _serve_app(self) -> None:
-        app = self.source_root / "ChessPublisher.html"
-        if not app.is_file():
-            return self._json(500, {"error": f"App HTML missing at {app}"})
-        html = app.read_text(encoding="utf-8")
+        html_file = self.engine.source_root / "ChessPublisher.html"
+        html = html_file.read_text(encoding="utf-8-sig", errors="replace")
+        # Keep the protected/current application source intact. The Linux build
+        # injects only platform adapters at delivery time.
         injection = """
-<script>document.documentElement.dataset.chesspublisherPlatform='linux';document.documentElement.dataset.chesspublisherLinuxBuild='1.06.00-beta.34-linux-dev.2';</script>
-<script src="/source/hub/client/hub-api-client.js"></script>
-<script src="/source/hub/client/hub-snapshot.js"></script>
-<script src="/source/webview/HubAdapter.js"></script>
-<script src="/source/cloud/client/cloud-workspace-api.js"></script>
-<script src="/source/webview/CloudWorkspaceAdapter.js"></script>
+<!-- Chess-Publisher Linux compatibility layer: platform-only injection -->
 <script src="/linux/LinuxWebViewShim.js"></script>
+<script src="/source/cloud/client/cloud-workspace-api.js"></script>
+<script src="/source/hub/client/hub-snapshot.js"></script>
+<script src="/source/hub/client/hub-api-client.js"></script>
+<script src="/source/webview/HubAdapter.js"></script>
+<script src="/source/webview/CloudWorkspaceAdapter.js"></script>
+<script>document.documentElement.dataset.chesspublisherLinuxBuild='1.06.00-beta.34-linux-dev.2';</script>
 """
-        if "</body>" in html:
-            html = html.replace("</body>", injection + "\n</body>", 1)
+        pos = html.lower().rfind("</body>")
+        if pos >= 0:
+            html = html[:pos] + injection + html[pos:]
         else:
             html += injection
         self._text(200, html.encode("utf-8"), "text/html; charset=utf-8")
@@ -498,10 +467,10 @@ class Handler(BaseHTTPRequestHandler):
     def _serve_static(self, path: str) -> None:
         if path.startswith("/source/"):
             rel = path[len("/source/"):]
-            root = self.source_root
+            root = self.engine.source_root
         else:
             rel = path[len("/linux/"):]
-            root = self.linux_root
+            root = self.engine.linux_root
         candidate = (root / urllib.parse.unquote(rel)).resolve()
         if root.resolve() not in candidate.parents and candidate != root.resolve():
             return self._json(403, {"error": "Forbidden"})
@@ -519,11 +488,7 @@ class Handler(BaseHTTPRequestHandler):
         target = WORKER_ORIGIN + suffix + (("?" + query) if query else "")
         length = int(self.headers.get("Content-Length", "0") or 0)
         body = self.rfile.read(length) if length else None
-        headers: dict[str, str] = {
-            "Accept": self.headers.get("Accept", "application/json"),
-            "Origin": WORKER_WEB_ORIGIN,
-            "User-Agent": "Chess-Publisher-Linux-HubProxy/1",
-        }
+        headers: dict[str, str] = {"Accept": self.headers.get("Accept", "application/json")}
         for name in ("Authorization", "Content-Type", "X-Organizer-Token", "X-Expected-Revision", "X-Confirm-Delete"):
             value = self.headers.get(name)
             if value:
@@ -572,14 +537,13 @@ def main() -> int:
     except Exception:
         pass
     server = make_server(engine, args.host, args.port, args.quiet)
-    print(f"Chess-Publisher Linux LocalEngine dev preview: {url}")
-    print(f"Data home: {engine.data_home}")
-    print(f"Gacrux: {engine.gacrux.status().as_dict()}")
-    print(f"BBP: {engine.bbp.status().as_dict()}")
+    print(f"Chess-Publisher Linux LocalEngine {ENGINE_VERSION}")
+    print(f"Data: {engine.data_home}")
+    print(f"Open: {url}")
     if not args.no_browser:
-        webbrowser.open(url)
+        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:
-        server.serve_forever(poll_interval=0.3)
+        server.serve_forever(poll_interval=0.2)
     except KeyboardInterrupt:
         pass
     finally:

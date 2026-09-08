@@ -15,5 +15,5 @@ player=next(x for x in mapped.splitlines() if x.startswith('001'))
 assert player[start:start+10].strip()==''
 
 engine=(ROOT/'linux'/'chess_publisher_linux.py').read_text(encoding='utf-8')
-assert 'b.get("unpaired") or b.get("unpairedIds") or []' in engine
+assert 'b.get("unpaired") or []' in engine
 print('BBP_ADAPTER_CONTRACT=PASS')
