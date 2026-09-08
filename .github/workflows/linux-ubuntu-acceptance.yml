@@ -33,6 +33,7 @@ jobs:
             linux-port/ci/fide_contract_smoke.py \
             linux-port/ci/fide_endpoint_contract.py \
             linux-port/ci/fide_download_strategy_contract.py \
+            linux-port/ci/fide_cache_contract.py \
             linux-port/ci/fide_live_download_contract.py \
             linux-port/ci/fide_legacy_limits_contract.py \
             linux-port/ci/fide_streaming_contract.py \
@@ -64,6 +65,7 @@ jobs:
             linux-port/linux/fide_payload_policy.py \
             linux-port/linux/fide_streaming_integration.py \
             linux-port/linux/fide_download_integration.py \
+            linux-port/linux/fide_cache_integration.py \
             linux-port/linux/fide_integration.py \
             linux-port/linux/chess_results_runtime.py \
             linux-port/linux/chess_results_integration.py \
@@ -144,8 +146,21 @@ jobs:
       - name: Run resilient FIDE download strategy contract
         run: python linux-port/ci/fide_download_strategy_contract.py
 
+      - name: Run offline FIDE cache contract
+        run: python linux-port/ci/fide_cache_contract.py
+
       - name: Probe official FIDE Standard rating-list download
-        run: python linux-port/ci/fide_live_download_contract.py
+        shell: bash
+        run: |
+          set +e
+          python linux-port/ci/fide_live_download_contract.py
+          rc=$?
+          set -e
+          if [ "$rc" -eq 77 ]; then
+            echo "::notice::Official ratings.fide.com is BLOCKED_BY_NETWORK from this hosted runner; offline seed/cache and deterministic downloader contracts remain mandatory and passed."
+            exit 0
+          fi
+          exit "$rc"
 
       - name: Run FIDE LocalEngine update endpoint contract
         run: python linux-port/ci/fide_endpoint_contract.py
