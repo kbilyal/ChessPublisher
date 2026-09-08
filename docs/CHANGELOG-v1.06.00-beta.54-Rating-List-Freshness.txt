@@ -1,0 +1,13 @@
+Chess-Publisher v1.06.00-beta.54 — Rating List Freshness Verification
+Date: 2026-09-08
+Parent: v1.06.00-beta.53
+
+ADDED
+- Pre-check freshness verification for user-requested registered-player rating consistency.
+- Current-month path performs the existing FIDE server refresh/check before comparison.
+- Historical checks verify the exact official monthly archive selected by beta.53.
+- Network, period or freshness-verification failure is fail-closed and the consistency comparison does not proceed on unverified data.
+
+PRESERVED
+- beta.53 date-effective list selection.
+- Protected core 70/70 byte-identical to beta.53.
