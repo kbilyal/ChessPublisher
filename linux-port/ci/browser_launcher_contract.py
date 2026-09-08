@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression contract for the normal/windowed Linux Chromium app launcher."""
+"""Regression contract for the maximized Linux Chromium app launcher."""
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -22,15 +22,14 @@ def main()->int:
     if ok is not True or len(calls)!=1:
         raise RuntimeError(f'launcher did not open Chromium exactly once: {calls}')
     args=calls[0][0]
-    for required in ('--app=http://127.0.0.1:18765/','--no-first-run'):
+    for required in ('--app=http://127.0.0.1:18765/','--no-first-run','--start-maximized'):
         if required not in args:
             raise RuntimeError(f'missing Chromium launcher flag: {required}')
-    for forbidden in ('--start-maximized','--start-fullscreen'):
-        if forbidden in args:
-            raise RuntimeError(f'fullscreen launcher flag must not be present: {forbidden}')
+    if '--start-fullscreen' in args:
+        raise RuntimeError('immersive fullscreen must not replace normal maximized desktop mode')
     if any(a.startswith('http://') and not a.startswith('--app=') for a in args):
         raise RuntimeError('URL was not launched in app mode')
-    print('LINUX_WINDOWED_BROWSER_LAUNCHER=PASS')
+    print('LINUX_MAXIMIZED_BROWSER_LAUNCHER=PASS')
     return 0
 
 if __name__=='__main__':
