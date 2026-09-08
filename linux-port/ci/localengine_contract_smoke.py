@@ -38,7 +38,9 @@ def main()->int:
         shutil.copy2(ROOT/'linux'/'LinuxWebViewShim.js',linux/'LinuxWebViewShim.js')
         engine=app.LinuxEngine(pkg,data)
         engine.fide.lists_dir.mkdir(parents=True,exist_ok=True)
-        sample=('12345678       Player, Test                                                 BUL M 1500 0 40 2000\n')*20
+        header='ID Number       Name                         Fed  Sex Tit WTit OTit FOA  Rating Games K  B-day Flag\n'
+        row='12345678        Player, Test                 BUL  M   g                 1500   0    40 2000      \n'
+        sample=header+(row*20)
         for key in ('std','rapid','blitz'):engine.fide.list_path(key).write_text(sample,encoding='utf-8')
         xml=td/'players.xml';xml.write_text(xml_fixture(),encoding='utf-8');build_legacy_index(xml,engine.fide.legacy_db)
         engine.fide.metadata_file.write_text(json.dumps({'updatedAt':'2026-09-07T00:00:00Z','lists':{k:{} for k in ('std','rapid','blitz')},'legacy':{'players':1001}}),encoding='utf-8')
