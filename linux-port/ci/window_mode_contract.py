@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression contract for Linux windowed main UI and per-tab popup workspaces."""
+"""Regression contract for Linux full-viewport main UI and per-tab popup workspaces."""
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -35,6 +35,8 @@ def main()->int:
     out=wi.inject_window_mode(src).decode('utf-8')
     required=(
         'cpLinuxWindowModeStyle','cpLinuxWindowModeScript','cpLinuxTabPopupBackdrop',
+        '#appWindow.window','width:100vw!important','height:100vh!important',
+        'body{padding:0!important;overflow:hidden!important}',
         'cp-linux-popup-page','cp-linux-popup-titlebar','cp-linux-popup-max',
         'registration','pairings','standings','exportPage','schedule','chessresults','dgt',
         'closePopup','syncPopupState','cp-linux-base-visible',
@@ -42,7 +44,7 @@ def main()->int:
     )
     for marker in required:
         if marker not in out:
-            raise RuntimeError(f'missing Linux popup-window marker: {marker}')
+            raise RuntimeError(f'missing Linux full-viewport/popup marker: {marker}')
     forbidden=(
         'forceMainFullscreen',
         '#appWindow.window{position:fixed',
@@ -58,7 +60,7 @@ def main()->int:
     again=wi.inject_window_mode(out.encode('utf-8')).decode('utf-8')
     if again!=out:
         raise RuntimeError('window integration is not idempotent')
-    print('LINUX_WINDOWED_MAIN_TAB_POPUPS=PASS')
+    print('LINUX_FULL_VIEWPORT_MAIN_TAB_POPUPS=PASS')
     return 0
 
 if __name__=='__main__':
