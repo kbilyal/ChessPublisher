@@ -1,0 +1,11 @@
+  window.cpCloudPushToCloud=pushDesktopToCloud;
+  window.cpCloudResolveConflict=resolveConflictUi;
+  // Replace ambiguous legacy entry points. They now have one direction only.
+  window.cpCloudSyncCurrent=pushDesktopToCloud;
+  window.cpCloudPullChanges=pullCloudToDesktop;
+
+  if(window.__CP_DIRECTIONAL_TEST__)return;
+  installStyles();
+  let attempts=0;const timer=setInterval(()=>{attempts++;if(installUi()||attempts>120)clearInterval(timer);},100);
+  if(document.readyState!=="loading")setTimeout(()=>installUi(),0);else document.addEventListener("DOMContentLoaded",()=>setTimeout(installUi,0),{once:true});
+})();
