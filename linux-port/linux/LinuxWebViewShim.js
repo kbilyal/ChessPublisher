@@ -8,6 +8,19 @@
   const dispatch=data=>{ for(const fn of [...listeners]){ try{ fn({data}); }catch(e){ console.error("Linux bridge listener",e); } } };
   const nativeFetch=window.fetch.bind(window);
 
+  function scopedOrganizerSecretKey(){
+    let secretKey="";
+    try{secretKey=typeof window.cpOnlineOrganizerSecretKey==="function"?String(window.cpOnlineOrganizerSecretKey()||"").trim():"";}catch(_){secretKey="";}
+    return /^organizer-primary:install:[A-Za-z0-9._:-]{8,256}$/.test(secretKey)?secretKey:"";
+  }
+
+  function withOrganizerScope(payload={}){
+    const out=(payload&&typeof payload==="object"&&!Array.isArray(payload))?{...payload}:{};
+    const secretKey=scopedOrganizerSecretKey();
+    if(secretKey)out._cpOrganizerSecretKey=secretKey;
+    return out;
+  }
+
   // Linux desktop/cloud traffic is passed through the local engine. This avoids
   // Chromium CORS/preflight differences while keeping Worker secrets out of UI.
   window.fetch=async function(input,init={}){
@@ -20,6 +33,16 @@
       const proxied="/proxy/hub-api"+url.slice(worker.length);
       return nativeFetch(proxied,init);
     }
+    try{
+      const local=new URL(url||location.href,location.href);
+      if(local.origin===location.origin&&/^\/chessresults\/(?:test|create|claim|publish|admin-link|delete-authorize|unlink)\/?$/.test(local.pathname)){
+        let payload={};
+        try{payload=init?.body?JSON.parse(String(init.body)):{};}catch(_){payload={};}
+        if(payload&&typeof payload==="object"&&!Array.isArray(payload)){
+          return nativeFetch(local.pathname+local.search,{...init,body:JSON.stringify(withOrganizerScope(payload))});
+        }
+      }
+    }catch(_){ }
     const telegram=/^https:\/\/api\.telegram\.org\/bot([^/]+)\/sendMessage(?:\?.*)?$/.exec(url);
     if(telegram){
       let payload={};
@@ -46,7 +69,7 @@
     const r=await nativeFetch(`/chessresults/${encodeURIComponent(operation)}`,{
       method:"POST",
       headers:{"Content-Type":"application/json;charset=utf-8","Accept":"application/json"},
-      body:JSON.stringify(payload||{}),
+      body:JSON.stringify(withOrganizerScope(payload||{})),
       cache:"no-store"
     });
     let p={};
