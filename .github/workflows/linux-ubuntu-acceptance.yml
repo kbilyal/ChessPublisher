@@ -211,6 +211,16 @@ jobs:
           path: linux-port/tests/logs/real-linux-acceptance.json
           if-no-files-found: warn
 
+      - name: Stage FIDE offline seed archives for runtime kit
+        if: success()
+        run: |
+          rm -rf linux-port/fide-cache
+          mkdir -p linux-port/fide-cache
+          cp fide/standard_rating_list.zip linux-port/fide-cache/
+          cp fide/rapid_rating_list.zip linux-port/fide-cache/
+          cp fide/blitz_rating_list.zip linux-port/fide-cache/
+          test "$(find linux-port/fide-cache -maxdepth 1 -type f -name '*_rating_list.zip' | wc -l)" -eq 3
+
       - name: Upload verified Linux runtime kit
         if: success()
         uses: actions/upload-artifact@v4
@@ -220,5 +230,6 @@ jobs:
             linux-port/linux
             linux-port/packaging
             linux-port/source_manifest.json
+            linux-port/fide-cache
           if-no-files-found: error
           retention-days: 14
