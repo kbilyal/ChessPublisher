@@ -1,0 +1,92 @@
+name: Publish Linux Beta Release
+
+on:
+  workflow_run:
+    workflows: ["Linux Ubuntu Acceptance"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: linux-beta-release-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'linux-ubuntu-port'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout accepted Linux commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Validate release identity and metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,re,os
+          from pathlib import Path
+          ns={}
+          exec(Path('linux-port/linux/build_info.py').read_text(encoding='utf-8'),ns)
+          display=str(ns['DISPLAY_VERSION'])
+          meta=json.loads(Path('linux-port/linux-beta-release.json').read_text(encoding='utf-8'))
+          if meta.get('displayVersion') != display:
+              raise SystemExit(f"release metadata version {meta.get('displayVersion')} != build {display}")
+          if not re.fullmatch(r'v1\.06\.00-beta\.34-linuxdev\d+',display):
+              raise SystemExit(f'unsafe Linux beta tag: {display}')
+          if meta.get('acceptedCommit') != os.environ['HEAD_SHA']:
+              raise SystemExit(f"release metadata commit {meta.get('acceptedCommit')} != accepted {os.environ['HEAD_SHA']}")
+          out=Path(os.environ['GITHUB_OUTPUT'])
+          with out.open('a',encoding='utf-8') as f:
+              f.write(f'tag={display}\n')
+              f.write(f'title=Chess-Publisher Linux Beta {display}\n')
+          notes=Path('linux-port/LINUX-BETA-RELEASE-NOTES.md')
+          notes.write_text(
+              f"# Chess-Publisher Linux Beta {display}\n\n"
+              f"Accepted commit: `{meta['acceptedCommit']}`\n\n"
+              f"Ubuntu acceptance run: `{meta['acceptanceRun']}` — **SUCCESS**\n\n"
+              f"Base source snapshot: `{meta['sourceSnapshot']}`\n\n"
+              f"Protected source: **{meta['protectedSource']}** · Runtime: **{meta['runtime']}** · Self-test: **{meta['selfTest']}**\n\n"
+              f"Debian/Ubuntu amd64 SHA256: `{meta['debSha256']}`\n\n"
+              f"Portable amd64 SHA256: `{meta['portableSha256']}`\n\n"
+              "This is a prerelease Linux beta. Pairing/TRF/Gacrux/BBP/Tie-Break protected cores remain unchanged. "
+              "Real Chess-Results service and physical DGT hardware acceptance remain final external gates.\n",
+              encoding='utf-8')
+          PY
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Refuse to overwrite an existing Linux beta release
+        id: existing
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view '${{ steps.meta.outputs.tag }}' --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+            echo "Release ${{ steps.meta.outputs.tag }} already exists; preserving immutable history."
+          else
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create versioned Linux beta prerelease
+        if: steps.existing.outputs.exists == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create '${{ steps.meta.outputs.tag }}' \
+            --repo "$GITHUB_REPOSITORY" \
+            --target '${{ github.event.workflow_run.head_sha }}' \
+            --title '${{ steps.meta.outputs.title }}' \
+            --notes-file linux-port/LINUX-BETA-RELEASE-NOTES.md \
+            --prerelease
