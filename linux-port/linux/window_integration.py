@@ -2,9 +2,9 @@
 """Linux fluid single-workspace UI for Chess-Publisher.
 
 The protected ChessPublisher.html remains byte-for-byte unchanged on disk.
-This delivery-only layer removes the nested pseudo-window/popup behavior that
-made routine tab navigation feel fragmented in Chromium app mode. Dialog
-modals remain dialogs; main work pages stay in one viewport-filling workspace.
+This delivery-only layer removes nested pseudo-window fragmentation, keeps all
+main tabs visible, suppresses redundant persistence on clean navigation, and
+filters obsolete delayed rendering work after the user leaves a page.
 """
 from __future__ import annotations
 from typing import Any
@@ -24,23 +24,57 @@ html,body{width:100%!important;height:100%!important;margin:0!important;padding:
   border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden!important
 }
 #appWindow>.app-resize-handle{display:none!important;pointer-events:none!important}
-#appWindow .titlebar{cursor:default!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#appWindow .titlebar{cursor:default!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:none!important}
 #appWindow .file-menu,.modal-overlay{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 #appWindow .window-controls button[title="Minimize"],
 #appWindow .window-controls button[title="Maximize / restore"],
 #appWindow .window-controls button.window-close{display:none!important}
-#appWindow .tabs{flex:0 0 auto!important;scrollbar-width:thin;overscroll-behavior-x:contain}
-#appWindow .content{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important}
-#appWindow .page{min-height:0!important;max-height:none!important;overscroll-behavior:contain;scroll-behavior:auto!important}
-#appWindow .page.active{display:block!important;width:100%!important;height:100%!important;overflow:auto!important}
-#appWindow .tab,#appWindow button,#appWindow input,#appWindow select,#appWindow textarea,
-#appWindow .autosave-slider,#appWindow .autosave-slider::after,#appWindow .next-round-manager{
-  transition:none!important
+
+/* Fluid v2 navigation: all eight main tabs remain visible, including Chess-Results. */
+#appWindow .tabs{
+  flex:0 0 auto!important;height:34px!important;min-height:34px!important;
+  display:grid!important;grid-template-columns:repeat(8,minmax(0,1fr))!important;
+  align-items:end!important;gap:1px!important;padding:3px 5px 0!important;
+  overflow:hidden!important;contain:layout paint!important
 }
-#appWindow .groupbox{box-shadow:0 1px 2px rgba(0,0,0,.045)!important}
-#appWindow .modal-window{box-shadow:0 10px 28px rgba(0,0,0,.24)!important}
+#appWindow .tabs .tab{
+  min-width:0!important;width:auto!important;height:27px!important;margin:0!important;
+  padding:3px 5px!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+  font-size:11.5px!important;line-height:17px!important;transition:none!important
+}
+#appWindow .tabs .tab.active{height:30px!important;top:1px!important}
+#tabChessResults{display:flex!important;visibility:visible!important;opacity:1!important}
+
+#appWindow .content{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;contain:layout paint!important}
+#appWindow .page{min-height:0!important;max-height:none!important;overscroll-behavior:contain;scroll-behavior:auto!important}
+#appWindow .page.active{display:block!important;width:100%!important;height:100%!important;overflow:auto!important;scrollbar-gutter:stable!important}
+#appWindow .page:not(.active){display:none!important}
+
+/* Remove animation/blur work that does not carry functional state. */
+#appWindow .tab,#appWindow button,#appWindow input,#appWindow select,#appWindow textarea,
+#appWindow .autosave-slider,#appWindow .autosave-slider::after,#appWindow .next-round-manager,
+#appWindow .groupbox,#appWindow .gacrux-box{transition:none!important}
+#appWindow .groupbox,#appWindow .gacrux-box{box-shadow:none!important}
+#appWindow .modal-window{box-shadow:0 8px 20px rgba(0,0,0,.18)!important}
+
+/* Keep the Pairings action row available while the page itself scrolls. */
+#pairings .live-pairing-toolbar{
+  position:sticky!important;top:0!important;z-index:45!important;background:#fafafa!important;
+  box-shadow:0 1px 0 rgba(0,0,0,.12)!important;contain:layout paint!important
+}
+#pairingsChessResultsPublishBtn{display:inline-flex!important;visibility:visible!important;opacity:1!important}
+#pairings .pairing-engine-bottom{contain:layout paint!important}
+
+.table-frame,.registration-lists,.fide-results,#nextRoundTableContainer,#pairings .live-pairing-table-wrap{
+  overscroll-behavior:contain!important
+}
+
 #cpLinuxDevBadge{opacity:.56!important;font-size:10px!important;padding:3px 6px!important;right:7px!important;bottom:5px!important}
 body.cp-linux-fluid-ui #appWindow{visibility:visible}
+@media(max-width:1100px){
+  #appWindow .tabs .tab{font-size:10.5px!important;padding-left:3px!important;padding-right:3px!important}
+}
 @media(max-width:980px){
   #appWindow .content{padding:5px!important}
   #appWindow .tabs{padding-left:4px!important;padding-right:4px!important}
@@ -67,7 +101,7 @@ _SCRIPT_TEMPLATE = r'''
     main:'tabMain',registration:'tabRegistration',pairings:'tabPairings',standings:'tabStandings',
     exportPage:'tabExport',schedule:'tabSchedule',chessresults:'tabChessResults',dgt:'tabDgt'
   };
-  const stats={fastSwitches:0,dirtySwitches:0,guardedMissingTargets:0};
+  const stats={fastSwitches:0,dirtySwitches:0,guardedMissingTargets:0,skippedStaleWork:0};
   window.__cpLinuxFluidUiStats=stats;
 
   function syncTitle(){
@@ -77,6 +111,8 @@ _SCRIPT_TEMPLATE = r'''
     document.title=titleText;
   }
 
+  function activePage(){return document.querySelector('.page.active')?.id||'';}
+
   function dirtyState(){
     try{return typeof stateDirty!=='undefined'?!!stateDirty:true;}catch(_){return true;}
   }
@@ -84,6 +120,52 @@ _SCRIPT_TEMPLATE = r'''
   function normalizedTabButton(id,button){
     if(button?.classList)return button;
     return document.getElementById(TAB_BY_PAGE[id]||'');
+  }
+
+  function ensureChessResultsTab(){
+    const tabs=document.querySelector('#appWindow .tabs');
+    let tab=document.getElementById('tabChessResults');
+    if(!tabs)return;
+    if(!tab){
+      tab=document.createElement('div');
+      tab.id='tabChessResults';
+      tab.className='tab';
+      tab.textContent='Chess-Results';
+      tab.onclick=function(){window.showTab?.('chessresults',tab);};
+      tabs.appendChild(tab);
+    }
+    tab.hidden=false;
+    tab.style.removeProperty('display');
+    tab.style.removeProperty('visibility');
+  }
+
+  // Rendering functions can be scheduled by the protected UI and fire after
+  // the user has already left that tab. Guard only view-rendering work; do not
+  // change tournament state, pairing calculations or persistence semantics.
+  function guardTabWork(name,pageId){
+    const original=window[name];
+    if(typeof original!=='function'||original.__cpLinuxFluidGuarded)return;
+    function guarded(){
+      if(activePage()!==pageId){
+        stats.skippedStaleWork++;
+        return undefined;
+      }
+      return original.apply(this,arguments);
+    }
+    guarded.__cpLinuxFluidGuarded=true;
+    guarded.__cpOriginal=original;
+    window[name]=guarded;
+  }
+
+  function installDeferredWorkGuards(){
+    for(const name of [
+      'populatePairingsRoundMenu','renderLivePairings','loadPairingEngineSettings',
+      'renderNextRoundPlayerManager','updateGacruxPanel'
+    ]) guardTabWork(name,'pairings');
+    for(const name of [
+      'renderSpecialPrizeSettings','refreshFinalStandings','renderSpecialPrizeResults'
+    ]) guardTabWork(name,'standings');
+    guardTabWork('refreshChessResultsXmlUi','chessresults');
   }
 
   function installFastNavigation(){
@@ -98,11 +180,15 @@ _SCRIPT_TEMPLATE = r'''
         stats.guardedMissingTargets++;
         return undefined;
       }
+      if(tab.classList.contains('disabled'))return original.call(this,pageId,tab);
 
-      const previousId=document.querySelector('.page.active')?.id||'';
-      const canFast=FAST_PAGE_IDS.has(pageId)&&previousId!=='dgt'&&!dirtyState();
+      const previousId=activePage();
+      if(previousId===pageId&&tab.classList.contains('active'))return undefined;
+
+      const dirty=dirtyState();
+      const canFast=FAST_PAGE_IDS.has(pageId)&&previousId!=='dgt'&&!dirty;
       if(!canFast){
-        if(dirtyState())stats.dirtySwitches++;
+        if(dirty)stats.dirtySwitches++;
         return original.call(this,pageId,tab);
       }
 
@@ -110,8 +196,7 @@ _SCRIPT_TEMPLATE = r'''
       // every navigation. When there are no unsaved changes those calls only
       // serialize the entire tournament and schedule an autosave because the
       // active-tab preference changed. Suppress that clean-navigation churn;
-      // any real input/change marks stateDirty synchronously, so dirty edits
-      // still use the original persistence path without modification.
+      // real input/change still marks stateDirty and uses the protected save path.
       const originalSaveAll=window.saveAll;
       const originalSaveData=window.saveData;
       if(typeof originalSaveAll==='function')window.saveAll=function(){};
@@ -151,14 +236,27 @@ _SCRIPT_TEMPLATE = r'''
     syncTitle();
     normalizeLegacyWindowState();
     stopNestedWindowDragging();
+    ensureChessResultsTab();
+    installDeferredWorkGuards();
     installFastNavigation();
     document.body.classList.add('cp-linux-fluid-ui');
+
+    // The protected application can rewrite tab visibility during startup.
+    // Re-assert only UI visibility/guards after its zero-delay startup work.
+    setTimeout(()=>{
+      ensureChessResultsTab();
+      installDeferredWorkGuards();
+      installFastNavigation();
+    },0);
+    setTimeout(()=>{
+      ensureChessResultsTab();
+      installDeferredWorkGuards();
+    },250);
   }
 
   // Injected at the end of <body>: install synchronously after DOMContentLoaded
   // rather than waiting for an animation frame. This removes the startup race
-  // where the first navigation could hit the expensive protected path before
-  // the fluid navigation wrapper was ready on slower Chromium sessions.
+  // where first navigation could hit the expensive protected path.
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
   else install();
 })();
