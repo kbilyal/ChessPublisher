@@ -16,13 +16,14 @@ _APPLIED = False
 _STYLE = r'''
 <style id="cpLinuxWindowModeStyle">
 .cp-linux-version-badge{display:inline-flex;align-items:center;margin-left:8px;padding:1px 7px;border:1px solid rgba(255,255,255,.45);border-radius:10px;font-size:10px;font-weight:700;background:rgba(255,255,255,.12);white-space:nowrap}
-.modal-overlay{backdrop-filter:blur(1px)}
+.modal-overlay{backdrop-filter:none}
 .modal-window{border:1px solid #7f8790!important;border-radius:3px!important;box-shadow:0 12px 34px rgba(0,0,0,.34)!important}
 .modal-titlebar{background:linear-gradient(#315f95,#234a78)!important;color:#fff!important;font-weight:700!important;min-height:29px!important;display:flex!important;align-items:center!important}
-#cpLinuxTabPopupBackdrop{display:none;position:fixed;inset:0;z-index:9050;background:rgba(18,22,28,.22);pointer-events:none}
-body.cp-linux-tab-popup-open #cpLinuxTabPopupBackdrop{display:block}
+#cpLinuxTabPopupBackdrop{display:none!important;position:fixed;inset:0;z-index:9050;background:transparent!important;pointer-events:none}
+body.cp-linux-tab-popup-open #cpLinuxTabPopupBackdrop{display:none!important}
 body.cp-linux-tab-popup-open .app-save-corner{z-index:9001!important}
 #main.cp-linux-base-visible{display:block!important}
+@media print{#cpLinuxTabPopupBackdrop,#cpLinuxDevBadge{display:none!important}}
 .page.cp-linux-popup-page.active{
   display:block!important;position:fixed!important;z-index:9100!important;
   left:50%!important;top:74px!important;transform:translateX(-50%);
