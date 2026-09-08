@@ -16,6 +16,64 @@
   }
   window.cpNativeExportText=nativeTextExport;
 
+  const nativeWindowPrint=typeof window.print==="function"?window.print.bind(window):null;
+  function htmlEscape(value){
+    return String(value??"").replace(/[&<>\"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  }
+  function collectPrintStyles(){
+    try{return [...document.querySelectorAll("style")].map(node=>String(node.textContent||"")).join("\n");}
+    catch(_){return "";}
+  }
+  function removeOldPrintFrame(){
+    try{document.getElementById("cpLinuxPrintFrame")?.remove();}catch(_){ }
+  }
+  function printStandaloneReport(title,html){
+    const reportHtml=String(html||"").trim();
+    if(!reportHtml){
+      if(nativeWindowPrint)return nativeWindowPrint();
+      throw new Error("The print report is empty.");
+    }
+    removeOldPrintFrame();
+    const frame=document.createElement("iframe");
+    frame.id="cpLinuxPrintFrame";
+    frame.setAttribute("aria-hidden","true");
+    frame.style.cssText="position:fixed;left:-20000px;top:0;width:900px;height:1200px;border:0;background:#fff;pointer-events:none;z-index:-1";
+    document.body.appendChild(frame);
+    const printWindow=frame.contentWindow;
+    const printDocument=frame.contentDocument||printWindow?.document;
+    if(!printWindow||!printDocument){frame.remove();throw new Error("Could not create the Linux print document.");}
+    const css=collectPrintStyles();
+    printDocument.open();
+    printDocument.write(`<!doctype html><html><head><meta charset="utf-8"><title>${htmlEscape(title||"Chess-Publisher")}</title><style>${css}</style><style>
+      html,body{width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:visible!important;background:#fff!important;color:#000!important}
+      #screenPrintReport{display:block!important;position:static!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
+      #screenPrintReport .print-doc{display:block!important;position:static!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
+      #cpLinuxDevBadge,#cpLinuxTabPopupBackdrop,.modal-overlay,.app-reopen-button{display:none!important}
+      @page{size:A4;margin:12mm}
+      @media print{html,body,#screenPrintReport,#screenPrintReport .print-doc{display:block!important;visibility:visible!important;opacity:1!important;overflow:visible!important;position:static!important;transform:none!important}}
+    </style></head><body><div id="screenPrintReport">${reportHtml}</div></body></html>`);
+    printDocument.close();
+    let printed=false;
+    const cleanup=()=>{try{frame.remove();}catch(_){ }};
+    const run=()=>{
+      if(printed)return;
+      printed=true;
+      try{printWindow.focus();printWindow.print();}
+      catch(error){cleanup();throw error;}
+    };
+    try{printWindow.addEventListener("afterprint",()=>setTimeout(cleanup,0),{once:true});}catch(_){ }
+    if(printDocument.readyState==="complete")setTimeout(run,80);
+    else frame.addEventListener("load",()=>setTimeout(run,30),{once:true});
+    return {ok:true,isolatedPrint:true};
+  }
+  window.cpLinuxPrintReport=printStandaloneReport;
+  window.print=function(){
+    const report=document.getElementById("screenPrintReport");
+    const html=String(report?.innerHTML||"").trim();
+    if(!html)return nativeWindowPrint?nativeWindowPrint():undefined;
+    return printStandaloneReport(document.title||"Chess-Publisher",html);
+  };
+
   function safePart(value){
     const raw=String(value||"Tournament").replace(/[<>:"/\\|?*\u0000-\u001f]/g,"_").trim();
     return raw||"Tournament";
