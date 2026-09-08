@@ -32,10 +32,14 @@ def runtime_manifest(linux_root:Path)->dict[str,dict[str,object]]:
     return rows
 
 def copy_fide_seed(target:Path)->dict[str,dict[str,object]]:
-    source=ROOT.parent/'fide';rows={}
+    # A full Git checkout carries seeds in ../fide. The verified runtime-kit
+    # artifact stages the same files in ./fide-cache so an exact-source .deb can
+    # be rebuilt without silently losing offline FIDE fallback capability.
+    sources=(ROOT/'fide-cache',ROOT.parent/'fide')
+    rows={}
     for name in FIDE_SEED_NAMES:
-        src=source/name
-        if not src.is_file():continue
+        src=next((directory/name for directory in sources if (directory/name).is_file()),None)
+        if src is None:continue
         target.mkdir(parents=True,exist_ok=True);dst=target/name;shutil.copy2(src,dst)
         rows[name]={'size':dst.stat().st_size,'sha256':sha(dst)}
     return rows
