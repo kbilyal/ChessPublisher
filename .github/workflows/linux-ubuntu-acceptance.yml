@@ -49,6 +49,7 @@ jobs:
             linux-port/ci/browser_launcher_contract.py \
             linux-port/ci/window_mode_contract.py \
             linux-port/ci/source_guard_contract.py \
+            linux-port/ci/source_bootstrap_contract.py \
             linux-port/ci/self_test_contract.py \
             linux-port/ci/deb_install_smoke.py \
             linux-port/ci/ubuntu_2604_container_smoke.py \
@@ -59,6 +60,7 @@ jobs:
             linux-port/linux/build_identity_integration.py \
             linux-port/linux/hub_proxy_integration.py \
             linux-port/linux/source_guard.py \
+            linux-port/linux/source_bootstrap.py \
             linux-port/linux/gacrux_runtime.py \
             linux-port/linux/bbp_runtime.py \
             linux-port/linux/fide_runtime.py \
@@ -87,6 +89,9 @@ jobs:
 
       - name: Run protected source identity contract
         run: python linux-port/ci/source_guard_contract.py
+
+      - name: Run fresh checkout source bootstrap contract
+        run: python linux-port/ci/source_bootstrap_contract.py
 
       - name: Run BBP runtime adapter contract
         run: python linux-port/ci/bbp_adapter_contract.py
