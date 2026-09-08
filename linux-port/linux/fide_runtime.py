@@ -163,6 +163,14 @@ def build_legacy_index(xml_file: Path, db_target: Path) -> dict[str, Any]:
         raise
     return {"players":count,"bytes":db_target.stat().st_size,"sha256":_sha256_file(db_target)}
 
+def _rating_list_header_ready(path:Path)->bool:
+    try:
+        if not path.is_file() or path.stat().st_size < 1000:return False
+        with path.open('rb') as f:head=f.read(64*1024).lower()
+        return b'id number' in head and b'name' in head and b'fed' in head
+    except OSError:return False
+
+
 @dataclass
 class FideStatus:
     ready: bool; lists: dict[str,dict[str,Any]]; legacy_ready: bool; legacy_players: int; updated_at: str
@@ -183,12 +191,14 @@ class FideRuntime:
         path=self.list_path(list_type)
         if not path.is_file(): raise FileNotFoundError(f"FIDE {list_type} list has not been downloaded yet.")
         data=path.read_bytes()
-        if len(data)<1000: raise FideRuntimeError(f"FIDE {list_type} list is incomplete.")
+        head=data[:64*1024].lower()
+        if len(data)<1000 or b'id number' not in head or b'name' not in head or b'fed' not in head:
+            raise FideRuntimeError(f"FIDE {list_type} list is invalid or incomplete.")
         return data
     def status(self)->FideStatus:
         meta=self._metadata(); rows={}; all_lists=True
         for key in LISTS:
-            path=self.list_path(key); item=dict((meta.get('lists') or {}).get(key) or {}); item['ready']=path.is_file() and path.stat().st_size>=1000; item['bytes']=path.stat().st_size if path.is_file() else 0; rows[key]=item; all_lists=all_lists and item['ready']
+            path=self.list_path(key); item=dict((meta.get('lists') or {}).get(key) or {}); item['ready']=_rating_list_header_ready(path); item['bytes']=path.stat().st_size if path.is_file() else 0; rows[key]=item; all_lists=all_lists and item['ready']
         legacy=dict(meta.get('legacy') or {}); legacy_ready=self.legacy_db.is_file() and self.legacy_db.stat().st_size>4096
         return FideStatus(all_lists and legacy_ready,rows,legacy_ready,int(legacy.get('players') or 0),str(meta.get('updatedAt') or ''))
     def _update_list(self,key:str,work:Path)->dict[str,Any]:

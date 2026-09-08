@@ -35,9 +35,15 @@ def main() -> int:
             if runtime.read_list("std")[:20].lower().find(b"id number") < 0: raise RuntimeError("seeded standard list is invalid")
             if runtime.status().lists["std"].get("ready") is not True: raise RuntimeError("seeded standard list not ready")
 
-            # A corrupt local TXT may be large enough to pass the old byte-count-only
-            # readiness check. The seed pass must detect and heal it.
             runtime.list_path("std").write_bytes(b"corrupt cached rating list\n" * 100)
+            if runtime.status().lists["std"].get("ready") is True:
+                raise RuntimeError("corrupt large rating list was falsely reported ready")
+            try:
+                runtime.read_list("std")
+            except fr.FideRuntimeError:
+                pass
+            else:
+                raise RuntimeError("corrupt large rating list was served by read_list")
             healed = fc._seed_lists(runtime)
             if "std" not in healed: raise RuntimeError(f"corrupt local list was not healed: {healed}")
             fd._validate_rating_txt(runtime.list_path("std"), "std")
@@ -50,7 +56,7 @@ def main() -> int:
             if meta.get("transport") != "local-cache" or meta.get("cached") is not True: raise RuntimeError(f"cache fallback metadata invalid: {meta}")
         finally:
             fc.CACHE_DIRS = old_dirs;fc._ORIGINAL_DOWNLOAD_CANDIDATES = old_downloader
-    print("FIDE_OFFLINE_CACHE_CONTRACT=PASS (seed, corruption healing, network fallback)")
+    print("FIDE_OFFLINE_CACHE_CONTRACT=PASS (seed, invalid-read rejection, corruption healing, network fallback)")
     return 0
 
 if __name__ == "__main__": raise SystemExit(main())
