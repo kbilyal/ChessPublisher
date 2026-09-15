@@ -1,0 +1,35 @@
+{
+  "product": "Chess-Publisher",
+  "version": "1.06.00-beta.98-r12",
+  "date": "2026-09-15",
+  "channel": "pre-fide",
+  "status": "Pre-FIDE / TEC Review Candidate",
+  "fide_approval_claimed": false,
+  "stable_unchanged": "v1.05.01",
+  "release_tag": "v1.06.00-beta.98-r12-pre-fide",
+  "release_url": "https://github.com/kbilyal/ChessPublisher/releases/tag/v1.06.00-beta.98-r12-pre-fide",
+  "exe": {
+    "name": "ChessPublisher-v1.06.00-beta.98-r12.exe",
+    "sha256": "1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3",
+    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.06.00-beta.98-r12-pre-fide/ChessPublisher-v1.06.00-beta.98-r12.exe",
+    "drive_file_id": "1-e-6ObWGdvrm6CDiUkNnjbqjS54eKbvZ",
+    "drive_url": "https://drive.google.com/file/d/1-e-6ObWGdvrm6CDiUkNnjbqjS54eKbvZ/view?usp=drivesdk"
+  },
+  "portable": {
+    "name": "Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip",
+    "sha256": "e33ed93e1b81af83fa1d1b17fcc4dfaeec2daec73b89aa9d5ba6ebee3310ce5b",
+    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.06.00-beta.98-r12-pre-fide/Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip",
+    "drive_file_id": "16MNTTMpP8dEhaFJzD-8mq5bKM7_0izVv",
+    "drive_url": "https://drive.google.com/file/d/16MNTTMpP8dEhaFJzD-8mq5bKM7_0izVv/view?usp=drivesdk"
+  },
+  "bug_hunt": {
+    "js_total": 111,
+    "pass": 108,
+    "approved_historical_exceptions": 2,
+    "browser_only_skip": 1,
+    "unexpected_failures": 0,
+    "r12_targeted": "23/23 PASS",
+    "static_audit": "PASS",
+    "protected_core": "70/70 byte-identical"
+  }
+}
