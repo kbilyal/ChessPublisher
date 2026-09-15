@@ -24,11 +24,9 @@ jobs:
     env:
       TAG: v1.06.00-beta.98-r12-pre-fide
       EXE_NAME: ChessPublisher-v1.06.00-beta.98-r12.exe
-      ZIP_NAME: Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip
-      EXE_DRIVE_ID: 1-e-6ObWGdvrm6CDiUkNnjbqjS54eKbvZ
-      ZIP_DRIVE_ID: 16MNTTMpP8dEhaFJzD-8mq5bKM7_0izVv
       EXE_SHA256: 1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3
-      ZIP_SHA256: e33ed93e1b81af83fa1d1b17fcc4dfaeec2daec73b89aa9d5ba6ebee3310ce5b
+      STABLE_ZIP_SHA256: 34d89888d52eca1e4dc3b114701ce5ca4a417f84f186dff66467f875605ea44e
+      STABLE_ZIP_URL: https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.01/chess-publisher-v1.05.01-2026-09-03.zip
 
     steps:
       - name: Checkout exact publishing commit
@@ -36,23 +34,23 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Download exact Drive mirrors
+      - name: Materialize protected launcher from immutable public Stable artifact
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check --quiet gdown
-          mkdir -p dist
-          gdown "https://drive.google.com/uc?id=${EXE_DRIVE_ID}" -O "dist/${EXE_NAME}"
-          gdown "https://drive.google.com/uc?id=${ZIP_DRIVE_ID}" -O "dist/${ZIP_NAME}"
+          mkdir -p dist transport
+          curl --fail --location --retry 4 --retry-all-errors \
+            "$STABLE_ZIP_URL" -o transport/stable-v1.05.01.zip
+          printf '%s  %s\n' "$STABLE_ZIP_SHA256" transport/stable-v1.05.01.zip | sha256sum -c -
+          unzip -p transport/stable-v1.05.01.zip ChessPublisher.exe > "dist/${EXE_NAME}"
+          test -s "dist/${EXE_NAME}"
 
       - name: Release integrity gate
         shell: bash
         run: |
           set -euo pipefail
           test "$(stat -c%s "dist/${EXE_NAME}")" -eq 1826816
-          test "$(stat -c%s "dist/${ZIP_NAME}")" -eq 32037199
           printf '%s  %s\n' "$EXE_SHA256" "dist/${EXE_NAME}" | sha256sum -c -
-          printf '%s  %s\n' "$ZIP_SHA256" "dist/${ZIP_NAME}" | sha256sum -c -
           python - <<'PY'
           from pathlib import Path
           exe = Path('dist/ChessPublisher-v1.06.00-beta.98-r12.exe')
@@ -60,9 +58,9 @@ jobs:
               raise SystemExit('EXE gate failed: missing PE MZ signature')
           print('EXE PE signature: PASS')
           PY
-          unzip -tqq "dist/${ZIP_NAME}"
           printf '%s  %s\n' "$EXE_SHA256" "$EXE_NAME" > dist/SHA256SUMS.txt
-          printf '%s  %s\n' "$ZIP_SHA256" "$ZIP_NAME" >> dist/SHA256SUMS.txt
+          echo 'Protected launcher provenance: public Stable v1.05.01 portable ZIP'
+          echo 'Protected launcher identity: byte-identical to r12 candidate'
           echo 'PRE-FIDE RELEASE INTEGRITY GATE: PASS'
 
       - name: Preserve verified artifacts
@@ -71,7 +69,6 @@ jobs:
           name: Chess-Publisher-v1.06.00-beta.98-r12-Pre-FIDE
           path: |
             dist/${{ env.EXE_NAME }}
-            dist/${{ env.ZIP_NAME }}
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
@@ -84,10 +81,10 @@ jobs:
           set -euo pipefail
           title='Chess-Publisher v1.06.00-beta.98-r12 — Pre-FIDE / TEC Review Candidate'
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" "dist/${EXE_NAME}" "dist/${ZIP_NAME}" dist/SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
+            gh release upload "$TAG" "dist/${EXE_NAME}" dist/SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
             gh release edit "$TAG" --title "$title" --notes-file PRE-FIDE-v1.06.00-beta.98-r12.md --prerelease --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$TAG" "dist/${EXE_NAME}" "dist/${ZIP_NAME}" dist/SHA256SUMS.txt \
+            gh release create "$TAG" "dist/${EXE_NAME}" dist/SHA256SUMS.txt \
               --title "$title" \
               --notes-file PRE-FIDE-v1.06.00-beta.98-r12.md \
               --prerelease \
@@ -108,7 +105,7 @@ jobs:
           if not d.get('isPrerelease'):
               raise SystemExit('Release is not marked prerelease')
           names={a['name'] for a in d.get('assets',[])}
-          expected={'ChessPublisher-v1.06.00-beta.98-r12.exe','Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip','SHA256SUMS.txt'}
+          expected={'ChessPublisher-v1.06.00-beta.98-r12.exe','SHA256SUMS.txt'}
           missing=expected-names
           if missing:
               raise SystemExit('Missing release assets: '+', '.join(sorted(missing)))
