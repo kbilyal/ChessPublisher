@@ -18,7 +18,7 @@
   "portable": {
     "name": "Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip",
     "sha256": "e33ed93e1b81af83fa1d1b17fcc4dfaeec2daec73b89aa9d5ba6ebee3310ce5b",
-    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.06.00-beta.98-r12-pre-fide/Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip",
+    "distribution": "official-google-drive-mirror",
     "drive_file_id": "16MNTTMpP8dEhaFJzD-8mq5bKM7_0izVv",
     "drive_url": "https://drive.google.com/file/d/16MNTTMpP8dEhaFJzD-8mq5bKM7_0izVv/view?usp=drivesdk"
   },
