@@ -21,15 +21,24 @@ Late Entry player addition can be completed directly by double-clicking a FIDE s
 
 The r12 delta explicitly introduces **no pairing, TRF, BBP, tie-break, Chess-Results, SYNC or rating-calculation core changes**.
 
-## Downloads
+## Public GitHub download
 
-The GitHub prerelease contains:
+The GitHub prerelease contains the verified protected Windows launcher and its checksum:
 
 - `ChessPublisher-v1.06.00-beta.98-r12.exe`
-- `Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip`
 - `SHA256SUMS.txt`
 
-Google Drive mirrors are stored in the official `ChessPublisher Releases/Pre-FIDE v1.06.00-beta.98-r12` folder.
+Launcher SHA-256: `1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3`
+
+The launcher is protected-core content and is byte-identical to the launcher already carried by the public Stable v1.05.01 portable artifact. The release workflow re-materializes that immutable public copy and verifies the exact r12 SHA-256 before publication; it is not rebuilt or modified.
+
+## Full portable mirror
+
+The exact full r12 portable package is retained in the official Google Drive release folder:
+
+`ChessPublisher Releases/Pre-FIDE v1.06.00-beta.98-r12`
+
+Portable SHA-256: `e33ed93e1b81af83fa1d1b17fcc4dfaeec2daec73b89aa9d5ba6ebee3310ce5b`
 
 ## Status / wording
 
