@@ -1,0 +1,117 @@
+name: Publish Pre-FIDE r12
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pre-fide.json'
+      - 'PRE-FIDE-v1.06.00-beta.98-r12.md'
+      - '.github/workflows/publish-pre-fide-r12.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chess-publisher-pre-fide-r12
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify and publish Pre-FIDE r12
+    runs-on: ubuntu-latest
+    env:
+      TAG: v1.06.00-beta.98-r12-pre-fide
+      EXE_NAME: ChessPublisher-v1.06.00-beta.98-r12.exe
+      ZIP_NAME: Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip
+      EXE_DRIVE_ID: 1-e-6ObWGdvrm6CDiUkNnjbqjS54eKbvZ
+      ZIP_DRIVE_ID: 16MNTTMpP8dEhaFJzD-8mq5bKM7_0izVv
+      EXE_SHA256: 1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3
+      ZIP_SHA256: e33ed93e1b81af83fa1d1b17fcc4dfaeec2daec73b89aa9d5ba6ebee3310ce5b
+
+    steps:
+      - name: Checkout exact publishing commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download exact Drive mirrors
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --quiet gdown
+          mkdir -p dist
+          gdown "https://drive.google.com/uc?id=${EXE_DRIVE_ID}" -O "dist/${EXE_NAME}"
+          gdown "https://drive.google.com/uc?id=${ZIP_DRIVE_ID}" -O "dist/${ZIP_NAME}"
+
+      - name: Release integrity gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(stat -c%s "dist/${EXE_NAME}")" -eq 1826816
+          test "$(stat -c%s "dist/${ZIP_NAME}")" -eq 32037199
+          printf '%s  %s\n' "$EXE_SHA256" "dist/${EXE_NAME}" | sha256sum -c -
+          printf '%s  %s\n' "$ZIP_SHA256" "dist/${ZIP_NAME}" | sha256sum -c -
+          python - <<'PY'
+          from pathlib import Path
+          exe = Path('dist/ChessPublisher-v1.06.00-beta.98-r12.exe')
+          if exe.read_bytes()[:2] != b'MZ':
+              raise SystemExit('EXE gate failed: missing PE MZ signature')
+          print('EXE PE signature: PASS')
+          PY
+          unzip -tqq "dist/${ZIP_NAME}"
+          printf '%s  %s\n' "$EXE_SHA256" "$EXE_NAME" > dist/SHA256SUMS.txt
+          printf '%s  %s\n' "$ZIP_SHA256" "$ZIP_NAME" >> dist/SHA256SUMS.txt
+          echo 'PRE-FIDE RELEASE INTEGRITY GATE: PASS'
+
+      - name: Preserve verified artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chess-Publisher-v1.06.00-beta.98-r12-Pre-FIDE
+          path: |
+            dist/${{ env.EXE_NAME }}
+            dist/${{ env.ZIP_NAME }}
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          title='Chess-Publisher v1.06.00-beta.98-r12 — Pre-FIDE / TEC Review Candidate'
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "dist/${EXE_NAME}" "dist/${ZIP_NAME}" dist/SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --title "$title" --notes-file PRE-FIDE-v1.06.00-beta.98-r12.md --prerelease --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "dist/${EXE_NAME}" "dist/${ZIP_NAME}" dist/SHA256SUMS.txt \
+              --title "$title" \
+              --notes-file PRE-FIDE-v1.06.00-beta.98-r12.md \
+              --prerelease \
+              --target "$GITHUB_SHA" \
+              --repo "$GITHUB_REPOSITORY"
+          fi
+
+      - name: Verify public prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url,isPrerelease,assets > release.json
+          python - <<'PY'
+          import json
+          d=json.load(open('release.json',encoding='utf-8'))
+          if not d.get('isPrerelease'):
+              raise SystemExit('Release is not marked prerelease')
+          names={a['name'] for a in d.get('assets',[])}
+          expected={'ChessPublisher-v1.06.00-beta.98-r12.exe','Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip','SHA256SUMS.txt'}
+          missing=expected-names
+          if missing:
+              raise SystemExit('Missing release assets: '+', '.join(sorted(missing)))
+          print('PUBLIC PRE-FIDE GITHUB RELEASE GATE: PASS')
+          print(d['url'])
+          PY
