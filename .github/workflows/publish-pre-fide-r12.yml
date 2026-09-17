@@ -1,4 +1,4 @@
-name: Publish Pre-FIDE r12
+name: Maintain Pre-FIDE r12 Release
 
 on:
   push:
@@ -18,81 +18,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Verify and publish Pre-FIDE r12
+  maintain:
+    name: Verify and maintain Pre-FIDE r12 installer release
     runs-on: ubuntu-latest
     env:
       TAG: v1.06.00-beta.98-r12-pre-fide
-      EXE_NAME: ChessPublisher-v1.06.00-beta.98-r12.exe
-      EXE_SHA256: 1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3
-      STABLE_ZIP_SHA256: 34d89888d52eca1e4dc3b114701ce5ca4a417f84f186dff66467f875605ea44e
-      STABLE_ZIP_URL: https://github.com/kbilyal/ChessPublisher/releases/download/v1.05.01/chess-publisher-v1.05.01-2026-09-03.zip
+      SETUP_NAME: Chess-Publisher-v1.06.00-beta.98-r12-Setup.exe
+      SETUP_SHA256: 37a8e5a88905849edb6ee9b83b1d7ca8d82c2ca170c9d8fc7617975aecf9e502
+      SETUP_SIZE: '34183168'
+      SETUP_URL: https://github.com/kbilyal/ChessPublisher/releases/download/v1.06.00-beta.98-r12-pre-fide/Chess-Publisher-v1.06.00-beta.98-r12-Setup.exe
 
     steps:
-      - name: Checkout exact publishing commit
+      - name: Checkout exact metadata commit
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Materialize protected launcher from immutable public Stable artifact
+      - name: Verify public self-contained installer
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist transport
-          curl --fail --location --retry 4 --retry-all-errors \
-            "$STABLE_ZIP_URL" -o transport/stable-v1.05.01.zip
-          printf '%s  %s\n' "$STABLE_ZIP_SHA256" transport/stable-v1.05.01.zip | sha256sum -c -
-          unzip -p transport/stable-v1.05.01.zip ChessPublisher.exe > "dist/${EXE_NAME}"
-          test -s "dist/${EXE_NAME}"
+          curl --fail --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 300 \
+            "$SETUP_URL" -o "$SETUP_NAME"
+          test "$(stat -c%s "$SETUP_NAME")" -eq "$SETUP_SIZE"
+          printf '%s  %s\n' "$SETUP_SHA256" "$SETUP_NAME" | sha256sum -c -
+          test "$(head -c 2 "$SETUP_NAME")" = 'MZ'
+          echo 'PUBLIC SELF-CONTAINED INSTALLER INTEGRITY GATE: PASS'
 
-      - name: Release integrity gate
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(stat -c%s "dist/${EXE_NAME}")" -eq 1826816
-          printf '%s  %s\n' "$EXE_SHA256" "dist/${EXE_NAME}" | sha256sum -c -
-          python - <<'PY'
-          from pathlib import Path
-          exe = Path('dist/ChessPublisher-v1.06.00-beta.98-r12.exe')
-          if exe.read_bytes()[:2] != b'MZ':
-              raise SystemExit('EXE gate failed: missing PE MZ signature')
-          print('EXE PE signature: PASS')
-          PY
-          printf '%s  %s\n' "$EXE_SHA256" "$EXE_NAME" > dist/SHA256SUMS.txt
-          echo 'Protected launcher provenance: public Stable v1.05.01 portable ZIP'
-          echo 'Protected launcher identity: byte-identical to r12 candidate'
-          echo 'PRE-FIDE RELEASE INTEGRITY GATE: PASS'
-
-      - name: Preserve verified artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Chess-Publisher-v1.06.00-beta.98-r12-Pre-FIDE
-          path: |
-            dist/${{ env.EXE_NAME }}
-            dist/SHA256SUMS.txt
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Publish GitHub prerelease
+      - name: Remove obsolete standalone-launcher assets and refresh release notes
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          title='Chess-Publisher v1.06.00-beta.98-r12 — Pre-FIDE / TEC Review Candidate'
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" "dist/${EXE_NAME}" dist/SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
-            gh release edit "$TAG" --title "$title" --notes-file PRE-FIDE-v1.06.00-beta.98-r12.md --prerelease --repo "$GITHUB_REPOSITORY"
-          else
-            gh release create "$TAG" "dist/${EXE_NAME}" dist/SHA256SUMS.txt \
-              --title "$title" \
-              --notes-file PRE-FIDE-v1.06.00-beta.98-r12.md \
-              --prerelease \
-              --target "$GITHUB_SHA" \
-              --repo "$GITHUB_REPOSITORY"
-          fi
+          gh release delete-asset "$TAG" 'ChessPublisher-v1.06.00-beta.98-r12.exe' --yes --repo "$GITHUB_REPOSITORY" || true
+          gh release delete-asset "$TAG" 'SHA256SUMS.txt' --yes --repo "$GITHUB_REPOSITORY" || true
+          gh release edit "$TAG" \
+            --title 'Chess-Publisher v1.06.00-beta.98-r12 — Pre-FIDE / TEC Review Candidate' \
+            --notes-file PRE-FIDE-v1.06.00-beta.98-r12.md \
+            --prerelease \
+            --repo "$GITHUB_REPOSITORY"
 
-      - name: Verify public prerelease
+      - name: Verify public prerelease assets
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -100,15 +67,21 @@ jobs:
           set -euo pipefail
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url,isPrerelease,assets > release.json
           python - <<'PY'
-          import json
+          import json, os
           d=json.load(open('release.json',encoding='utf-8'))
           if not d.get('isPrerelease'):
               raise SystemExit('Release is not marked prerelease')
-          names={a['name'] for a in d.get('assets',[])}
-          expected={'ChessPublisher-v1.06.00-beta.98-r12.exe','SHA256SUMS.txt'}
-          missing=expected-names
-          if missing:
-              raise SystemExit('Missing release assets: '+', '.join(sorted(missing)))
-          print('PUBLIC PRE-FIDE GITHUB RELEASE GATE: PASS')
+          assets={a['name']:a for a in d.get('assets',[])}
+          setup=os.environ['SETUP_NAME']
+          if setup not in assets:
+              raise SystemExit('Self-contained Setup asset is missing')
+          if int(assets[setup].get('size') or 0) != int(os.environ['SETUP_SIZE']):
+              raise SystemExit('Setup asset size mismatch')
+          obsolete={'ChessPublisher-v1.06.00-beta.98-r12.exe','SHA256SUMS.txt'} & set(assets)
+          if obsolete:
+              raise SystemExit('Obsolete release assets remain: '+', '.join(sorted(obsolete)))
+          if 'SHA256SUMS-INSTALLER.txt' not in assets:
+              raise SystemExit('Installer checksum asset is missing')
+          print('PUBLIC PRE-FIDE INSTALLER RELEASE GATE: PASS')
           print(d['url'])
           PY
