@@ -2,6 +2,7 @@
   "product": "Chess-Publisher",
   "version": "1.06.00-beta.98-r12",
   "date": "2026-09-15",
+  "installer_published": "2026-09-17",
   "channel": "pre-fide",
   "status": "Pre-FIDE / TEC Review Candidate",
   "fide_approval_claimed": false,
@@ -9,14 +10,17 @@
   "release_tag": "v1.06.00-beta.98-r12-pre-fide",
   "release_url": "https://github.com/kbilyal/ChessPublisher/releases/tag/v1.06.00-beta.98-r12-pre-fide",
   "exe": {
-    "name": "ChessPublisher-v1.06.00-beta.98-r12.exe",
-    "sha256": "1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3",
-    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.06.00-beta.98-r12-pre-fide/ChessPublisher-v1.06.00-beta.98-r12.exe",
-    "drive_file_id": "1-e-6ObWGdvrm6CDiUkNnjbqjS54eKbvZ",
-    "drive_url": "https://drive.google.com/file/d/1-e-6ObWGdvrm6CDiUkNnjbqjS54eKbvZ/view?usp=drivesdk"
+    "kind": "self-contained-windows-installer",
+    "name": "Chess-Publisher-v1.06.00-beta.98-r12-Setup.exe",
+    "size_bytes": 34183168,
+    "sha256": "37a8e5a88905849edb6ee9b83b1d7ca8d82c2ca170c9d8fc7617975aecf9e502",
+    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.06.00-beta.98-r12-pre-fide/Chess-Publisher-v1.06.00-beta.98-r12-Setup.exe",
+    "drive_file_id": "1p4b_FRWgJ9WqD3N-BzgqLsYumK3iwp8H",
+    "drive_url": "https://drive.google.com/file/d/1p4b_FRWgJ9WqD3N-BzgqLsYumK3iwp8H/view?usp=drivesdk"
   },
   "portable": {
     "name": "Chess-Publisher-v1.06.00-beta.98-r12-FULL-PORTABLE.zip",
+    "size_bytes": 32037199,
     "sha256": "e33ed93e1b81af83fa1d1b17fcc4dfaeec2daec73b89aa9d5ba6ebee3310ce5b",
     "distribution": "official-google-drive-mirror",
     "drive_file_id": "16MNTTMpP8dEhaFJzD-8mq5bKM7_0izVv",
