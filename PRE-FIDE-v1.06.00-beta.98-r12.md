@@ -1,6 +1,7 @@
 # Chess-Publisher v1.06.00-beta.98-r12 — Pre-FIDE / TEC Review Candidate
 
-Release date: 2026-09-15
+Release date: 2026-09-15  
+Self-contained Windows installer published: 2026-09-17
 
 This is the public **Pre-FIDE** candidate of the current Windows line. It is published in parallel with the Stable channel and does **not** replace Stable v1.05.01.
 
@@ -21,16 +22,22 @@ Late Entry player addition can be completed directly by double-clicking a FIDE s
 
 The r12 delta explicitly introduces **no pairing, TRF, BBP, tie-break, Chess-Results, SYNC or rating-calculation core changes**.
 
-## Public GitHub download
+## Windows installer
 
-The GitHub prerelease contains the verified protected Windows launcher and its checksum:
+Use the self-contained Windows Setup executable:
 
-- `ChessPublisher-v1.06.00-beta.98-r12.exe`
-- `SHA256SUMS.txt`
+- `Chess-Publisher-v1.06.00-beta.98-r12-Setup.exe`
+- Size: **34,183,168 bytes**
+- SHA-256: `37a8e5a88905849edb6ee9b83b1d7ca8d82c2ca170c9d8fc7617975aecf9e502`
+- Checksum file: `SHA256SUMS-INSTALLER.txt`
 
-Launcher SHA-256: `1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3`
+The Setup executable contains the complete r12 runtime package. It is not the former standalone launcher. The installed application therefore includes the required companion files such as `ChessPublisher-WebView.ps1`, `ChessPublisher-LocalEngine.ps1`, `ChessPublisher.html`, the packaged engines, webview modules and other runtime resources.
 
-The launcher is protected-core content and is byte-identical to the launcher already carried by the public Stable v1.05.01 portable artifact. The release workflow re-materializes that immutable public copy and verifies the exact r12 SHA-256 before publication; it is not rebuilt or modified.
+The embedded authoritative portable payload is **32,037,199 bytes** with SHA-256:
+
+`e33ed93e1b81af83fa1d1b17fcc4dfaeec2daec73b89aa9d5ba6ebee3310ce5b`
+
+The former 1.8 MB launcher-only download has been retired from this prerelease because it is not a standalone installation package.
 
 ## Full portable mirror
 
