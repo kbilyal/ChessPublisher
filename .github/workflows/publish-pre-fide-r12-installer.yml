@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      REPO: kbilyal/ChessPublisher
       TAG: v1.06.00-beta.98-r12-pre-fide
       SETUP: Chess-Publisher-v1.06.00-beta.98-r12-Setup.exe
       SETUP_SHA256: 37a8e5a88905849edb6ee9b83b1d7ca8d82c2ca170c9d8fc7617975aecf9e502
@@ -45,10 +46,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release delete-asset "$TAG" 'ChessPublisher-v1.06.00-beta.98-r12.exe' --yes || true
-          gh release delete-asset "$TAG" "$SETUP" --yes || true
-          gh release delete-asset "$TAG" 'SHA256SUMS-INSTALLER.txt' --yes || true
-          gh release upload "$TAG" "$SETUP" SHA256SUMS-INSTALLER.txt --clobber
+          gh release delete-asset "$TAG" 'ChessPublisher-v1.06.00-beta.98-r12.exe' --repo "$REPO" --yes || true
+          gh release delete-asset "$TAG" "$SETUP" --repo "$REPO" --yes || true
+          gh release delete-asset "$TAG" 'SHA256SUMS-INSTALLER.txt' --repo "$REPO" --yes || true
+          gh release upload "$TAG" "$SETUP" SHA256SUMS-INSTALLER.txt --repo "$REPO" --clobber
 
       - name: Verify public release asset
         env:
@@ -56,5 +57,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release view "$TAG" --json isPrerelease,assets --jq '.isPrerelease, (.assets[] | [.name,.size] | @tsv)'
-          gh release view "$TAG" --json assets --jq -e '.assets[] | select(.name == env.SETUP and .size == 34183168)' >/dev/null
+          gh release view "$TAG" --repo "$REPO" --json isPrerelease,assets --jq '.isPrerelease, (.assets[] | [.name,.size] | @tsv)'
+          gh release view "$TAG" --repo "$REPO" --json assets --jq -e '.assets[] | select(.name == env.SETUP and .size == 34183168)' >/dev/null
