@@ -221,6 +221,7 @@ jobs:
           name: linux-real-acceptance-report
           path: linux-port/tests/logs/real-linux-acceptance.json
           if-no-files-found: warn
+          retention-days: 7
 
       - name: Stage FIDE offline seed archives for runtime kit
         if: success()
