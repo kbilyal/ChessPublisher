@@ -62,6 +62,10 @@ if ((Get-Item -LiteralPath $iconPath).Length -lt 1024) {
 }
 Write-Host "Release icon SHA256: $iconHash"
 
+foreach ($targetPath in @($buildRoot, $dist)) {
+  $resolvedTarget = [IO.Path]::GetFullPath($targetPath)
+  if (-not $resolvedTarget.StartsWith($repoRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Build output escaped repository.' }
+}
 Remove-Item -LiteralPath $buildRoot -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $dist -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $payload -Force | Out-Null
@@ -132,6 +136,11 @@ Copy-RepoFile 'ChessPublisher-LocalEngine.ps1'
 Copy-RepoFile 'FIDE-Update.ps1'
 Copy-RepoFile 'webview/WebViewAdapter.js'
 Copy-RepoFile 'ChessPublisher.ico'
+Copy-RepoFile 'USER-MANUAL-EN.html'
+foreach ($runtimeDirectory in @('webview','hub/client','cloud/client')) {
+  $runtimeSource = Join-Path $repoRoot $runtimeDirectory
+  Get-ChildItem -LiteralPath $runtimeSource -File | ForEach-Object { Copy-RepoFile ($runtimeDirectory + '/' + $_.Name) }
+}
 
 # Launch helpers and documentation are included when they exist in the public source tree.
 @(
@@ -191,14 +200,15 @@ if ($LASTEXITCODE -ne 0) { throw "Launcher compilation failed with exit code $LA
 Assert-PeHasGroupIcon -Path $launcherExe
 Write-Host 'PASS - ChessPublisher.exe contains an embedded application icon.'
 
-# Fetch the pinned upstream Gacrux 1.9.57 archive and verify its SHA-256 before packaging.
+# Fetch the pinned upstream Gacrux 1.11.65 archive and verify its SHA-256 before packaging.
 & (Join-Path $repoRoot 'scripts/fetch-gacrux.ps1') -Destination (Join-Path $payload 'engine/gacrux')
 
 $portableName = "Chess-Publisher-v$Version-$Date.zip"
 $installerName = "Chess-Publisher-v$Version-$Date.exe"
 $checksumName = "Chess-Publisher-v$Version-$Date-SHA256.txt"
 $portablePath = Join-Path $dist $portableName
-Compress-Archive -Path (Join-Path $payload '*') -DestinationPath $portablePath -CompressionLevel Optimal -Force
+python (Join-Path $PSScriptRoot 'package-portable.py') $payload $portablePath
+if ($LASTEXITCODE -ne 0) { throw 'Portable packaging failed.' }
 
 $isccCandidates = @(
   "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",

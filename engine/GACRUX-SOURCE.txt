@@ -1,0 +1,17 @@
+Gacrux Pairing Engine 1.11.65 (Windows x64)
+
+Developer: Otto Milvang
+Copyright holder stated in the project license: FIDE
+Vesus role: Windows binary distributor and integrator, not engine author
+
+Verified Windows binary distribution:
+https://github.com/santino/vesus-pairings-desktop/releases/tag/gacrux-v1.11.65
+
+Engine source:
+https://github.com/OttoMilvang/TieBreakServer
+
+Release asset:
+pairingchecker-windows-x64.zip
+
+Verified release asset ZIP SHA-256:
+e3861ed88fca45181965c2633065c2586569843f79a56f9161ec85ebec1b3aa5

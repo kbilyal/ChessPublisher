@@ -1,0 +1,852 @@
+{
+  "schema": "chess-publisher-regression-manifest-v1",
+  "product": "Chess-Publisher",
+  "version": "1.05.00-RC26",
+  "date": "2026-09-01",
+  "parent": {
+    "version": "1.05.00-RC25",
+    "package": "Chess-Publisher-v1.05.00-RC25-2026-09-01.zip",
+    "sha256": "bc411665fe3935aa61743947f26dc41ad6945999c4ce449bbcde308a56447176"
+  },
+  "promotion_rule": "RC26 repairs PAB semantics only: one U/PAB per round; post-pair late entries use administrative F/H/Z preserving score; TUNx distinguishes pairing PAB from administrative full bye. Pairing/Gacrux path, TRF history serializer, standings/tie-break core and Smart Schedule remain protected.",
+  "protected_core": [
+    {
+      "path": "ChessPublisher.exe",
+      "parent_sha256": "ce03892b52b8ca58c20fdf5198879b90570899112a9613993c2da5df1bd9d561",
+      "policy": "must remain byte-identical to RC9 unless the user explicitly approves a scoped defect fix"
+    },
+    {
+      "path": "ChessPublisher-LocalEngine.ps1",
+      "parent_sha256": "37c28e2fa12432f515ceac519f1c605ba9b471f77e2fd843436ae2c2385e3462",
+      "policy": "must remain byte-identical to RC9 unless the user explicitly approves a scoped defect fix"
+    },
+    {
+      "path": "FIDE-Update.ps1",
+      "parent_sha256": "a1ecf7e1cc7fb2f3830c81da7a84fe7fb1ee434f156b9d1c0661e80e176509db",
+      "policy": "must remain byte-identical to RC9 unless the user explicitly approves a scoped defect fix"
+    },
+    {
+      "path": "webview/WebViewAdapter.js",
+      "parent_sha256": "d23af37ce1624fac96b46f62c85d7801ed733a66f7e03bab40f453ce4db67861",
+      "policy": "must remain byte-identical to RC9 unless the user explicitly approves a scoped defect fix"
+    },
+    {
+      "path": "hub/client/hub-snapshot.js",
+      "parent_sha256": "d980c520d74a71e66b3a3aa2a54e5ed626ea3618c53159145f9e48b445effac9",
+      "policy": "must remain byte-identical to RC9 unless the user explicitly approves a scoped defect fix"
+    },
+    {
+      "path": "engine/gacrux/pairingchecker.exe",
+      "parent_sha256": "6955c4c1f16425fa662f70d08311cfddeeaf21cca1aee3d04a3a6b0f7bbb45fb",
+      "policy": "must remain byte-identical to RC9 unless the user explicitly approves a scoped defect fix"
+    }
+  ],
+  "features": [
+    {
+      "id": "trf16-export",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "window.exportTRF16=function()",
+        "cpExportFideTRF(16)"
+      ]
+    },
+    {
+      "id": "trf26-export",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "window.exportTRF26=function()",
+        "cpExportFideTRF(26)"
+      ]
+    },
+    {
+      "id": "trf26-starting-list",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "CP-TRF26-STARTING-LIST-EXPORT-START",
+        "0 rounds"
+      ]
+    },
+    {
+      "id": "trf-round-history-validation",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "validateTRF26RoundHistoryRange",
+        "cpValidateFideTRF"
+      ]
+    },
+    {
+      "id": "trf-native-folder",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpEnsureTournamentTRFFolder",
+        "tournament TRF folder",
+        "cpSaveTextToTournamentTRF",
+        "/tournament/trf-export",
+        "Desktop Downloads fallback is disabled"
+      ]
+    },
+    {
+      "id": "trf-stable-revision-guard",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Tournament data changed while the FIDE TRF export was being prepared",
+        "stableCheck"
+      ]
+    },
+    {
+      "id": "cumulative-trf-backup",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "TRF_Backup/Round_XX.trf",
+        "backupProfile"
+      ]
+    },
+    {
+      "id": "hub-saveall-before-publish",
+      "critical": true,
+      "file": "webview/HubAdapter.js",
+      "markers": [
+        "Every Hub snapshot publish must pass through the stable saveAll() sync",
+        "if(currentTournament()===captured&&typeof saveAll===\"function\") saveAll();"
+      ]
+    },
+    {
+      "id": "chess-results-core-ui",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Chess-Results Publishing",
+        "crRestrictCreator",
+        "FIDE Event ID"
+      ]
+    },
+    {
+      "id": "pairing-checker-always-on",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Independent ·",
+        "prepareIndependentPairingChecker",
+        "refreshIndependentPairingCheckerStatus"
+      ],
+      "migration_note": "RC14 changed visible wording only; automatic/always-on checker logic is unchanged."
+    },
+    {
+      "id": "tiebreak-checker-always-on",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Tie-break ·",
+        "tieBreakCheckerAction",
+        "refreshStatus"
+      ],
+      "migration_note": "RC14 changed visible wording only; automatic/always-on checker logic is unchanged."
+    },
+    {
+      "id": "fide-2026-tiebreak-settings",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "FIDE 2026 rules",
+        "chooseBuchholzLowCutIndex2026",
+        "chooseSBLowCutIndex2026"
+      ],
+      "migration_note": "RC14 compacted the label; FIDE 2026 calculation logic is unchanged."
+    },
+    {
+      "id": "special-prizes-select-all",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "specialPrizeSelectAll",
+        "toggleAllSpecialPrizeCategories",
+        "clearAllSpecialPrizeCategories"
+      ]
+    },
+    {
+      "id": "calendar-ergonomics",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cp-hour-input",
+        "cp-minute-input",
+        "cp-calendar-now",
+        "data-day-shift",
+        "data-time",
+        "setMonthClamped",
+        "setYearClamped"
+      ]
+    },
+    {
+      "id": "product-branding",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Chess-Publisher v1.05.00-RC26",
+        "data-chesspublisher-version=\"1.05.00-RC26\""
+      ]
+    },
+    {
+      "id": "trf-localengine-managed-folder-fallback",
+      "critical": true,
+      "file": "ChessPublisher-LocalEngine.ps1",
+      "markers": [
+        "/tournament/trf-export",
+        "Join-Path $folder 'TRF'",
+        "Get-TournamentFolder $name"
+      ]
+    },
+    {
+      "id": "trf-desktop-no-silent-download",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Desktop Downloads fallback is disabled",
+        "isLocalEnginePage()",
+        "fetchLocalEngine(\"/tournament/trf-export\""
+      ]
+    },
+    {
+      "id": "tiebreak-display-precision",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "if(id===85 || String(tie).includes(\"Average of Opponents' Buchholz\"))",
+        "if(id===84)",
+        "Sorting always uses the full numeric tie-break"
+      ]
+    },
+    {
+      "id": "calendar-tournament-month-anchor",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpTournamentCalendarAnchorDate",
+        "document.getElementById(\"startDate\")?.value",
+        "tournament?.settings?.startDate"
+      ]
+    },
+    {
+      "id": "schedule-smart-round-generator",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Generate Schedule",
+        "cpSmartScheduleProfile",
+        "cpBuildSmartRoundSchedule",
+        "Smart schedule does not fit"
+      ],
+      "migration_note": "RC14 renamed the button from Generate Smart Rounds to Generate Schedule; Smart Calendar logic is unchanged."
+    },
+    {
+      "id": "schedule-smart-breaks",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Lunch / recovery break",
+        "lunchStartMinutes",
+        "lunchResumeMinutes",
+        "roundSlotMinutes",
+        "cpSmartScheduleRoundWouldCrossLunch"
+      ],
+      "migration_note": "RC12 replaced generic breakMinutes/lunchWindowStartMinutes with profile-based round slots and session/lunch boundaries."
+    },
+    {
+      "id": "smart-schedule-public-export-clean",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpSchedulePublicDescription",
+        "Smart schedule",
+        "Lunch / recovery break"
+      ]
+    },
+    {
+      "id": "smart-schedule-realistic-profiles",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpSmartScheduleBaseProfile",
+        "profileName:\"Blitz\"",
+        "profileName:\"Rapid\"",
+        "profileName:\"Classical\"",
+        "roundSlotMinutes"
+      ]
+    },
+    {
+      "id": "smart-schedule-player-count-buffer",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpSmartSchedulePlayerBuffer",
+        "playerBufferMinutes",
+        "playerCount<=150",
+        "playerCount<=300"
+      ]
+    },
+    {
+      "id": "smart-schedule-session-lunch",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpSmartScheduleRoundWouldCrossLunch",
+        "preferredMorningRounds",
+        "lunchResumeMinutes",
+        "secondSessionEarliestMinutes"
+      ]
+    },
+    {
+      "id": "smart-schedule-front-loaded-days",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpSmartSchedulePreferredDailyRounds",
+        "Front-load the remainder",
+        "Math.ceil(remaining/daysRemaining)"
+      ]
+    },
+    {
+      "id": "smart-schedule-tournament-setup-source",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpSmartScheduleTournamentFacts",
+        "source:\"Tournament Setup\"",
+        "facts.timeControl",
+        "facts.startDate",
+        "facts.endDate",
+        "facts.rounds",
+        "registeredPlayerCount"
+      ]
+    },
+    {
+      "id": "smart-schedule-no-ui-regulations-fallback",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Tournament Setup Time Control",
+        "Schedule generated:",
+        "cpSmartScheduleRatingTypeMismatch"
+      ],
+      "migration_note": "RC15 shortened the success status text; source-of-truth logic remains Tournament Setup only."
+    },
+    {
+      "id": "ui-production-polish",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Players & Rating Data",
+        "Generate Schedule",
+        ">Pairing Engine<",
+        "Special Prize Rankings",
+        "Restricted to file creator"
+      ]
+    },
+    {
+      "id": "ui-context-help-not-prose",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "id=\"crXmlPublishHint\" class=\"crpub-hint hidden\"",
+        "id=\"crXmlRoundScheduleDetail\" class=\"hidden\"",
+        "id=\"dgtPgnExportHelp\" class=\"app-message-text hidden\"",
+        "class=\"cp-calendar-done\" title="
+      ]
+    },
+    {
+      "id": "tiebreak-compact-settings-ui",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "<b>FIDE 2026 rules</b>",
+        "<b>Advanced options</b>",
+        "<b>Count scheduled forfeits</b>",
+        "<b>Unrated opponent</b>"
+      ]
+    },
+    {
+      "id": "setup-strict-field-symmetry",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "tournament-general-grid",
+        "setup-rating-type-row",
+        "label for=\"timeControl\"",
+        "label for=\"tournamentRatingType\"",
+        "label for=\"generalRegistrationDeadline\""
+      ]
+    },
+    {
+      "id": "time-control-full-game-estimate",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "estimatedGameMinutes",
+        "min/game",
+        "Smart Schedule estimates about"
+      ]
+    },
+    {
+      "id": "smart-schedule-format-profile",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpSmartScheduleFormatProfile",
+        "formatLabel",
+        "roundRobin",
+        "pairingTurnaround"
+      ]
+    },
+    {
+      "id": "smart-schedule-short-classical-three-session",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "maxRoundsPerDay=3",
+        "slot=240",
+        "secondSessionEarliestMinutes=13*60"
+      ]
+    },
+    {
+      "id": "pairing-essentials-symmetric",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "pairing-essentials-grid",
+        "<label for=\"initialRankSorting\">Initial Rank</label>",
+        "pairingValidationSummary\" class=\"pairing-validation-summary hidden\""
+      ]
+    },
+    {
+      "id": "trf26-rating-full-exchange-metadata",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "add(\"192\"",
+        "cpTrf212Record(standings)",
+        "add(\"222\"",
+        "Canonical TRF26 Rating"
+      ]
+    },
+    {
+      "id": "trf26-strict-exchange-checker",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpTrf26StrictExchangeCheck",
+        "cpTrf26DescriptorSyntax",
+        "TRF26 · PASS",
+        "Exactly one tie-break exchange record"
+      ]
+    },
+    {
+      "id": "trf26-canonical-001-width",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "89+Math.max(0,throughRound)*10",
+        "001 width is"
+      ]
+    },
+    {
+      "id": "trf26-gacrux-read-212",
+      "critical": true,
+      "file": "ChessPublisher-LocalEngine.ps1",
+      "markers": [
+        "Get-Trf26TieBreakDescriptors",
+        "/trf26-exchange/check",
+        "$UseTrfDescriptors",
+        "if (-not $UseTrfDescriptors)"
+      ]
+    },
+    {
+      "id": "trf26-no-nonstandard-u-modifier",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "TRF26 has no /U modifier",
+        "OTHER_",
+        "UNRATED_"
+      ]
+    },
+    {
+      "id": "calendar-selector-commits-date",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "state.selected=setMonthClamped(state.selected",
+        "state.selected=setYearClamped(state.selected",
+        "state.current=new Date(state.selected)"
+      ]
+    },
+    {
+      "id": "rules-pab-tiebreak-axis",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "setup-pab-compact",
+        "setup-tiebreak-add-compact",
+        "<label for=\"tieBreakAddSelect\">Tie-breaks / Priority</label>"
+      ]
+    },
+    {
+      "id": "september-release-full-gate",
+      "critical": true,
+      "file": "HISTORY/RC17-SEPTEMBER-RELEASE-GATE.txt",
+      "markers": [
+        "FULL GATE RESULT: PASS",
+        "2500 Smart Schedule fuzz cases",
+        "900 targeted TRF26 mutation cases",
+        "1000 tab switches with 500 players"
+      ],
+      "migration_note": "RC20 preserves the original RC17 full automated September gate report as immutable inherited evidence."
+    },
+    {
+      "id": "critical-mutation-preflight",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpBeginCriticalMutationCheckpoint",
+        "was not started because the tournament file is temporarily unavailable",
+        "No Resort/Reset changes were applied"
+      ]
+    },
+    {
+      "id": "critical-mutation-rollback",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "cpRestoreCriticalMutationCheckpoint",
+        "cpCommitCriticalMutationCheckpoint",
+        "Do not repeat Reset/Resort",
+        "uiState:{"
+      ]
+    },
+    {
+      "id": "resort-transactional-storage",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "const transaction=await cpBeginCriticalMutationCheckpoint(\"Resort Starting List\")",
+        "cpCommitCriticalMutationCheckpoint(transaction)",
+        "resort-exception"
+      ]
+    },
+    {
+      "id": "reset-transactional-storage",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "const transaction=await cpBeginCriticalMutationCheckpoint(\"Reset Tournament\")",
+        "cpCommitCriticalMutationCheckpoint(transaction)",
+        "reset-exception"
+      ]
+    },
+    {
+      "id": "managed-save-commit-last",
+      "critical": true,
+      "file": "ChessPublisher-LocalEngine.ps1",
+      "markers": [
+        "RC18 storage transaction rule",
+        "Commit the managed tournament file LAST",
+        "Move-Item -LiteralPath $temporary -Destination $file -Force"
+      ]
+    },
+    {
+      "id": "critical-operations-tournament-lock",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "wrap(\"resortStartingList\",\"Resort Starting List\")",
+        "wrap(\"resetTournamentRounds\",\"Reset Tournament\")"
+      ]
+    },
+    {
+      "id": "import-partial-birth-date-safe",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "normalizeImportedBirth",
+        "YYYY/00/00 or YYYY/MM/00",
+        "Birth date '${raw}' was ignored",
+        "warnings:importWarnings"
+      ]
+    },
+    {
+      "id": "manual-birth-validation-remains-strict",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "function normalizeManualBirth",
+        "Birth date is outside the allowed calendar range.",
+        "function addManualPlayer"
+      ]
+    },
+    {
+      "id": "application-exe-embedded-icon",
+      "critical": true,
+      "file": "RELEASE-PACKAGING/README.txt",
+      "markers": [
+        "embedded in ChessPublisher.exe",
+        "RT_GROUP_ICON",
+        "same embedded icon"
+      ]
+    },
+    {
+      "id": "inno-setup-release-icon",
+      "critical": true,
+      "file": "RELEASE-PACKAGING/ChessPublisher.iss",
+      "markers": [
+        "SetupIconFile={#ReleaseIcon}",
+        "UninstallDisplayIcon={app}\\ChessPublisher.exe",
+        "Chess-Publisher"
+      ]
+    },
+    {
+      "id": "release-icon-fail-closed",
+      "critical": true,
+      "file": "RELEASE-PACKAGING/BUILD-SEPTEMBER-RELEASE.ps1",
+      "markers": [
+        "VERIFY-EMBEDDED-ICON.ps1",
+        "Installer was not produced",
+        "Inno Setup 6 is required"
+      ]
+    },
+    {
+      "id": "release-no-stale-uninstaller",
+      "critical": true,
+      "file": "RELEASE-PACKAGING/README.txt",
+      "markers": [
+        "installer, portable ZIP and SHA256",
+        "Inno Setup itself uses ChessPublisher.ico"
+      ]
+    },
+    {
+      "id": "gacrux-1957-tiebreak-mapping",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "function checkerTieDescriptor",
+        "ARO/C1",
+        "ARO/M2",
+        "return \"TPR\"",
+        "return \"PTP\"",
+        "return \"APRO\"",
+        "return \"APPO\""
+      ]
+    },
+    {
+      "id": "gacrux-unrated-cli-translation",
+      "critical": true,
+      "file": "ChessPublisher-LocalEngine.ps1",
+      "markers": [
+        "$UnratedRating=$null",
+        "$args += '-u'; $args += [string]$u",
+        "$false $unratedRating"
+      ]
+    },
+    {
+      "id": "gacrux-unrated-not-descriptor",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "unrated substitution is NOT part of the rank-order descriptor",
+        "-u/--unrated",
+        "unratedRating:plan.unratedRating==null?null"
+      ]
+    },
+    {
+      "id": "tiebreak-incomplete-no-partial-pass",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Tie-Break verification incomplete",
+        "The supported tie-breaks were verified successfully",
+        "A full PASS cannot be issued because the complete tie-break chain was not independently reproduced"
+      ]
+    },
+    {
+      "id": "compat-rating-sum-not-aro",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "OTHER_RATING_SUM_C1",
+        "Compatibility criterion [23] is deliberately NOT ARO/C1"
+      ]
+    },
+    {
+      "id": "checker-primary-pts-dedupe",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "descriptor!==\"PTS\"",
+        "do not send a duplicate PTS column"
+      ]
+    },
+    {
+      "id": "gacrux-mapping-machine-baseline",
+      "critical": true,
+      "file": "TESTS/GACRUX-1.9.57-TIEBREAK-MAPPING.json",
+      "markers": [
+        "\"gacruxVersion\": \"1.9.57\"",
+        "\"unratedSubstituteTransport\": \"separate-cli--u\"",
+        "\"mustNotMapTo\": \"ARO/C1\"",
+        "\"expectedStatus\": \"incomplete\""
+      ]
+    },
+    {
+      "id": "registration-fide-font-controls-no-overlap",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "margin-top:10px; /* RC22: keep A-/A+ clear of the first FIDE result row */",
+        "changeFideResultsFontSize(-0.5)",
+        "changeFideResultsFontSize(0.5)"
+      ]
+    },
+    {
+      "id": "smart-schedule-adaptive-compact",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "function cpSmartScheduleAdaptiveProfile",
+        "function cpSmartScheduleMinimumRoundSlot",
+        "adaptive compact profile"
+      ]
+    },
+    {
+      "id": "smart-schedule-safe-minimum",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Math.ceil((play+operational+turnaround)/5)*5",
+        "preferredMorningRounds:99"
+      ]
+    },
+    {
+      "id": "smart-schedule-classical-no-compact",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Classical/Standard keeps the conservative session rules"
+      ]
+    },
+    {
+      "id": "trf26-rating-132-profile-split",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "requireRoundDates=true",
+        "requireRoundDates:false",
+        "FIDE Rating export can continue"
+      ]
+    },
+    {
+      "id": "trf26-double-forfeit-reciprocal",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "[\"10\",\"01\",\"==\",\"+-\",\"-+\",\"--\",\"WL\",\"LW\",\"DD\"]"
+      ]
+    },
+    {
+      "id": "trf26-no-false-pass-without-132",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "if(exchange.roundDatesComplete)",
+        "full strict exchange PASS is not issued"
+      ]
+    },
+    {
+      "id": "tunx-bye-last-pairing-record",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "records.push(...roundRegular,...roundUnpaired,...roundByes)",
+        "BYE pairing record must be last in the round pairing block",
+        "binary serialization order only"
+      ]
+    },
+    {
+      "id": "tunx-bye-order-preserves-live-boards",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "Live board numbering/order is not",
+        "boards.sort((a,b)=>(Number(a?.board)||0)-(Number(b?.board)||0))"
+      ]
+    },
+    {
+      "id": "pab-at-most-one-per-round",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "FIDE TRF allows at most one pairing-allocated bye (U) per round",
+        "FIDE allows at most one pairing-allocated bye per round"
+      ]
+    },
+    {
+      "id": "late-entry-administrative-bye",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "function cpNormalizeLegacyPostPairLateEntryPabForTournament",
+        "postPairAdjustment=\"late-entry-bye\"",
+        "Late Entry — Administrative BYE"
+      ]
+    },
+    {
+      "id": "tunx-pab-fullbye-distinction",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "if(r===\"PAB\")return [row.pn,TUNX_OPPONENT_BYE,9]",
+        "if(r===\"F\"||r===\"FULLBYE\"||r===\"1BYE\")return [row.pn,TUNX_OPPONENT_UNPAIRED,9]"
+      ]
+    },
+    {
+      "id": "trf26-multiple-u-block",
+      "critical": true,
+      "file": "ChessPublisher.html",
+      "markers": [
+        "pairing-allocated byes (U) were found",
+        "FIDE TRF permits at most one U per round"
+      ]
+    }
+  ],
+  "startup_contract_checks": [
+    {
+      "id": "LOCALENGINE-SERVICE-VERSION-MATCH",
+      "required": true,
+      "description": "ChessPublisher-WebView.ps1 expected serviceVersion must exactly equal ChessPublisher-LocalEngine.ps1 serviceVersion."
+    }
+  ],
+  "current_version": "1.05.00-RC9",
+  "trf_windows_path_contract": {
+    "desktop_downloads_fallback": false,
+    "legacy_safe_atomic_path_max": 240,
+    "preserve_tournament_folder": true,
+    "compact_filename_when_needed": true,
+    "required_markers": [
+      "Get-TrfPathSafeFileName",
+      "Get-WvTrfPathSafeFileName",
+      "FIDE_Rating_TRF(?:16|26)_R1-R"
+    ]
+  },
+  "sync_freeze_contract": {
+    "required": true,
+    "status": "ACTIVE",
+    "baseline_version": "1.06.00-beta.96-r4",
+    "manifest": "SYNC-FREEZE-v1.06.00-beta.96.json",
+    "regression": "TESTS/BETA96-SYNC-FROZEN-CONTRACT-REGRESSION.js",
+    "policy": "Release gate must fail on any unauthorized SYNC protected-core drift. Changes require a reproduced SYNC defect, explicit user approval, point-fix regression evidence and new real runtime confirmation."
+  }
+}

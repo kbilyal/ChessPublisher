@@ -1,0 +1,21 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const src=fs.readFileSync(__dirname+'/../ChessPublisher-Beta48-Compliance.js','utf8');
+const elements={windowDocumentTitle:{textContent:''},editPlayerHpbEligible:{checked:true},byeRoundChecks:{}};
+let alerts=[],warnings=[],events=[],persist=0,origConfigure=0,origSaveBye=0;
+const p={name:'Player A',pairingNumber:1,hpbEligible:false};const engine={manualByes:{'1':{'p1':'H'},'2':{'p1':'H'},'3':{'p1':'F'}},roundActivationConfirmed:{}};const tournament={players:[p],pairings:{engine},settings:{rounds:'5'}};
+const checkedRounds=[];
+const doc={readyState:'complete',documentElement:{dataset:{}},title:'',getElementById:id=>elements[id]||null,querySelector:()=>null,querySelectorAll:sel=>sel.includes('bye-round-checkbox:checked')?checkedRounds.map(v=>({value:String(v)})):[],createElement:()=>({style:{},innerHTML:'',appendChild(){}})};
+const ctx={console,window:null,document:doc,data:{},editingPlayerIndex:null,byeModalPlayerKey:'p1',byeModalType:'H',getCurrentTournament:()=>tournament,getPlayerByStableKey:()=>p,getPairingEngineConfig:()=>engine,getNextPairingRound:()=>2,playerKey:()=> 'p1',normalizeData:()=>{},openEditPlayerModal:()=>{},saveEditedPlayer:async()=>{},configurePlayerBye:()=>{origConfigure++;return true},saveByeRoundsModal:async()=>{origSaveBye++;for(const r of checkedRounds){if(!engine.manualByes[String(r)])engine.manualByes[String(r)]={};engine.manualByes[String(r)]['p1']=ctx.byeModalType;}return true},getPlayerByeRounds:(key,type)=>Object.entries(engine.manualByes).filter(([r,row])=>row[key]===type).map(([r])=>({round:Number(r),type})),appAlert:async m=>alerts.push(m),cpFideWarning:async(l,m,o)=>{warnings.push({l,m,o});return true},cpLogComplianceEvent:e=>events.push(e),saveData(){},writePersistentState:async()=>{persist++;return true},setStatus(){}};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(src,ctx);
+let n=0;const check=(name,fn)=>{try{fn();n++;console.log('PASS',name)}catch(e){console.error('FAIL',name,e);process.exitCode=1}};const checkA=async(name,fn)=>{try{await fn();n++;console.log('PASS',name)}catch(e){console.error('FAIL',name,e);process.exitCode=1}};
+(async()=>{
+check('version',()=>assert.equal(doc.documentElement.dataset.chesspublisherVersion,'1.06.00-beta.48'));
+check('ineligible false',()=>assert.equal(ctx.cpBeta48.eligible(p),false));
+check('default eligible implicit',()=>assert.equal(ctx.cpBeta48.eligible({}),true));
+const cleared=ctx.cpBeta48.clearFutureHalfByes('p1',2);check('future H cleared',()=>assert.deepEqual(Array.from(cleared),[2]));check('historical H preserved',()=>assert.equal(engine.manualByes['1'].p1,'H'));
+const before=origConfigure;ctx.configurePlayerBye('p1','H');check('ineligible H blocked',()=>assert.equal(origConfigure,before));check('block alerts user',()=>assert(alerts.length>0));
+p.hpbEligible=true;ctx.configurePlayerBye('p1','H');check('eligible H allowed',()=>assert.equal(origConfigure,before+1));
+ctx.byeModalType='F';checkedRounds.splice(0,checkedRounds.length,4);await checkA('full-point save',async()=>ctx.saveByeRoundsModal());check('Level2 warning',()=>assert(warnings.some(x=>x.l===2)));check('one TRF audit event',()=>assert(events.some(x=>x.type==='FULL_POINT_BYE'&&x.round===4&&x.trf===true)));const eventCount=events.length;await ctx.saveByeRoundsModal();check('repeat save no duplicate event',()=>assert.equal(events.length,eventCount));
+ctx.byeModalType='H';p.hpbEligible=false;const calls=origSaveBye;await ctx.saveByeRoundsModal();check('save H fail-closed when ineligible',()=>assert.equal(origSaveBye,calls));
+check('persistence used for compliance audit',()=>assert(persist>=1));
+if(process.exitCode)process.exit(1);console.log(`RESULT ${n} PASS / 0 FAIL`);
+})();

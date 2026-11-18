@@ -1,0 +1,57 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const html=fs.readFileSync('ChessPublisher.html','utf8');
+const js=fs.readFileSync('ChessPublisher-Beta64-Compliance.js','utf8');
+const beta44=fs.readFileSync('ChessPublisher-Beta44-Compliance.js','utf8');
+const beta50=fs.readFileSync('ChessPublisher-Beta50-Compliance.js','utf8');
+const beta61=fs.readFileSync('ChessPublisher-Beta61-Compliance.js','utf8');
+let pass=0,fail=0;
+function check(cond,msg){try{assert.ok(cond);console.log(`PASS ${String(++pass).padStart(2,'0')} ${msg}`);}catch(e){fail++;console.log(`FAIL ${msg}`);}}
+check(/data-chesspublisher-version="1\.06\.00-beta\.(?:6[4-9]|[7-9]\d|\d{3,})(?:-r\d+)?"/.test(html),'HTML self-identifies beta64 or newer');
+check(/ChessPublisher-Beta64-Compliance\.js/.test(html),'HTML loads beta64 module');
+check(html.indexOf('ChessPublisher-Beta64-Compliance.js')>html.indexOf('ChessPublisher-Beta63-Compliance.js'),'beta64 loads after beta63');
+check(/action:ACTION,level:3/.test(js),'Game Adjournment uses Level-3 PIBE gate');
+check(/opts\.level=Math\.max\(3/.test(js),'Game Adjournment PIBE record is at least Level 3');
+check(/button\.onclick=markSelectedAdjourned/.test(js),'Adjourned UI entry point is patched');
+check(/api\.markSelectedAdjourned=markSelectedAdjourned/.test(js),'beta44 API entry point is patched');
+check(/finally\{window\.cpRecordPibe=originalRecord;\}/.test(js),'temporary PIBE recorder override is always restored');
+// Static PIBE inventory: every currently modelled user-finalised PIBE class has >= Level-3 gate or fail-closed blocking.
+check(/PAB configuration change",level:3/.test(html),'PAB configuration PIBE has Level-3 gate');
+check(/Number of Rounds change",level:4/.test(html),'round-count PIBE has Level-4 gate');
+check(/Manual Pairing Alteration",level:4/.test(html),'Manual Pairing PIBE has Level-4 mismatch gate');
+check(/TRF Import Pairing Violation",level:3/.test(html),'TRF import PIBE has Level-3 gate');
+check(/cpFideWarning\(3,`The new PAB value makes historical pairing/.test(beta44),'historical PAB PIBE has Level-3 gate');
+check(/cpFideWarning\(4,`\$\{action\} while the tournament is in progress/.test(beta44),'mid-event tie-break PIBE has Level-4 gate');
+check(/cpFideWarning\(3,`The final result of an adjourned game/.test(beta44),'non-draw adjourned result has Level-3 gate');
+check(/cpFideWarning\(3,message,\{title:'FIDE Mode — TPN Exchange'/.test(beta50),'TPN Exchange has Level-3 gate');
+check(/cpFideWarning\(3,`TPN Regeneration will change/.test(beta50),'TPN Regeneration has Level-3 gate');
+check(/Prohibited Pairing Conflict[^]*\{level:5/.test(beta44),'generated prohibited pairing is blocked and logged at Level 5');
+check(/type:"PIBE"[^]*trf:true/.test(html),'common PIBE recorder marks events for TRF');
+check(/ensureComplianceComments|postProcessRatingTRF/.test(beta61),'active rating TRF path consumes compliance comments');
+// Runtime wrapper checks.
+(async()=>{
+ let gateResult=true,originalCalls=0,warnings=[],pibes=[];
+ const button={onclick:null};
+ const document={readyState:'complete',documentElement:{dataset:{}},title:'Chess-Publisher v1.06.00-beta.63',getElementById:(id)=>id==='cpAdjournedResultBtn'?button:null,addEventListener:()=>{}};
+ const window={document,cpFideModeActive:()=>true,cpFidePibeGate:async o=>{warnings.push(o);return gateResult;},cpRecordPibe:(a,m,o)=>pibes.push({a,m,o})};
+ const ctx={window,document,console};Object.assign(ctx,window);
+ const original=async()=>{originalCalls++;window.cpRecordPibe('Game Adjournment','adjourned',{level:2,round:2});};
+ window.cpBeta44={markSelectedAdjourned:original};
+ vm.createContext(ctx);vm.runInContext(js,ctx);Object.assign(ctx,window);
+ const api=window.cpBeta64;
+ check(api.VERSION==='1.06.00-beta.64','runtime API version is beta64');
+ check(document.documentElement.dataset.chesspublisherVersion==='1.06.00-beta.64','install publishes beta64 version');
+ check(window.cpBeta44.markSelectedAdjourned===api.markSelectedAdjourned,'runtime patches beta44 API');
+ check(button.onclick===api.markSelectedAdjourned,'runtime patches existing Adjourned button');
+ gateResult=false;await api.markSelectedAdjourned();
+ check(originalCalls===0,'declined Level-3 warning blocks adjournment mutation');
+ check(pibes.length===0,'declined warning creates no PIBE');
+ gateResult=true;await api.markSelectedAdjourned();
+ check(originalCalls===1,'accepted warning delegates once to existing adjournment implementation');
+ check(warnings.some(x=>x.level===3&&x.action==='Game Adjournment'),'accepted path was preceded by Level-3 PIBE warning');
+ check(pibes.length===1&&pibes[0].o.level===3,'accepted Game Adjournment is logged at Level 3');
+ const recorder=window.cpRecordPibe;let other=[];await api.withLevel3AdjournmentRecord(async()=>window.cpRecordPibe('Other PIBE','x',{level:4}));
+ check(other.length===0&&window.cpRecordPibe===recorder,'PIBE recorder is restored after wrapper use');
+ check(!/experimental|pending implementation|debug only/i.test(js),'module has no unfinished user-facing engineering wording');
+ check(!/buildPairingEngineTRF\s*=|buildTRF26\s*=|calculateTieBreaks\s*=|requestLocalGacruxPairs\s*=/.test(js),'beta64 does not redefine protected pairing/TRF core');
+ console.log(`BETA64 RESULT: ${pass} PASS / ${fail} FAIL`);process.exit(fail?1:0);
+})().catch(e=>{console.error(e);process.exit(1);});

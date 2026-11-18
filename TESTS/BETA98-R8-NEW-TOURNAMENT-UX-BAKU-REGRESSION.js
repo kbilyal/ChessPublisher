@@ -1,0 +1,28 @@
+'use strict';
+const fs=require('fs'),path=require('path'),assert=require('assert');
+const ROOT=path.resolve(__dirname,'..');
+const html=fs.readFileSync(path.join(ROOT,'ChessPublisher.html'),'utf8');
+let pass=0,fail=0,n=0;
+function ok(name,v){n++;try{assert.ok(v);pass++;console.log(`PASS ${String(n).padStart(2,'0')} ${name}`)}catch(e){fail++;console.error(`FAIL ${String(n).padStart(2,'0')} ${name}`)}}
+ok('HTML self-identifies beta.98-r8',/data-chesspublisher-version="1[.]06[.]00-beta[.]98-r(?:[89]|[1-9][0-9]+)"/.test(html));
+ok('New Tournament has Swiss Dutch choice',html.includes('id="cpNewSwissChoice"')&&html.includes('>Swiss Dutch<'));
+ok('New Tournament has Accelerated Baku choice',html.includes('id="cpNewBakuChoice"')&&html.includes('>Accelerated Baku<'));
+ok('New Tournament has Round Robin choice',html.includes('id="cpNewRoundRobinChoice"')&&html.includes('>Round Robin<'));
+ok('Accelerated Baku is described as FIDE Dutch + Baku acceleration',html.includes('FIDE Dutch + Baku acceleration')&&html.includes('Baku acceleration enabled from Round 1'));
+ok('Open Local is separate from tournament format cards',html.includes('Open Local Tournament…')&&html.includes('cp-new-open-actions'));
+ok('Open Online is separate from tournament format cards',html.includes('id="cpNewOnlineChoice"')&&html.includes('Open My Online Tournaments'));
+ok('Swiss is ergonomic default when dialog opens',html.includes('selectNewTournamentKind("swiss",{focusName:false})'));
+ok('selection logic recognises explicit baku kind',html.includes('kind==="baku"?"baku":"swiss"'));
+ok('Baku selection updates title and create button',html.includes('Create Accelerated Baku Tournament')&&html.includes('Create Accelerated Baku'));
+ok('new tournament application maps Baku to Swiss format',html.includes('const baku=kind==="baku"')&&html.includes('tournament.settings.tournamentFormat=rr?"Individual Round Robin":"Individual Swiss"'));
+ok('new tournament application keeps FIDE Dutch pairing for Baku',html.includes('tournament.settings.pairingSystem=rr?"Round Robin - Berger Tables":"FIDE Dutch System"'));
+ok('Baku selection persists accelerationMethod BAKU',html.includes('tournament.settings.accelerationMethod=baku?"BAKU":"NONE"'));
+ok('Baku engine group starts clean',html.includes('tournament.pairings.engine.bakuGroupKeys=[]'));
+ok('normal Swiss and Round Robin explicitly use no acceleration',html.includes('baku?"BAKU":"NONE"'));
+ok('choice cards expose radio semantics',html.includes('role="radiogroup"')&&html.includes('role="radio"')&&html.includes('aria-checked="false"'));
+ok('selected choice has visible check affordance',html.includes('cp-new-choice-check')&&html.includes('.cp-new-tournament-choice.cp-selected .cp-new-choice-check{display:flex}'));
+ok('create panel is immediately visible rather than hidden wizard step',html.includes('id="cpNewTournamentCreatePanel" class="cp-new-tournament-panel"'));
+ok('Enter in tournament name can create',html.includes("onkeydown=\"if(event.key==='Enter')createFirstTournament()\""));
+ok('r8 does not redefine protected pairing/TRF/BBP/Tie-Break/Chess-Results/SYNC core',!/(function\s+buildPairingEngineTRF\s*\(|function\s+calculateTieBreaks\s*\(|function\s+requestLocalGacruxPairs\s*\(|function\s+syncTournament\s*\()/i.test(html.slice(0,9000)));
+console.log(`BETA98-R8 NEW TOURNAMENT UX RESULT: ${pass} PASS / ${fail} FAIL`);
+process.exitCode=fail?1:0;

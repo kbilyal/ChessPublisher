@@ -1,0 +1,122 @@
+{
+  "name": "beta95-reset-user-ghost-case",
+  "settings": {
+    "rounds": "7",
+    "tournamentFormat": "Individual Swiss"
+  },
+  "players": [
+    {
+      "name": "Myumyun, Myumyun Yusein",
+      "rating": 1709,
+      "fed": "BUL",
+      "fideId": "2955598",
+      "attendance": "present",
+      "joinedFromRound": 1,
+      "localKey": "local:myumyun-myumyun-yusein-mt8to22g-c6hzk19",
+      "pairingNumber": 3,
+      "registrationDeleted": false,
+      "tournamentStatus": "active",
+      "excludeFromStandings": false
+    },
+    {
+      "name": "Hadzhaismail, Demir",
+      "rating": 1815,
+      "fed": "BUL",
+      "fideId": "2955490",
+      "attendance": "present",
+      "joinedFromRound": 1,
+      "localKey": "local:hadzhaismail-demir-mtakcs28-67pxhyd",
+      "pairingNumber": 1,
+      "registrationDeleted": false,
+      "tournamentStatus": "active",
+      "excludeFromStandings": false
+    },
+    {
+      "name": ".....",
+      "rating": 0,
+      "fed": "BUL",
+      "fideId": "-",
+      "attendance": "absent",
+      "joinedFromRound": 1,
+      "localKey": "local:arif-mert-mto8630u-s12bt1o",
+      "pairingNumber": 11,
+      "registrationDeleted": true,
+      "registrationDeletedFromRound": 7,
+      "registrationDeletedAt": "2026-09-05T12:57:44.784Z",
+      "tournamentStatus": "active",
+      "excludeFromStandings": false
+    },
+    {
+      "name": ".",
+      "rating": 0,
+      "fed": "BUL",
+      "fideId": "-",
+      "attendance": "absent",
+      "joinedFromRound": 1,
+      "localKey": "local:player-mtobui1u-zj2887f",
+      "pairingNumber": 10,
+      "registrationDeleted": true,
+      "registrationDeletedFromRound": 7,
+      "registrationDeletedAt": "2026-09-05T12:57:42.651Z",
+      "tournamentStatus": "active",
+      "excludeFromStandings": false
+    },
+    {
+      "localKey": "local:bilyal--kyamran-1788810792760",
+      "name": "Bilyal, Kyamran",
+      "rating": 1782,
+      "fed": "BUL",
+      "fideId": "2935236",
+      "attendance": "present",
+      "pairingNumber": 2,
+      "joinedFromRound": 1,
+      "registrationDeleted": false,
+      "tournamentStatus": "active",
+      "excludeFromStandings": false
+    }
+  ],
+  "pairings": {
+    "liveBoards": {
+      "1": [
+        {
+          "board": 1,
+          "whiteKey": "local:myumyun-myumyun-yusein-mt8to22g-c6hzk19",
+          "blackKey": "local:hadzhaismail-demir-mtakcs28-67pxhyd",
+          "result": "-"
+        },
+        {
+          "board": 2,
+          "whiteKey": "local:player-mtobui1u-zj2887f",
+          "blackKey": "",
+          "result": "0 BYE"
+        },
+        {
+          "board": 3,
+          "whiteKey": "local:arif-mert-mto8630u-s12bt1o",
+          "blackKey": "",
+          "result": "0 BYE"
+        }
+      ]
+    },
+    "engine": {
+      "firstRoundRegistrationLocked": true,
+      "excludeRemaining": {},
+      "excludeRounds": {},
+      "manualByes": {},
+      "fixedBoards": {}
+    },
+    "round": "1",
+    "finalStandingsPromptedRound": 0
+  },
+  "chessResults": {
+    "key": "",
+    "mode": ""
+  },
+  "standingsLots": {
+    "local:myumyun-myumyun-yusein-mt8to22g-c6hzk19": 0.5,
+    "local:hadzhaismail-demir-mtakcs28-67pxhyd": 0.5,
+    "local:arif-mert-mto8630u-s12bt1o": 0.5,
+    "local:player-mtobui1u-zj2887f": 0.5,
+    "local:bilyal--kyamran-1788810792760": 0.5
+  }
+}

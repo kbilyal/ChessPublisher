@@ -1,0 +1,85 @@
+/* Chess-Publisher v1.06.00-beta.98-r10 — Rating List Manager UX simplification
+   UI/policy presentation only. The frozen r9 rating/search/provenance engines remain
+   authoritative. No pairing, TRF, BBP, tie-break, Chess-Results, SYNC or rating
+   calculation algorithms are modified here. */
+(()=>{
+'use strict';
+const VERSION='1.06.00-beta.98-r10';
+let installed=false,managerRows=[],managerTimer=0,managerToken=0,replaceListId='';
+const originals={};
+const OFFICIAL=[
+  {id:'fide-standard',type:'std',label:'FIDE Standard'},
+  {id:'fide-rapid',type:'rapid',label:'FIDE Rapid'},
+  {id:'fide-blitz',type:'blitz',label:'FIDE Blitz'}
+];
+function text(v){return String(v??'').trim();}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function currentTournament(){try{return window.getCurrentTournament?.()||null;}catch(_){return null;}}
+function ratingType(){const t=currentTournament(),raw=text(t?.settings?.tournamentRatingType||document.getElementById('tournamentRatingType')?.value||'');return /standard/i.test(raw)?'Standard':/rapid/i.test(raw)?'Rapid':/blitz/i.test(raw)?'Blitz':/unrated/i.test(raw)?'Unrated':'';}
+function mainSource(){const type=ratingType();if(type==='Standard')return {id:'fide-standard',type:'std',label:'FIDE Standard'};if(type==='Rapid')return {id:'fide-rapid',type:'rapid',label:'FIDE Rapid'};if(type==='Blitz')return {id:'fide-blitz',type:'blitz',label:'FIDE Blitz'};return {id:'',type:'',label:type==='Unrated'?'No official rating source':'Not determined'};}
+function r7(){return window.cpBeta98R7||null;}
+function config(){return r7()?.readConfig?.()||{directory:true,disabledSearchIds:[],minNameChars:2,maxResults:60};}
+function searchEnabled(id,c=config()){return r7()?.searchEnabled?.(id,c)!==false;}
+function setSearchEnabled(id,on){return r7()?.setSearchEnabled?.(id,!!on);}
+function externalCatalogue(){return r7()?.externalCatalogue?.()||Promise.resolve([]);}
+function snapshot(){return r7()?.officialSnapshot?.()||{totalPlayers:0,lists:{}};}
+function sourceSummary(p){const official=(p?.__cpOfficialRatingHits||[]).map(h=>`${h.label}: ${h.rating}`),ext=(p?.__cpRatingListHits||[]).map(h=>`${h.label}: ${h.rating}`);return [...official,...ext].join(' • ')||'Identity match / no enabled rating value';}
+function mainSourceBanner(){const t=currentTournament(),src=mainSource();if(!t)return '<b>No tournament open.</b> Search-list settings remain available; tournament rating source will be chosen from Tournament Setup.';if(src.id)return `<b>Main tournament rating source: ${esc(src.label)}</b><span>Based on Rating Type: ${esc(ratingType())}. When adding a player, another listed source can still be selected explicitly if needed.</span>`;return `<b>${esc(src.label)}</b><span>Rating Type: ${esc(ratingType()||'not set')}.</span>`;}
+function managerModal(){
+  let m=document.getElementById('cpR10RatingListManager');if(m)return m;
+  m=document.createElement('div');m.id='cpR10RatingListManager';m.className='modal-overlay';m.style.display='none';
+  m.innerHTML=`<div class="modal-window cp-r10-manager-window">
+    <div class="modal-titlebar">Rating List Manager</div>
+    <div class="modal-body cp-r10-manager-body">
+      <div class="cp-r10-manager-intro">Choose which lists are searchable. Tournament Rating follows the tournament Rating Type automatically.</div>
+      <div id="cpR10MainSource" class="cp-r10-main-source"></div>
+      <div class="groupbox cp-r10-card"><div class="group-title">Official FIDE Rating Lists</div><div class="help">FIDE Player Directory is identity-only. Standard, Rapid and Blitz may be included independently in player search.</div><div id="cpR10OfficialRows"></div></div>
+      <div class="groupbox cp-r10-card"><div class="cp-r10-section-head"><div><div class="group-title">Imported Rating Lists</div><div class="help">National, regional, club or other external lists. Importing a list never registers tournament participants.</div></div><button id="cpR10AddList" type="button">Import Rating List…</button></div><div id="cpR10ImportedRows"></div></div>
+      <div class="groupbox cp-r10-card"><div class="group-title">Search Players</div><div class="help">Search only the lists enabled above. Focusing the field performs no database scan.</div><div class="cp-r10-search-row"><input id="cpR10ManagerSearch" class="wide" placeholder="Player name, FIDE ID, or Player ID"><button id="cpR10ManagerSearchBtn" type="button" class="primary">Search</button></div><div id="cpR10ManagerSearchStatus" class="help"></div><div id="cpR10ManagerResults"></div></div>
+      <input id="cpR10ReplaceFile" type="file" accept=".csv,.tsv,.txt,.lst,text/plain" class="hidden">
+    </div>
+    <div class="modal-bottom"><button id="cpR10UpdateFide" type="button">↻ Update FIDE Lists</button><span style="flex:1"></span><button id="cpR10ManagerClose" type="button">Close</button></div>
+  </div>`;
+  document.body.appendChild(m);
+  m.querySelector('#cpR10ManagerClose')?.addEventListener('click',()=>{m.style.display='none';});
+  m.querySelector('#cpR10UpdateFide')?.addEventListener('click',async()=>{const b=m.querySelector('#cpR10UpdateFide'),old=b?.textContent;try{if(b){b.disabled=true;b.textContent='Updating…';}await window.cpBeta72RatingLists?.updateRatingLists?.({manual:true});await renderManager();}catch(err){window.appAlert?.(String(err?.message||err),'Rating List Manager','warning');}finally{if(b){b.disabled=false;b.textContent=old||'↻ Update FIDE Lists';}}});
+  m.querySelector('#cpR10AddList')?.addEventListener('click',()=>window.cpBeta98?.openImportDialog?.());
+  m.querySelector('#cpR10OfficialRows')?.addEventListener('change',managerToggle);
+  m.querySelector('#cpR10ImportedRows')?.addEventListener('change',managerToggle);
+  m.querySelector('#cpR10ImportedRows')?.addEventListener('click',managerAction);
+  m.querySelector('#cpR10ManagerSearchBtn')?.addEventListener('click',managerSearch);
+  m.querySelector('#cpR10ManagerSearch')?.addEventListener('input',()=>{clearTimeout(managerTimer);const q=text(m.querySelector('#cpR10ManagerSearch')?.value);if(q.length<2){renderResults([],'Type at least 2 characters.');return;}managerTimer=setTimeout(managerSearch,260);});
+  m.querySelector('#cpR10ManagerResults')?.addEventListener('click',managerResultAction);
+  m.querySelector('#cpR10ReplaceFile')?.addEventListener('change',replaceImportedData);
+  return m;
+}
+function officialRow(id,label,status,detail,{directory=false,main=false}={}){const c=config(),checked=directory?c.directory!==false:searchEnabled(id,c);return `<div class="cp-r10-source-row ${main?'cp-r10-source-main':''}" data-source="${esc(id)}"><div class="cp-r10-source-info"><div><b>${esc(label)}</b>${main?'<span class="badge cp-r10-main-badge">TOURNAMENT</span>':''}${status?`<span class="badge">${esc(status)}</span>`:''}</div><div class="help">${esc(detail)}</div></div><label class="cp-r10-search-toggle"><input type="checkbox" data-r10-search="${esc(id)}" ${checked?'checked':''}> Include in search</label></div>`;}
+function importedRow(d,c){const id=text(d.id).toLowerCase(),kind=d.kind==='type-b-rating-list'?'External / Type-B':'Custom',replace=d.kind!=='type-b-rating-list';return `<div class="cp-r10-source-row" data-source="${esc(id)}"><div class="cp-r10-source-info"><div><b>${esc(d.label||id)}</b><span class="badge">${esc(kind)}</span></div><div class="help">${esc(d.ratingTypeLabel||d.ratingType||'General / Tournament')} · ${Number(d.recordCount||0).toLocaleString('en-US')} players</div></div><label class="cp-r10-search-toggle"><input type="checkbox" data-r10-search="${esc(id)}" ${searchEnabled(id,c)?'checked':''}> Include in search</label><div class="cp-r10-row-actions">${replace?`<button type="button" data-r10-action="replace" data-id="${esc(id)}">Replace…</button>`:''}<button type="button" class="danger-ghost" data-r10-action="delete" data-id="${esc(id)}">Delete</button></div></div>`;}
+async function renderManager(){const m=managerModal(),c=config(),snap=snapshot(),src=mainSource(),off=m.querySelector('#cpR10OfficialRows'),imp=m.querySelector('#cpR10ImportedRows');m.querySelector('#cpR10MainSource').innerHTML=mainSourceBanner();let x=officialRow('fide-directory','FIDE Player Directory','Identity',`${Number(snap.totalPlayers||0).toLocaleString('en-US')} identities`,{directory:true});for(const d of OFFICIAL){const s=snap?.lists?.[d.type]||{};x+=officialRow(d.id,d.label,s.status||'READY',`${s.period?`Period ${s.period} · `:''}${Number(s.count||0).toLocaleString('en-US')} rated players`,{main:src.id===d.id});}off.innerHTML=x;const cat=await externalCatalogue();if(!cat.length)imp.innerHTML='<div class="help cp-r10-empty">No imported rating lists. Use “Import Rating List…” to add one.</div>';else imp.innerHTML=cat.map(d=>importedRow(d,c)).join('');try{r7()?.updateHomeStatus?.();}catch(_){}return true;}
+async function openManager(){await renderManager();managerModal().style.display='flex';return true;}
+function managerToggle(event){const el=event.target?.closest?.('input[data-r10-search]');if(!el)return;const id=text(el.dataset.r10Search).toLowerCase();if(id==='fide-directory'){const c=config();c.directory=!!el.checked;r7()?.saveConfig?.(c);}else setSearchEnabled(id,!!el.checked);try{r7()?.updateHomeStatus?.();}catch(_){} }
+async function managerAction(event){const b=event.target?.closest?.('button[data-r10-action]');if(!b)return;const action=b.dataset.r10Action,id=text(b.dataset.id).toLowerCase();if(action==='replace'){replaceListId=id;managerModal().querySelector('#cpR10ReplaceFile')?.click();return;}if(action==='delete'){let ok=true;if(typeof window.appConfirm==='function')ok=await window.appConfirm('Delete this imported rating list from the local library? Existing player provenance is preserved.','Rating List Manager','question');if(!ok)return;try{const d=(await externalCatalogue()).find(x=>text(x.id).toLowerCase()===id);if(d?.kind==='type-b-rating-list')await window.cpBeta81?.deleteList?.(id);else await window.cpBeta98?.deleteCustomList?.(id);setSearchEnabled(id,true);await renderManager();}catch(err){window.appAlert?.(String(err?.message||err),'Rating List Manager','warning');}}}
+async function replaceImportedData(event){const file=event.target?.files?.[0],id=replaceListId;replaceListId='';event.target.value='';if(!file||!id)return;try{const d=await window.cpBeta98?.updateCustomList?.(id,{text:await file.text(),fileName:file.name});window.appAlert?.(`Updated ${d?.label||id}: ${Number(d?.recordCount||0).toLocaleString('en-US')} records.`,`Rating List Manager`,'info');await renderManager();}catch(err){window.appAlert?.(String(err?.message||err),'Rating List Manager','warning');}}
+function renderResults(rows,status=''){managerRows=rows||[];const m=managerModal(),out=m.querySelector('#cpR10ManagerResults'),st=m.querySelector('#cpR10ManagerSearchStatus');if(st)st.textContent=status||(managerRows.length?`${managerRows.length} matching player(s).`:'No matching player.');out.innerHTML=managerRows.map((p,i)=>`<div class="cp-r10-result-row"><div><b>${esc(p.name||p.fideId||p.playerId||'Player')}</b> · ${esc(p.fed||'-')} · ID ${esc(p.fideId||p.playerId||'-')}<div class="help">${esc(sourceSummary(p))}</div></div><button type="button" data-r10-add="${i}">Add Player</button></div>`).join('');}
+async function managerSearch(){const m=managerModal(),q=text(m.querySelector('#cpR10ManagerSearch')?.value),token=++managerToken;if(q.length<2){renderResults([],'Type at least 2 characters.');return;}renderResults([],'Searching selected rating lists…');try{const rows=await r7()?.unifiedSearch?.(q,config().maxResults||60,{token:0})||[];if(token!==managerToken)return;renderResults(rows);}catch(err){if(token===managerToken)renderResults([],`Search failed: ${String(err?.message||err)}`);}}
+function managerResultAction(event){const b=event.target?.closest?.('button[data-r10-add]');if(!b)return;const p=managerRows[Number(b.dataset.r10Add)];if(p){managerModal().style.display='none';window.openRatingModal?.(p);}}
+function simplifyAddPlayerModal(){const seq=document.getElementById('ratingSequenceRow');if(seq)seq.remove();const labels=[['ratingStdRadio','FIDE Standard'],['ratingRapidRadio','FIDE Rapid'],['ratingBlitzRadio','FIDE Blitz']];for(const [id,label] of labels){const row=document.getElementById(id)?.closest?.('.rating-row'),lab=row?.querySelector?.('label');if(lab)lab.textContent=label;}const body=document.querySelector('#ratingModal .modal-body');if(body){let note=document.getElementById('cpR10RatingChoiceNote');if(!note){note=document.createElement('div');note.id='cpR10RatingChoiceNote';note.className='help cp-r10-rating-choice-note';body.prepend(note);}const src=mainSource();note.textContent=src.id?`Tournament default: ${src.label} (${ratingType()}). Choose another listed source only when needed.`:'Choose the rating source to use for this player.';}return true;}
+function wrapAddPlayerModal(){const fn=window.openRatingModal;if(typeof fn!=='function'||fn.__cpR10Wrapped)return false;originals.openRatingModal=fn;const wrapped=function(){const r=fn.apply(this,arguments);simplifyAddPlayerModal();return r;};wrapped.__cpR10Wrapped=true;wrapped.__cpR10Original=fn;window.openRatingModal=wrapped;return true;}
+function refreshOpenManager(){const m=document.getElementById('cpR10RatingListManager');if(m&&getComputedStyle(m).display!=='none')renderManager().catch(()=>{});}
+function wrapRefresh(name){const fn=window[name];if(typeof fn!=='function'||fn.__cpR10ManagerWrapped)return;const wrapped=function(){const r=fn.apply(this,arguments);setTimeout(refreshOpenManager,0);return r;};wrapped.__cpR10ManagerWrapped=true;wrapped.__cpR10Original=fn;window[name]=wrapped;}
+function installManagerOverride(){if(!window.cpBeta98)return false;window.cpBeta98.openCustomManager=openManager;return true;}
+function installStyles(){if(document.getElementById('cp-r10-rating-manager-style'))return;const s=document.createElement('style');s.id='cp-r10-rating-manager-style';s.textContent=`
+.cp-r10-manager-window{width:min(1040px,96vw)!important;max-height:92vh}
+.cp-r10-manager-body{overflow:auto;padding:12px!important}.cp-r10-manager-intro{font-size:12px;color:#4d5966;margin-bottom:9px}
+.cp-r10-main-source{display:flex;flex-direction:column;gap:2px;padding:10px 12px;margin-bottom:10px;background:#eef6fd;border:1px solid #bfd7ee;border-radius:7px;color:#244e72}.cp-r10-main-source b{font-size:13px}.cp-r10-main-source span{font-size:11px}
+.cp-r10-card{margin-top:9px!important}.cp-r10-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.cp-r10-section-head .group-title{margin-bottom:2px}
+.cp-r10-source-row{display:grid;grid-template-columns:minmax(280px,1fr) auto auto;gap:10px;align-items:center;padding:8px 6px;border-bottom:1px solid #e1e6eb}.cp-r10-source-row:last-child{border-bottom:0}.cp-r10-source-info>div:first-child{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.cp-r10-source-main{background:#f5faff;border-radius:5px}.cp-r10-main-badge{background:#e2f0ff!important;color:#14558a!important;border-color:#9bc4e7!important}
+.cp-r10-search-toggle{display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:11px}.cp-r10-search-toggle input{width:auto!important}.cp-r10-row-actions{display:flex;gap:5px}.cp-r10-row-actions .danger-ghost{color:#a32626;border-color:#e4b3b3;background:#fff}
+.cp-r10-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;margin-top:7px}.cp-r10-search-row input{width:100%!important;min-width:0!important}.cp-r10-result-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:7px 3px;border-bottom:1px solid #e4e8ec}.cp-r10-result-row:last-child{border-bottom:0}.cp-r10-empty{padding:8px 3px}.cp-r10-rating-choice-note{margin:0 0 8px;padding:7px 9px;background:#f4f8fb;border:1px solid #dbe7f0;border-radius:5px;font-weight:600}
+@media(max-width:850px){.cp-r10-source-row{grid-template-columns:1fr auto}.cp-r10-row-actions{grid-column:1/-1;justify-content:flex-end}.cp-r10-section-head{align-items:flex-start;flex-direction:column}}
+`;document.head.appendChild(s);}
+function applyVersion(){try{document.documentElement.dataset.chesspublisherVersion=VERSION;}catch(_){}try{document.title=`Chess-Publisher v${VERSION}`;}catch(_){}try{const w=document.getElementById('windowDocumentTitle');if(w)w.textContent=`Chess-Publisher v${VERSION} — Tournament Manager & Publisher`;}catch(_){}try{const v=document.getElementById('appVersion');if(v)v.textContent=`v${VERSION}`;}catch(_){}}
+function install(){if(installed)return true;installed=true;installStyles();installManagerOverride();wrapAddPlayerModal();['changeTournament','loadAllFields','tournamentRatingTypeChanged'].forEach(wrapRefresh);applyVersion();setTimeout(()=>{installManagerOverride();wrapAddPlayerModal();applyVersion();},0);return true;}
+window.cpBeta98R10={VERSION,ratingType,mainSource,managerModal,renderManager,openManager,simplifyAddPlayerModal,install};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+})();

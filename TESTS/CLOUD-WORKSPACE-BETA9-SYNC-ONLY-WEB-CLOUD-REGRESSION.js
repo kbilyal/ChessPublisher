@@ -1,0 +1,31 @@
+"use strict";
+
+const fs=require("fs");
+const path=require("path");
+const root=path.resolve(__dirname,"..");
+const cloud=fs.readFileSync(path.join(root,"webview","CloudWorkspaceAdapter.js"),"utf8");
+const hub=fs.readFileSync(path.join(root,"webview","HubAdapter.js"),"utf8");
+const api=fs.readFileSync(path.join(root,"cloud","client","cloud-workspace-api.js"),"utf8");
+const assert=(condition,label)=>{if(!condition)throw new Error(`FAIL: ${label}`);console.log(`PASS: ${label}`);};
+
+assert(/const CLIENT_VERSION="1\.06\.00-beta\.10"/.test(cloud),"Cloud adapter is marked beta.10");
+assert(/const DEFAULT_CLIENT_VERSION="1\.06\.00-beta\.10"/.test(api),"Cloud API client is marked beta.10");
+assert(/Save & Sync Web/.test(cloud),"Primary desktop action is Save & Sync Web");
+assert(/id="cloudSyncNowBtn"/.test(cloud),"Existing Sync button ID remains wired for compatibility");
+assert(/getElementById\("cloudSyncNowBtn"\)\.addEventListener\("click"/.test(cloud),"Save & Sync Web handler remains wired");
+assert(/id="cloudPullChangesBtn"/.test(cloud),"Pull Changes remains visible and wired");
+assert(/getElementById\("cloudPullChangesBtn"\)\.addEventListener\("click"/.test(cloud),"Pull Changes handler remains wired");
+assert(!/id="cloudContinueBrowserBtn"/.test(cloud),"Continue in Browser visible button is removed");
+assert(!/cloudContinueBrowserBtn/.test(cloud),"No Continue in Browser UI wiring remains");
+assert(!/cpCloudContinueInBrowser/.test(cloud),"No global Continue in Browser entry point is exported");
+assert(!/Web continuation/.test(cloud),"Web continuation cluster is removed");
+assert(/Sync Now|Save & Sync Web/.test(cloud),"Sync semantics remain present");
+assert(/saves locally first/.test(cloud)&&/Organizer Cloud\/Web/.test(cloud),"Sync help says save locally then sync cloud/web");
+assert(/Public publishing stays in the Public Tournament Hub section below/.test(cloud),"Public Hub routing is explicitly separate from private sync");
+assert(/Publish to Hub/.test(hub),"Public Hub publish action label remains explicit");
+assert(/Player-facing page · Publish to Hub · not private sync/.test(hub),"Public Hub is not confused with private sync");
+assert(/Desktop ↔ Web data sync/.test(hub),"Private Cloud is described as Desktop-Web data sync");
+assert(!/searchParams\.set\([^\n]*(?:token|organizer)/i.test(cloud),"Organizer Token is not placed into URL parameters");
+assert(/never pulls remote changes automatically/.test(cloud),"Auto Backup remains push-only/no-auto-pull");
+assert(/Conflict detected — no overwrite/.test(cloud)||/no overwrite/i.test(cloud),"Conflict/no-overwrite behavior remains visible");
+console.log("CLOUD WORKSPACE BETA.9 SYNC-ONLY WEB CLOUD REGRESSION: PASS");

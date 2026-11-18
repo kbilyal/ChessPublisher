@@ -1,0 +1,30 @@
+"use strict";
+
+const fs=require("fs");
+const path=require("path");
+const root=path.resolve(__dirname,"..");
+const cloud=fs.readFileSync(path.join(root,"webview","CloudWorkspaceAdapter.js"),"utf8");
+const hub=fs.readFileSync(path.join(root,"webview","HubAdapter.js"),"utf8");
+const api=fs.readFileSync(path.join(root,"cloud","client","cloud-workspace-api.js"),"utf8");
+const assert=(condition,label)=>{if(!condition)throw new Error(`FAIL: ${label}`);console.log(`PASS: ${label}`);};
+
+assert(/const CLIENT_VERSION="1\.06\.00-beta\.10"/.test(cloud),"Cloud adapter is marked beta.10");
+assert(/const DEFAULT_CLIENT_VERSION="1\.06\.00-beta\.10"/.test(api),"Cloud API client is marked beta.10");
+assert(/Save & Sync Web/.test(cloud),"Private Cloud main action remains Save & Sync Web");
+assert(/id="cloudSyncNowBtn"/.test(cloud),"Existing private sync button ID is preserved");
+assert(/getElementById\("cloudSyncNowBtn"\)\.addEventListener\("click"/.test(cloud),"Existing private sync click handler remains wired");
+assert(/id="cloudPullChangesBtn"/.test(cloud),"Pull Changes remains visible");
+assert(!/id="cloudContinueBrowserBtn"/.test(cloud),"Continue in Browser UI button remains removed");
+assert(!/cpCloudContinueInBrowser/.test(cloud),"No global Continue in Browser entry point is exported");
+assert(!/<div class="cloud-workflow-step"><span>4<\/span><b>Publish/.test(cloud),"Private Cloud workflow strip does not include a publish step");
+assert(!/id="hubPublishOnlineBtn"/.test(cloud),"Private Cloud adapter does not inject public Hub publish button");
+assert(/Publish to Hub/.test(hub),"Public Hub publish label remains in Hub adapter");
+assert(/id="hubPublishOnlineBtn"/.test(hub),"Existing public Hub publish button ID is preserved");
+assert(/publishOnlineSmart\(\)/.test(hub),"Existing public Hub publish handler remains wired");
+assert(/Public Tournament Hub/.test(hub),"Public publish area remains in Public Tournament Hub section");
+assert(/similar to the Chess-Results publishing workflow/.test(hub),"Helper text preserves Chess-Results-like public publishing context");
+assert(/Save & Sync Web is private Desktop ↔ Web sync/.test(hub),"Header separates private sync from public Hub publish");
+assert(!/searchParams\.set\([^\n]*(?:token|organizer)/i.test(cloud),"Organizer Token is not placed into URL parameters");
+assert(/never pulls remote changes automatically/.test(cloud),"Auto Backup remains push-only/no-auto-pull");
+assert(/no overwrite/i.test(cloud),"Conflict/no-overwrite behavior remains visible");
+console.log("CLOUD WORKSPACE BETA.10 PUBLIC HUB STAYS REGRESSION: PASS");

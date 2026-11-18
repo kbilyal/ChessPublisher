@@ -2,9 +2,9 @@ param(
   [string]$Destination = (Join-Path $PSScriptRoot '..\build\payload\engine\gacrux')
 )
 $ErrorActionPreference = 'Stop'
-$version = '1.9.57'
-$url = 'https://github.com/santino/vesus-pairings-desktop/releases/download/gacrux-v1.9.57/pairingchecker-windows-x64.zip'
-$expected = '998a19c85e6ddb6c7ef5572b07d547f89034d8568c247bb3533dcdedd717a249'
+$version = '1.11.65'
+$url = 'https://github.com/santino/vesus-pairings-desktop/releases/download/gacrux-v1.11.65/pairingchecker-windows-x64.zip'
+$expected = 'e3861ed88fca45181965c2633065c2586569843f79a56f9161ec85ebec1b3aa5'
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('ChessPublisher-Gacrux-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temp | Out-Null
 try {

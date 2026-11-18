@@ -1,0 +1,226 @@
+{
+  "schema": "Chess-Publisher.GacruxTieBreakMapping.v1",
+  "chessPublisherVersion": "1.05.00-RC21",
+  "gacruxVersion": "1.9.57",
+  "upstreamCommit": "14a34a2c2f36509b110e4f25d6247f31fc4bf2f5",
+  "unratedSubstituteTransport": "separate-cli--u",
+  "supported": [
+    {
+      "criterion": "Points [1]",
+      "code": "PTS"
+    },
+    {
+      "criterion": "Number of Wins (WIN) [68]",
+      "code": "WIN"
+    },
+    {
+      "criterion": "Number of Games Won (WON) [68]",
+      "code": "WON"
+    },
+    {
+      "criterion": "Games Played with Black (BPG) [68]",
+      "code": "BPG"
+    },
+    {
+      "criterion": "Games Won with Black (BWG) [68]",
+      "code": "BWG"
+    },
+    {
+      "criterion": "Average of Opponents' Buchholz (AOB) [77]",
+      "code": "AOB"
+    },
+    {
+      "criterion": "Rounds Elected to Play (REP) [79]",
+      "code": "REP"
+    },
+    {
+      "criterion": "Average Rating of Opponents (ARO) [80]",
+      "code": "ARO"
+    },
+    {
+      "criterion": "ARO Cut-1",
+      "code": "ARO/C1"
+    },
+    {
+      "criterion": "ARO Cut-2",
+      "code": "ARO/C2"
+    },
+    {
+      "criterion": "ARO Median-1",
+      "code": "ARO/M1"
+    },
+    {
+      "criterion": "ARO Median-2",
+      "code": "ARO/M2"
+    },
+    {
+      "criterion": "Direct Encounter (DE) [81]",
+      "code": "DE"
+    },
+    {
+      "criterion": "Buchholz (BH) [84]",
+      "code": "BH"
+    },
+    {
+      "criterion": "Buchholz Cut-1 (BH-C1) [84]",
+      "code": "BH/C1"
+    },
+    {
+      "criterion": "Buchholz Cut-2 (BH-C2) [84]",
+      "code": "BH/C2"
+    },
+    {
+      "criterion": "Buchholz Median-1 (BH-M1) [84]",
+      "code": "BH/M1"
+    },
+    {
+      "criterion": "Buchholz Median-2 (BH-M2) [84]",
+      "code": "BH/M2"
+    },
+    {
+      "criterion": "Sonneborn-Berger (SB) [85]",
+      "code": "SB"
+    },
+    {
+      "criterion": "Sonneborn-Berger Cut-1",
+      "code": "SB/C1"
+    },
+    {
+      "criterion": "Progressive Scores (PS) [86]",
+      "code": "PS"
+    },
+    {
+      "criterion": "Progressive Cut-1",
+      "code": "PS/C1"
+    },
+    {
+      "criterion": "Koya System (KS) [87]",
+      "code": "KS"
+    },
+    {
+      "criterion": "Tournament Performance Rating (TPR) [88]",
+      "code": "TPR"
+    },
+    {
+      "criterion": "Perfect Tournament Performance (PTP) [88]",
+      "code": "PTP"
+    },
+    {
+      "criterion": "Average Performance Rating of Opponents (APRO) [88]",
+      "code": "APRO"
+    },
+    {
+      "criterion": "Average Perfect Performance of Opponents (APPO) [88]",
+      "code": "APPO"
+    }
+  ],
+  "unsupportedExact": [
+    {
+      "criterion": "[23] Sum of ratings without one result",
+      "code": "OTHER_RATING_SUM_C1",
+      "mustNotMapTo": "ARO/C1"
+    },
+    {
+      "criterion": "Drawing of lots",
+      "code": "OTHER_LOT"
+    },
+    {
+      "criterion": "Recursive rating performance [54]",
+      "code": "OTHER_RRP"
+    },
+    {
+      "criterion": "Performance variable [60]",
+      "code": "OTHER_PERFORMANCE_VARIABLE"
+    },
+    {
+      "criterion": "Armageddon [61]",
+      "code": "OTHER_ARMAGEDDON"
+    },
+    {
+      "criterion": "Games descending [65]",
+      "code": "OTHER_GAMES_DESCENDING"
+    },
+    {
+      "criterion": "Special Gamepoints [76]",
+      "code": "OTHER_SPECIAL_GAMEPOINTS"
+    }
+  ],
+  "mandatoryChains": [
+    {
+      "chain": [
+        "BH/C1",
+        "BH",
+        "SB",
+        "DE"
+      ],
+      "fullPassEligible": true
+    },
+    {
+      "chain": [
+        "BH/C1",
+        "BH",
+        "SB",
+        "ARO"
+      ],
+      "fullPassEligible": true
+    },
+    {
+      "chain": [
+        "ARO"
+      ],
+      "fullPassEligible": true
+    },
+    {
+      "chain": [
+        "ARO/C1"
+      ],
+      "fullPassEligible": true
+    },
+    {
+      "chain": [
+        "WIN",
+        "BWG"
+      ],
+      "fullPassEligible": true
+    },
+    {
+      "chain": [
+        "TPR"
+      ],
+      "fullPassEligible": true
+    },
+    {
+      "chain": [
+        "PTP"
+      ],
+      "fullPassEligible": true
+    },
+    {
+      "chain": [
+        "APRO"
+      ],
+      "fullPassEligible": true
+    },
+    {
+      "chain": [
+        "APPO"
+      ],
+      "fullPassEligible": true
+    },
+    {
+      "chain": [
+        "BH",
+        "OTHER_LOT"
+      ],
+      "fullPassEligible": false,
+      "expectedStatus": "incomplete"
+    },
+    {
+      "chain": [
+        "OTHER_RATING_SUM_C1"
+      ],
+      "fullPassEligible": false,
+      "expectedStatus": "incomplete"
+    }
+  ]
+}

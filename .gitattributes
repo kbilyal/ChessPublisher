@@ -1,0 +1,4 @@
+# Runtime integrity manifests hash exact bytes across Windows and CI checkouts.
+/*.ps1 -text
+/webview/*.js -text
+/cloud/client/*.js -text

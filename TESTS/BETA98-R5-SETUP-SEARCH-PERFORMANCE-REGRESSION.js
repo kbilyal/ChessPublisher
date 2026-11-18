@@ -1,0 +1,35 @@
+'use strict';
+const fs=require('fs'),path=require('path'),vm=require('vm');
+const ROOT=path.resolve(__dirname,'..');
+const html=fs.readFileSync(path.join(ROOT,'ChessPublisher.html'),'utf8');
+const b70=fs.readFileSync(path.join(ROOT,'ChessPublisher-Beta70-Compliance.js'),'utf8');
+const b72=fs.readFileSync(path.join(ROOT,'ChessPublisher-Beta72-RatingLists.js'),'utf8');
+const b81=fs.readFileSync(path.join(ROOT,'ChessPublisher-Beta81-TypeB-RatingLists.js'),'utf8');
+const b98=fs.readFileSync(path.join(ROOT,'ChessPublisher-Beta98-Custom-Rating-Lists.js'),'utf8');
+let pass=0,fail=0,n=0;function ok(name,v){n++;if(v){pass++;console.log(`PASS ${String(n).padStart(2,'0')} ${name}`)}else{fail++;console.error(`FAIL ${String(n).padStart(2,'0')} ${name}`)}}
+ok('candidate marker is beta.98-r5 or newer r-revision',/data-chesspublisher-version="1[.]06[.]00-beta[.]98-r(?:[5-9]|[1-9][0-9]+)"/.test(html));
+ok('Q117 runtime is beta.98-r5',b98.includes("const VERSION='1.06.00-beta.98-r5'"));
+ok('long-event box is inserted after Tournament General box, not into the form grid',b70.includes("general.insertAdjacentElement('afterend',box)")&&!b70.includes("anchor.parentNode?.insertAdjacentElement('afterend',box)"));
+ok('long-event box can self-repair if an older layout placed it incorrectly',b70.includes('box.previousElementSibling!==general'));
+ok('FIDE search avoids cloning the full database into a Worker',!b72.includes('new Worker(')&&!b72.includes("rows:[...fideMainDb.values()]"));
+ok('FIDE text search is asynchronous through LocalEngine directory lookup',b72.includes("fetchLocalEngine('/fide/players-search'")&&b72.includes('async function searchDirectory'));
+ok('browser fallback yields cooperatively during large local scans',b72.includes('searchLocalAsync')&&b72.includes('scanned%4000===0'));
+ok('FIDE typing debounce is at least 200 ms',b72.includes('},240);'));
+ok('custom/Type-B search has persistent prefix indexes',b98.includes('externalSearchBuckets2=new Map()')&&b98.includes('externalSearchBuckets3=new Map()'));
+ok('external search index is invalidated when custom list data changes',b98.includes('function putCustomData')&&b98.includes('invalidateExternalSearchIndex()'));
+ok('external search index can yield during large rebuilds',b98.includes("typeof setTimeout==='function'")&&b98.includes('await new Promise(resolve=>setTimeout(resolve,0))'));
+ok('external search uses indexed candidates rather than nested full-list scan per keypress',b98.includes('externalSearchCandidates(terms)')&&b98.includes('for(const index of externalSearchCandidates(terms))'));
+ok('external search debounce is 180 ms',b98.includes('}},180);return token;'));
+ok('advanced Type-B importer is collapsed behind details',b81.includes('<details id="cpTypeBAdvanced">'));
+ok('Type-B help distinguishes fixed-width from normal CSV/TSV imports',b81.includes('FIDE fixed-width rating-list text files')&&b81.includes('normal CSV/TSV national, regional or club lists'));
+ok('normal Rating List Library import remains statically visible',html.includes('id="cpRatingListImportButton"')&&html.includes('Import Rating List'));
+ok('Add Player search labels combined sources',html.includes('Search player (FIDE + imported rating lists)...'));
+// Validate the flexible parser on the exact normal CSV format used in user smoke tests.
+const store=new Map();const tournament={settings:{tournamentRatingType:'Standard',ratingListSequence:['fide-standard'],ratingListSequenceMode:'default'},players:[]};
+const document={readyState:'loading',documentElement:{dataset:{}},head:{appendChild(){}},body:{appendChild(){}},getElementById(){return null},createElement(){return {style:{},dataset:{},appendChild(){},querySelector(){return null},querySelectorAll(){return []},addEventListener(){}}},querySelector(){return null},querySelectorAll(){return []},addEventListener(){}};
+const ctx={console,JSON,Number,String,Math,Date,Array,Object,Promise,Set,Map,RegExp,Error,Uint8Array,document,window:null,setTimeout,clearTimeout,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)},data:{currentTournament:'T',tournaments:{T:tournament}},getCurrentTournament(){return tournament},saveData(){},cpBeta59:{defaultSequenceFor(){return ['fide-standard']},normalizedRatingType(){return 'Standard'}},cpBeta81:{async listCatalog(){return []},async getData(){return []}}};ctx.window=ctx;ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(b98,ctx);
+const csv='FIDE ID;Name;Rating;FED\n9000001;Ivan Petrov;2150;BUL\n9000002;Mehmet Yilmaz;2075;TUR\n';
+const rows=ctx.cpBeta98.parseCustomRows(csv,'general');
+ok('normal semicolon CSV parser reads federation rating-list rows',rows.length===2&&rows[0].fideId==='9000001'&&rows[0].rating===2150&&rows[0].fed==='BUL');
+ok('parsing a rating list does not create tournament participants',tournament.players.length===0);
+console.log(`BETA98-R5 SETUP/SEARCH PERFORMANCE RESULT: ${pass} PASS / ${fail} FAIL`);process.exitCode=fail?1:0;

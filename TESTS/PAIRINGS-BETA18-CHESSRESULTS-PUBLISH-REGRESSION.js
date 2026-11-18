@@ -1,0 +1,23 @@
+"use strict";
+const fs=require("fs");
+const path=require("path");
+const root=path.resolve(__dirname,"..");
+const html=fs.readFileSync(path.join(root,"ChessPublisher.html"),"utf8");
+const hub=fs.readFileSync(path.join(root,"webview","HubAdapter.js"),"utf8");
+const assert=(v,m)=>{if(!v)throw new Error(`FAIL: ${m}`);console.log(`PASS: ${m}`);};
+
+assert(/data-chesspublisher-version="1\.06\.00-beta\.(?:19|[2-9][0-9]|[1-9][0-9]{2,})(?:-r\d+)?"/.test(html),"visible desktop branding is beta.19 or newer cumulative");
+assert(/CP-BETA18-PAIRINGS-CHESSRESULTS-PUBLISH/.test(html),"Pairings Chess-Results publish patch marker exists");
+assert(/id="pairingsChessResultsPublishBtn"/.test(html),"Pairings toolbar has a dedicated Chess-Results publish button");
+assert(/onclick="publishChessResultsTournament\(\)"/.test(html),"Pairings button reuses the existing Chess-Results publish handler");
+assert(/>Publish to Chess-Results<\/button>/.test(html),"Pairings button label is explicit");
+assert(/const pairingsPublish=document\.getElementById\("pairingsChessResultsPublishBtn"\)/.test(html),"Chess-Results UI refresh tracks the Pairings publish button");
+assert(/pairingsPublish\.disabled=!supported \|\| chessResultsPublishBusy \|\| chessResultsActionBusy/.test(html),"Pairings publish button uses the same safety/busy gate as the main Chess-Results publisher");
+assert(/Publishing to Chess-Results…/.test(html),"Pairings button shows publishing busy state");
+assert(/Chess-Results publishing currently supports Individual Swiss tournaments only/.test(html),"unsupported tournament format is explained in the Pairings button title");
+assert(/async function publishChessResultsTournament\(\)/.test(html),"existing Chess-Results publish handler remains present");
+assert(/await chessResultsLocalJson\("\/chessresults\/publish",\{key:cr\.key,xml:built\.xml\}\)/.test(html),"existing authenticated Chess-Results upload path remains unchanged");
+assert(/id="crXmlPublishButton"[\s\S]{0,180}publishChessResultsTournament\(\)/.test(html),"main Chess-Results Publish Tournament button remains wired to the same handler");
+assert(/id="pairingsHubPublishBtn"/.test(hub),"Tournament Hub Pairings publish button remains present");
+assert(/publishOnlineSmart\(\)/.test(hub),"Tournament Hub publishing remains on its separate existing workflow");
+console.log("PAIRINGS-BETA18-CHESSRESULTS-PUBLISH-REGRESSION: PASS");

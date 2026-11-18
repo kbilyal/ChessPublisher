@@ -1,0 +1,112 @@
+{
+  "freeze": "Chess-Publisher unified Desktop-Web/Cloud SYNC protected core",
+  "version": "1.06.00-beta.96",
+  "candidateRevision": "r4",
+  "status": "ACTIVE \u2014 USER RUNTIME CONFIRMED",
+  "activatedAt": "2026-09-10",
+  "activationReason": "User confirmed the exact beta.96 r4 FULL PORTABLE application works after the live Worker schema-7 parity fix.",
+  "testedRuntime": {
+    "archive": "Chess-Publisher-v1.06.00-beta.96-r4-FULL-PORTABLE.zip",
+    "sha256": "5e18d6f9e02dc68e7af0df25ed0a1da17a1f11692fafedbdf8120f1869f8c803",
+    "exeSha256": "1e5c93b987e156a81a3b1ca0bb6dc6fe84f97f38477c161b355a75b2c86458c3"
+  },
+  "fingerprintContentSchema": 7,
+  "policy": "SYNC is now a protected core subsystem. Future beta/RC/TEC/UI releases must preserve this contract. The protected SYNC files may be changed only for a concrete reproduced SYNC defect, with explicit user approval, a point fix, mandatory Desktop-Web/Cloud round-trip regressions, protected-hash review, and real runtime confirmation before a new freeze baseline replaces this one.",
+  "windowsProtectedFiles": {
+    "webview/CloudWorkspaceAdapter.js": {
+      "mode": "exact",
+      "sha256": "5879e24f75f0879e4bb81ed882d4258f27a5aae0d2746e7c4ee5d9f38bd45ae4"
+    },
+    "cloud/client/cloud-workspace-api.js": {
+      "mode": "exact",
+      "sha256": "e69c84af5b9148ac6287f5e1e959310a10f2fcb28541740dd9c8dd4510e1e51a"
+    },
+    "webview/CloudWorkspaceRedesign.js": {
+      "mode": "normalize-version",
+      "sha256": "b2b0243d5934d595607680824edb98de21f044432c51c4bbcaeb4aee387be8d7"
+    },
+    "ChessPublisher-LocalEngine.ps1": {
+      "mode": "exact",
+      "sha256": "58f002430f327f4234ef0ce8d962f604b3562efe5c667307cd683aca6faf9c18"
+    },
+    "ChessPublisher-WebView.ps1": {
+      "mode": "exact",
+      "sha256": "c2cef53c916477b210e0767d2150d089d595f2bbc82a8191fe4a6bcee12ae61e"
+    }
+  },
+  "windowsSemanticGuards": {
+    "ChessPublisher.html": [
+      "onclick=\"downloadWebEnteredResults()\"",
+      "window.cpCloudDownloadWebResults",
+      "window.cpCloudSyncCurrent",
+      "const SESSION_PROVENANCE = window.__cpCheckerUiSessionProvenance"
+    ],
+    "webview/CloudWorkspaceRedesign.js": [
+      "window.cpCloudSyncCurrent=syncCurrent;",
+      "window.cpCloudSyncUnified=syncCurrent;",
+      "window.cpCloudDownloadWebResults=downloadWebResults;",
+      "/cloud-proxy",
+      "const expectedRevision=remoteRevision;",
+      "api.putSnapshot"
+    ],
+    "webview/HubAdapter.js": [
+      "const ORGANIZER_SECRET_BASE_KEY=\"organizer-primary\";",
+      "function organizerSecretKey()",
+      "window.cpNativeHubSecretGet=",
+      "window.cpNativeHubSecretSet=",
+      "window.cpNativeHubSecretRemove="
+    ]
+  },
+  "webProtectedGitBlobs": {
+    "src/cloud/onlineCloudSync.ts": "743ed57a9fd12bac1749ff7cfdb6fafae0d9ec4f",
+    "src/cloud/OnlineCloudProviderV2.tsx": "c1e2e4a4882fc4c5e48686fdaef0108ddf96d140",
+    "src/cloud/cloudWorkspaceApi.ts": "f6adbfb385a61d2daf5702935f912dc89d350975",
+    "src/cloud/browserSyncPolicy.ts": "c85ecaaf3467811e718e4122be6c782304a5bc0c",
+    "src/companion/companionCloudActions.ts": "8bdd1a6e9c47f2700eb6693368b7ac5f68ba4ef8",
+    "production-web/webview/CloudWorkspaceAdapter.js": "282a5bdbc0da3de0f232e44c77c2b9740b80e583",
+    "production-web/cloud/client/cloud-workspace-api.js": "314f7e350c7bf5a78ef96295a972d32c1dc323d7",
+    "scripts/patch-cloud-sync-checker-provenance-worker.py": "dd9312605baeeac31d43c40552d3f580ea148091",
+    ".github/workflows/deploy-cloud-sync-checker-provenance.yml": "9e8a030dcc144fff562ec099baeda84cb2ad0fd2"
+  },
+  "webSemanticGuards": {
+    "src/companion/CompanionWorkspace.tsx": [
+      "sync",
+      "cloudTournamentId",
+      "baseRevision"
+    ],
+    "production-web/browser-dev-host.js": [
+      "ORGANIZER_KEY=\"organizer-primary\"",
+      "cp:web-dev:secret:"
+    ]
+  },
+  "liveWorker": {
+    "name": "chess-publisher-hub-api-beta",
+    "sha256": "13773e265867f802631d03bcecd8bd259a74f5fdff87fd3fa52a663a5264fa22",
+    "deploymentCommit": "b2ad2cba2a3da06c51830a9a912a3efb5941cb86",
+    "deploymentRunId": "34516377753",
+    "deploymentJobId": "103002706618",
+    "productionGate": "PASS"
+  },
+  "mandatoryRegressionFamilies": [
+    "BETA90-SYNC-RESTORE-DELETED-WEB-TOURNAMENT-REGRESSION.js",
+    "BETA91-SYNC-TRASH-PAIRING-MISMATCH-ORCHESTRATION-REGRESSION.js",
+    "BETA92-SYNC-STRUCTURAL-PREFLIGHT-REGRESSION.js",
+    "BETA93-SINGLE-SYNC-AUTHORITY-REGRESSION.js",
+    "BETA94-COMMON-BASE-RECOVERY-REGRESSION.js",
+    "BETA95-CHECKER-PROVENANCE-TEC-PLAYER-LIFECYCLE-REGRESSION.js",
+    "BETA96-SYNC-FREEZE-CHECKER-RUNTIME-METADATA-REGRESSION.js",
+    "BETA96-R4-SAVED-CLOUD-IDENTITY-REPAIR-REGRESSION.js",
+    "BETA96-R4-DESKTOP-WEB-ROUNDTRIP-IDENTITY-REGRESSION.js",
+    "BETA96-R4-WEB-DESKTOP-CLOUD-CONTRACT-PARITY-REGRESSION.js",
+    "BETA96-WINDOWS-SYNC-LOCAL-PROXY-REGRESSION.js",
+    "BETA96-R3-WINDOWS-LOCALENGINE-STARTUP-CONTRACT-REGRESSION.js",
+    "BETA96-SYNC-FROZEN-CONTRACT-REGRESSION.js"
+  ],
+  "releaseGate": {
+    "unexpectedFailuresRequired": 0,
+    "realRuntimeConfirmationRequiredAfterAnyApprovedSyncChange": true,
+    "linuxPolicy": "Linux remains frozen at v1.06.00-beta.81 until explicitly aligned by the user."
+  },
+  "release": "1.06.00",
+  "provenance": "Promoted r15 working source. LocalEngine is byte-identical to r15; WebView changes are release branding only. Historical beta.96 manifest is retained unchanged."
+}

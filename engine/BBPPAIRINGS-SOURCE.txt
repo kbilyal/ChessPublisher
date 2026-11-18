@@ -1,0 +1,15 @@
+bbpPairings independent verifier integration
+
+Upstream project: https://github.com/BieremaBoyzProgramming/bbpPairings
+Version used by ChessPublisher: 6.0.0
+License: Apache License 2.0
+Windows release asset: bbpPairings-v6.0.0-x86_64-pc-windows.zip
+Release archive SHA256: D2BFC61CBD291A5458F18ADCCB43B19B6F1BE40A9C0CC86A5142B605298DC0D7
+
+ChessPublisher v1.03.72 does not redistribute the bbpPairings executable inside
+its release package. The user can explicitly choose Prepare Checker in the
+Pairings tab; ChessPublisher then downloads the official upstream asset,
+verifies the release SHA256 before extraction, self-tests the executable, and
+stores a verified local copy for independent Dutch checking.
+
+Gacrux 1.9.57 remains ChessPublisher's only pairing generator.

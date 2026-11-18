@@ -1,0 +1,27 @@
+"use strict";
+const fs=require("fs"),path=require("path");
+const root=path.resolve(__dirname,"..");
+const html=fs.readFileSync(path.join(root,"ChessPublisher.html"),"utf8");
+const assert=(v,m)=>{if(!v)throw new Error(`FAIL: ${m}`);console.log(`PASS: ${m}`);};
+assert(/<title>Chess-Publisher v1\.06\.00-beta\.(?:28|29|[3-9]\d)(?:-r\d+)?<\/title>/.test(html),"visible branding is beta.28 or newer cumulative");
+assert(/CP-BETA28-PAIRINGS-FONT-BOLD-CONTROLS/.test(html),"beta.28 typography marker exists");
+assert(/id="peFontFamily"/.test(html),"Pairings Export has Font selector");
+for(const f of ["Calibri","Arial","Segoe UI","Tahoma","Verdana","Times New Roman"]){assert(new RegExp(`<option value="${f.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}">${f.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}<\\/option>`).test(html),`font option exists: ${f}`);}
+assert(/id="peBold"[^>]*type="checkbox"/.test(html),"Pairings Export has Bold checkbox");
+assert(/fontFamily:"Calibri",bold:false/.test(html),"default typography remains Calibri regular");
+assert(/function pairingsExportFontName/.test(html)&&/allowed=\["Calibri","Arial","Segoe UI","Tahoma","Verdana","Times New Roman"\]/.test(html),"font choice is whitelist constrained");
+assert(/peBold:o\.bold/.test(html)&&/font\.value=pairingsExportFontName\(o\.fontFamily\)/.test(html),"saved typography restores into controls");
+assert(/fontFamily:pairingsExportFontName\(document\.getElementById\("peFontFamily"\)\?\.value\),bold:checked\("peBold"\)/.test(html),"Font and Bold are read from Pairings Export controls");
+assert(/fontFamily:typography\.fontFamily,bold:typography\.bold/.test(html),"column presets preserve typography choice");
+assert(/cp-pairings-exact-report/.test(html)&&/cp-pairings-bold/.test(html),"PDF/preview render is scoped to Pairings typography classes");
+assert(/\.cp-pairings-exact-report\.cp-pairings-bold[\s\S]*?font-weight:700/.test(html),"Bold style is implemented for Pairings report only");
+assert(/TXT е обикновен текст; изборът на шрифт и Bold важи за PDF\/печат/.test(html),"TXT correctly explains that typography is PDF/print only");
+assert(/\.cp-exact-report\{[^}]*font-size:11pt/.test(html)&&/\.cp-exact-table\{[^}]*font-size:11pt/.test(html),"beta.27 11pt sizing is preserved");
+const start=html.indexOf('if(kind==="players")'),end=html.indexOf('if(kind==="pairings")');
+const rankStart=html.indexOf('if(kind==="standings")'),rankEnd=html.indexOf('if(kind==="program")');
+assert(!/cp-pairings-exact-report|peFontFamily|peBold/.test(html.slice(start,end)),"Starting Rank List typography is unchanged");
+assert(!/cp-pairings-exact-report|peFontFamily|peBold/.test(html.slice(rankStart,rankEnd)),"Ranking typography is unchanged");
+const pairStart=html.indexOf("function buildPairingsReadableHtml"),pairEnd=html.indexOf("function peTextFit");
+const pairSlice=html.slice(pairStart,pairEnd);
+assert(!/Swiss-Manager style|User:|Program Swiss|Chess-Publisher\s*•/i.test(pairSlice),"Pairings export still has no extra vendor/user footer");
+console.log("BETA28 PAIRINGS FONT + BOLD CONTROLS REGRESSION: PASS");

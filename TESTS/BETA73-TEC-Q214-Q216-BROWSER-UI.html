@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><title>beta73 UI gate</title></head><body>
+<div id="tieBreakSettingsModal"><div id="tieBreakSettingsBody"></div></div>
+<script>
+var tieBreakSettingsEditing='';
+var baseSaveCount=0,alertCount=0;
+var tournament={settings:{rounds:3,startDate:'2026-09-01',endDate:'2026-10-15'},regulations:{tieBreaks:["Average Rating of Opponents (ARO) [80]"]},players:[
+{id:1,fideId:'1001',name:'Alpha',rating:1800,longEventRatingHistory:[{id:'a1',rating:1750,fromRound:1,toRound:1,source:'FIDE Sep'},{id:'a2',rating:1800,fromRound:2,toRound:3,source:'FIDE Oct'}]},
+{id:2,fideId:'1002',name:'Beta',rating:2000,longEventRatingHistory:[{id:'b1',rating:1950,fromRound:1,toRound:1,source:'FIDE Sep'},{id:'b2',rating:2000,fromRound:2,toRound:3,source:'FIDE Oct'}]}
+]};
+function getCurrentTournament(){return tournament} function saveData(){} function getTournamentTieBreakPriority(){return tournament.regulations.tieBreaks} function getSelectedTieBreaksInPriority(){return tournament.regulations.tieBreaks} function tieBreakId(t){return Number(String(t).match(/\[(\d+)\]\s*$/)?.[1]||0)} function getTieBreakOptions(){return {unratedRating:1400,aroDiscardBest:0,aroDiscardWorst:0}} function calculateNumberedTieBreakData(){return true} function standingTieBreakValue(){return 0}
+function openTieBreakSettingsModal(index){tieBreakSettingsEditing=tournament.regulations.tieBreaks[index]||'';document.getElementById('tieBreakSettingsBody').innerHTML='<div id="baseSettings">Base settings retained</div>';return true}
+async function saveTieBreakSettingsModal(){baseSaveCount++;return true}
+function tieBreakSettingsSummary(){return 'Unrated 1400'}
+async function appAlert(){alertCount++;return true}
+</script>
+<script src="../ChessPublisher-Beta70-Compliance.js"></script>
+<script src="../ChessPublisher-Beta73-Compliance.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded',async()=>{
+ const checks=[];const ok=(name,v)=>checks.push([name,!!v]);
+ openTieBreakSettingsModal(0);
+ const mode=document.getElementById('cpBeta73RatingPolicyMode');
+ ok('policy editor rendered',!!mode);ok('base settings preserved',!!document.getElementById('baseSettings'));ok('three policy options',mode&&mode.options.length===3);
+ mode.value='USER_SELECTED';mode.dispatchEvent(new Event('change',{bubbles:true}));
+ let sels=[...document.querySelectorAll('.cpBeta73PlayerSelection')];ok('multi-rating player selectors rendered',sels.length===2);
+ sels[0].value=sels[0].options[2].value;
+ const first=await saveTieBreakSettingsModal();
+ ok('incomplete USER_SELECTED blocked',first===false&&baseSaveCount===0&&alertCount===1);
+ sels=[...document.querySelectorAll('.cpBeta73PlayerSelection')];for(const s of sels)s.value=s.options[2].value;
+ const second=await saveTieBreakSettingsModal();
+ ok('complete USER_SELECTED reaches base save',second===true&&baseSaveCount===1);
+ ok('policy persisted in tournament object',tournament.tieBreakRatingPolicy?.mode==='USER_SELECTED'&&Object.keys(tournament.tieBreakRatingPolicy.selections||{}).length===2);
+ ok('summary exposes selected policy',/Explicit rating selection/.test(tieBreakSettingsSummary(tournament.regulations.tieBreaks[0])));
+ document.body.dataset.result=checks.every(x=>x[1])?'PASS':'FAIL';document.body.dataset.count=String(checks.filter(x=>x[1]).length)+'/'+String(checks.length);document.body.innerHTML+='<pre id="results">'+checks.map(x=>(x[1]?'PASS ':'FAIL ')+x[0]).join('\n')+'</pre>';
+});
+</script></body></html>
