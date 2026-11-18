@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#091526">
+  <meta name="description" content="Detailed Chess-Publisher user manual: installation, tournament setup, players, pairings, results, standings, schedules, Chess-Results, Online Tournament Hub beta, Organizer Tokens, regulations, DGT boards, exports, backups and troubleshooting.">
+  <meta property="og:title" content="Chess-Publisher User Manual">
+  <meta property="og:description" content="Detailed tournament-day and Online Tournament Hub guide for Chess-Publisher on Windows.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://chess-publisher.org/user-manual.html">
+  <meta property="og:image" content="https://chess-publisher.org/assets/screenshots/tournament-setup.png">
+  <title>Chess-Publisher User Manual</title>
+  <link rel="icon" href="assets/chess-publisher-icon.png">
+  <link rel="stylesheet" href="styles.css?v=20260831-28">
+  <link rel="stylesheet" href="release-live.css?v=20260831-27">
+  <link rel="stylesheet" href="manual.css?v=20260831-28">
+  <script defer src="app.js?v=20260903-38"></script>
+  <script defer src="manual.js?v=20260831-27"></script>
+</head>
+<body class="manual-page" data-site-build="2026-09-03-v38-stable-release-sync">
+  <a class="skip-link" href="#manual-content">Skip to manual</a>
+
+  <header class="site-header" id="top">
+    <div class="nav-shell">
+      <a class="brand" href="index.html" aria-label="Chess-Publisher home">
+        <img src="assets/chess-publisher-icon.png" alt="" width="38" height="38">
+        <span>Chess-Publisher</span>
+      </a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open navigation"><span></span><span></span><span></span></button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+        <a href="index.html#features">Features</a>
+        <a href="/tournaments">Tournaments <sup class="nav-beta-index">BETA</sup></a>
+        <a href="index.html#screenshots">Screenshots</a>
+        <a href="index.html#workflow">Workflow</a>
+        <a class="manual-nav-active" aria-current="page" href="user-manual.html">User Manual</a>
+        <a href="index.html#download">Download</a>
+        <a href="index.html#release-notes">Release Notes</a>
+        <a class="nav-support" href="support.html">Support</a>
+        <a href="contact.html">Contact</a>
+        <a href="index.html#open-source">Open source</a>
+        <a class="nav-github" href="https://github.com/kbilyal/ChessPublisher/releases" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="manual-content">
+    <section class="manual-header-band">
+      <div class="shell manual-header-grid">
+        <div>
+          <div class="manual-kicker">Official product documentation</div>
+          <h1>Chess-Publisher<br>User Manual</h1>
+          <p>A detailed guide for organizers and arbiters: installation, tournament setup, player management, pairings, results, standings, Chess-Results, the new Online Tournament Hub beta, Organizer Token access, schedules, regulations, backups and tournament-day operation.</p>
+          <div class="manual-edition">
+            <span>Manual edition 2.0</span>
+            <span>Current stable release: <b data-release-version>v1.05.01</b></span>
+            <span>Online Tournament Hub: <b>Beta</b></span>
+          </div>
+        </div>
+        <div class="manual-actions">
+          <a class="button button-white" href="index.html#download">Download Chess-Publisher</a>
+          <a class="button button-outline-light" href="mailto:kyamranbilyal@gmail.com?subject=Chess-Publisher%20Organizer%20Token%20Request">Request Organizer Token</a>
+          <button class="button button-outline-light" type="button" onclick="window.print()">Print / Save as PDF</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="shell manual-layout">
+      <aside class="manual-toc" aria-label="Manual contents">
+        <div class="manual-toc-title">Contents</div>
+        <nav>
+          <a href="#about"><b>01</b> About this manual</a>
+          <a href="#install"><b>02</b> Install & first launch</a>
+          <a href="#interface"><b>03</b> Interface overview</a>
+          <a href="#tournament"><b>04</b> Tournament setup</a>
+          <a href="#players"><b>05</b> Players & FIDE data</a>
+          <a href="#pairings"><b>06</b> Pairings & results</a>
+          <a href="#standings"><b>07</b> Standings & tie-breaks</a>
+          <a href="#schedule"><b>08</b> Tournament schedule</a>
+          <a href="#regulations"><b>09</b> Regulations</a>
+          <a href="#chessresults"><b>10</b> Chess-Results</a>
+          <a href="#hub-access"><b>11</b> Hub & Organizer Token</a>
+          <a href="#hub-publish"><b>12</b> Publish to Online Hub</a>
+          <a href="#hub-public"><b>13</b> Public platform guide</a>
+          <a href="#dgt"><b>14</b> DGT Boards</a>
+          <a href="#export"><b>15</b> Export & reports</a>
+          <a href="#backup"><b>16</b> Save, backup & recovery</a>
+          <a href="#tournament-day"><b>17</b> Tournament-day workflow</a>
+          <a href="#troubleshooting"><b>18</b> Troubleshooting</a>
+          <a href="#contact-support"><b>19</b> Contact & support</a>
+        </nav>
+      </aside>
+
+      <article class="manual-content">
+        <div class="manual-intro-card">
+          <article><span>Platform</span><strong>Windows 10 / 11</strong><p>64-bit desktop application with local tournament storage.</p></article>
+          <article><span>Pairing workflow</span><strong>Gacrux 1.9.57</strong><p>Local Swiss Dutch pairing generation with independent verification options.</p></article>
+          <article><span>Publishing</span><strong>Local-first + optional online</strong><p>Your tournament remains locally operable even when the Online Hub is unavailable.</p></article>
+        </div>
+
+        <section class="manual-section" id="about">
+          <div class="manual-section-head"><span class="manual-section-number">01</span><div><h2>About this manual</h2><p>Understand what belongs to the stable desktop core and what belongs to the beta online platform.</p></div></div>
+          <p>Chess-Publisher is a local-first tournament management application. The active tournament is shared across the application tabs, so changing the active event changes the working tournament everywhere in the interface.</p>
+          <p>The program can be used entirely as a local Windows tournament tool. Online publishing is optional. The classic Chess-Results integration and the new Chess-Publisher Online Tournament Hub are separate publication paths.</p>
+          <div class="manual-note"><strong>Online Hub status:</strong> the Chess-Publisher Hub is currently a beta feature. It is being distributed and improved alongside upcoming stable Chess-Publisher updates until the full ecosystem is ready for a final release.</div>
+          <div class="manual-warning"><strong>Do not confuse credentials.</strong> Organizer Tokens are personal publishing credentials for the Chess-Publisher Hub. Tournament-management credentials are handled by the application for individual tournaments. Never share your Organizer Token publicly.</div>
+          <h3>Main application areas</h3>
+          <ul class="manual-checklist">
+            <li>Tournament Setup</li><li>Lists & Players</li><li>Pairings and result entry</li><li>Standings</li><li>Tournament Schedule</li><li>Regulations</li><li>Chess-Results</li><li>Online Hub (beta builds)</li><li>DGT Boards</li><li>Other / Export</li>
+          </ul>
+        </section>
+
+        <section class="manual-section" id="install">
+          <div class="manual-section-head"><span class="manual-section-number">02</span><div><h2>Installation and first launch</h2><p>Use the installer for normal use or the portable ZIP for testing and controlled deployments.</p></div></div>
+          <h3>Windows installer</h3>
+          <ol class="manual-steps">
+            <li>Download the latest Windows installer from the official Chess-Publisher site or GitHub Release.</li>
+            <li>Run the installer and follow the Windows setup steps.</li>
+            <li>Start Chess-Publisher from its desktop or Start Menu shortcut.</li>
+            <li>Create a new tournament or open an existing one.</li>
+          </ol>
+          <h3>Portable ZIP</h3>
+          <ol class="manual-steps">
+            <li>Download the correct portable ZIP.</li>
+            <li>Extract the complete archive to a normal writable folder.</li>
+            <li>Keep the application, local service, pairing engine and support files together.</li>
+            <li>Start Chess-Publisher from the extracted folder.</li>
+          </ol>
+          <div class="manual-tip"><strong>Tournament files:</strong> normal tournament data is stored separately from the application in the Chess-Publisher tournament-storage area under the Windows Documents known folder. Updating the application should not replace your normal tournament files.</div>
+          <div class="manual-warning"><strong>Never run one isolated executable or script directly from inside the ZIP.</strong> Always extract the package first.</div>
+        </section>
+
+        <section class="manual-section" id="interface">
+          <div class="manual-section-head"><span class="manual-section-number">03</span><div><h2>Interface overview</h2><p>The active tournament, menus, tabs, Autosave and status information form the normal working environment.</p></div></div>
+          <figure class="manual-shot screenshot-frame" data-lightbox-src="assets/screenshots/tournament-setup.png"><img src="assets/screenshots/tournament-setup.png" alt="Chess-Publisher Tournament Setup interface" loading="lazy"><figcaption><strong>Tournament Setup</strong><span>The central event configuration workspace.</span></figcaption></figure>
+          <h3>Title bar and save state</h3>
+          <p>The title area shows the current version and save state. Keep <b>Autosave</b> enabled during normal tournament work unless you have a specific reason to control saves manually.</p>
+          <h3>Files menu</h3>
+          <p>Use <b>Files</b> to create, open, save and close tournaments, access recent tournaments and use supported import/export paths.</p>
+          <h3>Pairings menu</h3>
+          <p>The <b>Pairings</b> menu gives quick access to generation, manual pairing, pairing standings, player status for the next round, round review and related export tools.</p>
+          <div class="manual-note"><strong>Historical rounds:</strong> earlier rounds should be treated as tournament history. Review them through Round / History; avoid unnecessary changes after a round has been completed and published.</div>
+        </section>
+
+        <section class="manual-section" id="tournament">
+          <div class="manual-section-head"><span class="manual-section-number">04</span><div><h2>Tournament Setup</h2><p>Complete the event definition before importing the final player list or generating Round 1.</p></div></div>
+          <h3>Create a new event</h3>
+          <ol class="manual-steps">
+            <li>Choose <b>Files → New Tournament</b>.</li>
+            <li>Enter the tournament name and core event information.</li>
+            <li>Select the tournament format, number of rounds and time control.</li>
+            <li>Complete dates, city, federation and rating information as applicable.</li>
+            <li>Review schedule and regulations before public publication.</li>
+            <li>Save the tournament before starting the pairing workflow.</li>
+          </ol>
+          <h3>Important fields</h3>
+          <table class="manual-table"><thead><tr><th>Field</th><th>Purpose</th></tr></thead><tbody>
+            <tr><td>Tournament Name</td><td>Public and internal event name used throughout reports and publishing.</td></tr>
+            <tr><td>Tournament Format</td><td>Defines the competition format. Set it correctly before pairing.</td></tr>
+            <tr><td>Rounds</td><td>Total planned rounds for the event.</td></tr>
+            <tr><td>Time Control</td><td>Displayed in tournament information and public publication where available.</td></tr>
+            <tr><td>Start / End Date</td><td>Used by event information, schedule and public display.</td></tr>
+            <tr><td>FIDE Event ID</td><td>Optional FIDE identifier; also available to the Chess-Results publication path.</td></tr>
+          </tbody></table>
+          <div class="manual-tip"><strong>Before Round 1:</strong> verify format, rounds, time control, dates and rating type. Correct setup is easier before any pairing history exists.</div>
+        </section>
+
+        <section class="manual-section" id="players">
+          <div class="manual-section-head"><span class="manual-section-number">05</span><div><h2>Lists & Players</h2><p>Build the participant list, verify FIDE data and prepare the Starting Rank List.</p></div></div>
+          <figure class="manual-shot screenshot-frame" data-lightbox-src="assets/screenshots/lists-players.png"><img src="assets/screenshots/lists-players.png" alt="Chess-Publisher Lists and Players interface" loading="lazy"><figcaption><strong>Lists & Players</strong><span>Import, search, editing and starting-list preparation.</span></figcaption></figure>
+          <h3>Import players</h3>
+          <p>The unified Players Import workflow supports organizer formats such as Chess-Results XLSX, registration CSV, Swiss-Manager XML, TRF16/TRF26/TRF(x), TUNx and BAK where supported by the current release.</p>
+          <h3>FIDE data</h3>
+          <p>Use the local FIDE rating database tools to search and complete identity, federation and rating information. Confirm that the selected rating list matches the intended rating type of the event.</p>
+          <h3>Manual entry</h3>
+          <p>Manual entry is useful for late registrations or players missing from an imported list. Enter names consistently and use the FIDE ID when one exists.</p>
+          <h3>Starting Rank List / Resort</h3>
+          <p>Before Round 1, review the final starting order. If players were added after an initial import, use the appropriate re-sort/resort action so the starting numbers reflect the configured ranking rules.</p>
+          <div class="manual-warning"><strong>After pairing starts:</strong> starting numbers and player identity keys are tournament history. Avoid changing identity information in a way that could break round history.</div>
+        </section>
+
+        <section class="manual-section" id="pairings">
+          <div class="manual-section-head"><span class="manual-section-number">06</span><div><h2>Pairings and result entry</h2><p>The Pairings tab is the main round-control workspace.</p></div></div>
+          <figure class="manual-shot screenshot-frame" data-lightbox-src="assets/screenshots/pairings.png"><img src="assets/screenshots/pairings.png" alt="Chess-Publisher Pairings and result entry interface" loading="lazy"><figcaption><strong>Pairings</strong><span>Generate, review and record the round from one workspace.</span></figcaption></figure>
+          <h3>Generate the next round</h3>
+          <ol class="manual-steps">
+            <li>Confirm that all required results from the previous round are entered.</li>
+            <li>Review unavailable players, withdrawals, byes and late-entry status.</li>
+            <li>Generate the next pairing from the Pairings tab or Pairings menu.</li>
+            <li>Review board order, colors and player status.</li>
+            <li>Use independent validation tools when required by your workflow.</li>
+            <li>Publish only after the arbiter has accepted the pairing.</li>
+          </ol>
+          <h3>Enter results</h3>
+          <p>Record results in the current editable round. A completed result immediately becomes part of the tournament history used by subsequent standings and pairing preparation.</p>
+          <h3>Public Hub behavior</h3>
+          <p>On the new Chess-Publisher public platform there is no separate Results tab. <b>Pairings includes the results</b>: the same board row shows the players, board number and result. The selected round can also display its matching date/time information from the published Tournament Schedule.</p>
+          <div class="manual-note"><strong>Pairing search:</strong> the public Pairings view includes search so visitors can quickly find a player, federation, board, rating, FIDE ID or visible result in the selected round.</div>
+        </section>
+
+        <section class="manual-section" id="standings">
+          <div class="manual-section-head"><span class="manual-section-number">07</span><div><h2>Standings and tie-breaks</h2><p>Review rankings after completed rounds and before final publication.</p></div></div>
+          <p>The Standings tab displays current/final ranking data, points and configured tie-break values. Tie-break order should match the tournament regulations.</p>
+          <h3>Independent tie-break validation</h3>
+          <p>The optional Gacrux/FIDE Tie-Break Checker is independent from pairing generation. Use it to validate completed-round ranking output without changing the tournament's pairing logic.</p>
+          <h3>Public standings</h3>
+          <p>When the tournament is published to the Hub, all tie-break columns contained in the published snapshot can be displayed to spectators. The Hub does not calculate tie-breaks itself; it displays the values produced by Chess-Publisher.</p>
+          <h3>Exports and prizes</h3>
+          <p>Use the available final-standings, TXT/PDF and FIDE rating exports as appropriate. Special-prize/category tools should be reviewed against the official tournament regulations before prizes are awarded.</p>
+        </section>
+
+        <section class="manual-section" id="schedule">
+          <div class="manual-section-head"><span class="manual-section-number">08</span><div><h2>Tournament Schedule</h2><p>Publish a clear timetable for players and spectators.</p></div></div>
+          <figure class="manual-shot screenshot-frame" data-lightbox-src="assets/screenshots/tournament-schedule.png"><img src="assets/screenshots/tournament-schedule.png" alt="Chess-Publisher Tournament Schedule" loading="lazy"><figcaption><strong>Tournament Schedule</strong><span>Round times and event-program information.</span></figcaption></figure>
+          <p>Enter dates, times and descriptions for registration, opening, rounds, prize ceremony and other event activities. Keep naming consistent, especially for entries such as <b>Round 1</b>, <b>Round 2</b> and so on.</p>
+          <div class="manual-tip"><strong>Online Hub:</strong> when a public visitor selects a round in Pairings, the Hub can match that round with the corresponding Round entry in the current Schedule and show the date/time information above the pairing table.</div>
+          <p>Update the schedule before publishing if round times change. A later Hub publish updates the public event snapshot.</p>
+        </section>
+
+        <section class="manual-section" id="regulations">
+          <div class="manual-section-head"><span class="manual-section-number">09</span><div><h2>Regulations</h2><p>Keep the public rules and organizer information attached to the event.</p></div></div>
+          <p>Tournament Setup can include structured regulations information such as entry fee, registration deadline, maximum players, FIDE information, prize fund, main prizes, special/category prizes and additional regulations.</p>
+          <h3>Regulations file</h3>
+          <p>Beta builds with Online Hub support can upload a regulations attachment from Tournament Setup / Additional Regulations or the Online Hub area. The supported Hub workflow accepts a file up to 20 MiB and preserves Unicode/Cyrillic filenames.</p>
+          <p>After a successful regulations-file upload, the current Hub workflow publishes the latest Regulations, Schedule and attachment metadata so the public page can expose the updated file without requiring a separate second publication step.</p>
+          <div class="manual-warning"><strong>Check the public page after upload.</strong> Confirm that the Regulations tab shows both the structured information and the expected attachment before you distribute the tournament link.</div>
+        </section>
+
+        <section class="manual-section" id="chessresults">
+          <div class="manual-section-head"><span class="manual-section-number">10</span><div><h2>Chess-Results publishing</h2><p>The existing Chess-Results workflow remains separate from the Chess-Publisher Online Hub.</p></div></div>
+          <figure class="manual-shot screenshot-frame" data-lightbox-src="assets/screenshots/chess-results.png"><img src="assets/screenshots/chess-results.png" alt="Chess-Publisher Chess-Results publishing interface" loading="lazy"><figcaption><strong>Chess-Results</strong><span>Create or update the external Chess-Results tournament through the dedicated integration.</span></figcaption></figure>
+          <h3>Create / publish</h3>
+          <p>Use the Chess-Results tab for the official Chess-Results integration. The Live Publish Log reports the current publication status and helps diagnose failures.</p>
+          <h3>TNR handling</h3>
+          <p>After the tournament is created, Chess-Publisher keeps the returned tournament reference so subsequent publishes update the same Chess-Results event.</p>
+          <h3>Useful actions</h3>
+          <ul><li>Open Tournament</li><li>Open Admin</li><li>Open Upload Section</li><li>Open calendar / tournament links where available</li></ul>
+          <div class="manual-note"><strong>Separate systems:</strong> a Chess-Results publish and a Chess-Publisher Hub publish are independent. A temporary Hub problem must not prevent normal local tournament work or the established Chess-Results publication workflow.</div>
+        </section>
+
+        <section class="manual-section" id="hub-access">
+          <div class="manual-section-head"><span class="manual-section-number">11</span><div><h2>Online Tournament Hub and Organizer Token</h2><p>How organizer access works during the controlled beta.</p></div></div>
+          <p>Public visitors do <b>not</b> need a token to browse published tournaments. A token is required only for organizers who want to publish and manage their own tournaments through the beta Hub.</p>
+          <h3>Request an Organizer Token</h3>
+          <ol class="manual-steps">
+            <li>Contact <b>Kyamran Bilyal</b> at <a href="mailto:kyamranbilyal@gmail.com?subject=Chess-Publisher%20Organizer%20Token%20Request">kyamranbilyal@gmail.com</a>.</li>
+            <li>Include your first name and last name.</li>
+            <li>Optionally include your FIDE ID and club/organization.</li>
+            <li>You will receive an individual Organizer Token for your own Chess-Publisher installation.</li>
+          </ol>
+          <div class="manual-note"><strong>Why controlled access?</strong> Organizer Tokens are issued individually during the beta so publishing rights can be managed and abusive or unauthorized publishing can be disabled without affecting normal public viewing.</div>
+          <h3>Activate the token in Chess-Publisher</h3>
+          <ol class="manual-steps">
+            <li>Open the <b>Online Hub</b> area in a beta build that supports the Hub.</li>
+            <li>Find <b>Organizer Account</b>.</li>
+            <li>Paste the Organizer Token into the <b>Organizer Token</b> field.</li>
+            <li>Press <b>Verify &amp; Save Securely</b>.</li>
+            <li>After successful verification, the application stores the credential securely for the current Windows user.</li>
+          </ol>
+          <div class="manual-warning"><strong>Keep it private:</strong> the Organizer Token identifies your publishing account. Do not publish it in screenshots, tournament regulations, websites or public chat. If you believe it has been exposed, contact the project owner so it can be revoked and replaced.</div>
+          <h3>What not to enter</h3>
+          <p>Do not enter a tournament-management credential in the Organizer Token field. Per-tournament management credentials are handled by Chess-Publisher as part of the tournament publication workflow.</p>
+        </section>
+
+        <section class="manual-section" id="hub-publish">
+          <div class="manual-section-head"><span class="manual-section-number">12</span><div><h2>Publish a tournament to the Online Hub</h2><p>Use the desktop application as the authoritative source; the Hub displays its published snapshot.</p></div></div>
+          <h3>Before first publication</h3>
+          <ul class="manual-checklist"><li>Verify Tournament Setup</li><li>Verify player list and starting order</li><li>Complete current Schedule</li><li>Review Regulations</li><li>Enter completed results</li><li>Review current Standings</li></ul>
+          <h3>First publish</h3>
+          <ol class="manual-steps">
+            <li>Open the tournament you want to publish.</li>
+            <li>Open the <b>Online Hub</b> tab.</li>
+            <li>Confirm your Organizer Token is verified.</li>
+            <li>Press <b>Publish</b>.</li>
+            <li>Wait for the Hub log to confirm the public revision was published.</li>
+            <li>Use the public tournament link to verify the result in a browser.</li>
+          </ol>
+          <p>The first successful publication creates the online tournament identity for that local event. Later publishes update the same Hub tournament rather than creating a new public event each time.</p>
+          <h3>Publish after each important change</h3>
+          <p>Publish again after a new pairing, result batch, standings update, schedule change or regulations update that spectators should see online.</p>
+          <div class="manual-tip"><strong>Current beta safeguard:</strong> the Hub integration synchronizes the current Tournament Setup fields before building the publication snapshot so recently edited Schedule and Regulations data are included in the publish.</div>
+          <h3>Hub log</h3>
+          <p>Use the Hub log as the first diagnostic source. A successful publication should show a new Hub revision. If an upload or publish fails, do not change pairing or tie-break logic to fix an online transport problem.</p>
+          <div class="manual-note"><strong>Local-first operation:</strong> Chess-Publisher continues to operate locally if the Hub is unavailable. The Hub consumes the tournament state and does not calculate your pairings or tie-breaks.</div>
+        </section>
+
+        <section class="manual-section" id="hub-public">
+          <div class="manual-section-head"><span class="manual-section-number">13</span><div><h2>How to use the public Chess-Publisher platform</h2><p>A guide for organizers, players, parents and spectators.</p></div></div>
+          <h3>Tournament directory</h3>
+          <p>Open <a href="/tournaments">chess-publisher.org/tournaments</a> to browse events published through the Hub. The directory can be searched by tournament, city or federation and filtered by status where available.</p>
+          <h3>Public tournament page</h3>
+          <table class="manual-table"><thead><tr><th>Tab</th><th>What visitors see</th></tr></thead><tbody>
+            <tr><td>Overview</td><td>Event summary, current round, player count, format, time control and other published event information.</td></tr>
+            <tr><td>Starting List</td><td>Published starting order and player information.</td></tr>
+            <tr><td>Pairings</td><td>Round selector, board pairings and results in the same view. For a scheduled round, its matching Schedule information appears above the pairing list. Search helps locate a player or board quickly.</td></tr>
+            <tr><td>Standings</td><td>Current/final ranking with published points and tie-break columns.</td></tr>
+            <tr><td>Schedule</td><td>The event program and round times published by the organizer.</td></tr>
+            <tr><td>Regulations</td><td>Structured regulations and, when uploaded, the tournament regulations attachment.</td></tr>
+          </tbody></table>
+          <h3>Mobile use</h3>
+          <p>The public Hub is designed for phones as well as desktop browsers. Pairings and standings adapt to smaller screens so players can check a board or result in the tournament hall without needing the desktop application.</p>
+          <h3>What the public platform does not do</h3>
+          <p>The website does not independently generate pairings, change results or calculate tie-breaks. It presents the latest tournament snapshot published by the organizer's Chess-Publisher application.</p>
+          <div class="manual-tip"><strong>Share one link:</strong> after verifying the public page, distribute the tournament URL to players. They can follow later rounds from the same event page as the organizer publishes new revisions.</div>
+        </section>
+
+        <section class="manual-section" id="dgt">
+          <div class="manual-section-head"><span class="manual-section-number">14</span><div><h2>DGT Boards</h2><p>Hardware discovery, mapping and diagnostics for DGT e-Boards.</p></div></div>
+          <figure class="manual-shot screenshot-frame" data-lightbox-src="assets/screenshots/dgt-boards.png"><img src="assets/screenshots/dgt-boards.png" alt="Chess-Publisher DGT Boards diagnostics interface" loading="lazy"><figcaption><strong>DGT Boards</strong><span>Direct serial/USB diagnostics and board mapping foundation.</span></figcaption></figure>
+          <ol class="manual-steps">
+            <li>Connect and power the DGT hardware.</li>
+            <li>Open the DGT Boards tab.</li>
+            <li>Enter the expected number of boards if useful.</li>
+            <li>Press <b>Connect / Detect</b> and review detected Windows/DGT devices.</li>
+            <li>Use the diagnostic information to verify board mapping and connectivity.</li>
+          </ol>
+          <div class="manual-note"><strong>Current scope:</strong> the DGT section is a diagnostics/mapping foundation. Do not treat it as an independent source of official tournament results unless a future release explicitly documents that workflow.</div>
+        </section>
+
+        <section class="manual-section" id="export">
+          <div class="manual-section-head"><span class="manual-section-number">15</span><div><h2>Other / Export and interoperability</h2><p>Use exports for reporting, publishing and exchange with other tournament tools.</p></div></div>
+          <h3>Telegram</h3><p>Where configured, publish selected tournament information such as players, pairings, program, regulations and standings to the chosen Telegram channel.</p>
+          <h3>TXT / PDF</h3><p>Generate organizer-friendly print and PDF outputs for event information, starting lists, schedules, regulations and standings where available.</p>
+          <h3>TRF / Swiss-Manager interoperability</h3><p>Use the appropriate TRF and supported exchange actions for the specific workflow. A Starting List export before Round 1 is not the same as a full tournament-history export after rounds have been played.</p>
+          <h3>System Log</h3><p>Use the System Log when diagnosing a reproducible application problem. It is more useful than a generic screenshot when reporting a technical issue.</p>
+        </section>
+
+        <section class="manual-section" id="backup">
+          <div class="manual-section-head"><span class="manual-section-number">16</span><div><h2>Save, backup and recovery</h2><p>Protect the event with several independent recovery layers.</p></div></div>
+          <h3>Autosave</h3><p>Keep Autosave enabled during normal tournament operation and use manual Save before critical transitions such as generating or publishing a new round.</p>
+          <h3>Per-tournament storage</h3><p>Each event is stored in the application's tournament-storage area under Windows Documents, separate from the installed program files.</p>
+          <h3>TRF backup</h3><p>Where available, automatic/latest TRF backups provide an additional interoperable recovery path.</p>
+          <h3>Complete Backup / Restore</h3><p>Use the dedicated Backup / Restore tools to create a complete Chess-Publisher backup before major tournament changes or software testing.</p>
+          <div class="manual-warning"><strong>Do not rely on only one copy.</strong> For important tournaments keep at least one additional copy on another drive or trusted storage location.</div>
+        </section>
+
+        <section class="manual-section" id="tournament-day">
+          <div class="manual-section-head"><span class="manual-section-number">17</span><div><h2>Recommended tournament-day workflow</h2><p>A practical end-to-end checklist for a Swiss event.</p></div></div>
+          <ol class="manual-steps">
+            <li><b>Open the correct tournament</b> and verify the application version.</li>
+            <li><b>Review Tournament Setup</b>: dates, rounds, time control, format, rating type and event identifiers.</li>
+            <li><b>Prepare the player list</b>: imports, FIDE data, attendance, late entries and final starting order.</li>
+            <li><b>Complete Schedule and Regulations</b> before distributing public links.</li>
+            <li><b>Generate Round 1</b>, review and validate it before publication.</li>
+            <li><b>Publish</b> through the channels you actually use: local print/PDF, Telegram, Chess-Results and/or Online Hub.</li>
+            <li><b>Enter results</b> as games finish and verify the round before generating the next pairing.</li>
+            <li><b>Review standings and tie-breaks</b> after each completed round.</li>
+            <li><b>Generate the next round</b> only after the previous round state is correct.</li>
+            <li><b>Publish the Hub revision</b> after each new pairing/result/standings update that should be public.</li>
+            <li><b>Back up</b> the event at suitable checkpoints.</li>
+            <li><b>Before prizes</b>, verify final results, standings, tie-break order and special-prize categories.</li>
+          </ol>
+        </section>
+
+        <section class="manual-section" id="troubleshooting">
+          <div class="manual-section-head"><span class="manual-section-number">18</span><div><h2>Troubleshooting</h2><p>Start with the narrowest safe check and keep local tournament logic separate from online transport problems.</p></div></div>
+          <table class="manual-table"><thead><tr><th>Problem</th><th>First checks</th></tr></thead><tbody>
+            <tr><td>Cannot find a tournament</td><td>Use Files → Recent Tournaments or Open Tournament. Confirm the tournament folder still exists under the Chess-Publisher tournament-storage area in Windows Documents.</td></tr>
+            <tr><td>Pairing will not generate</td><td>Check round state, missing results, player availability, byes/withdrawals and the visible pairing log. Do not change the pairing engine merely to fix an unrelated UI or online issue.</td></tr>
+            <tr><td>Chess-Results publish fails</td><td>Read the Chess-Results Live Publish Log, verify event data and internet connectivity, then retry only after identifying the cause.</td></tr>
+            <tr><td>Organizer Token rejected</td><td>Confirm you entered the personal Organizer Token exactly, without extra spaces or quotes. If it has been revoked or exposed, contact the project owner for replacement.</td></tr>
+            <tr><td>Hub publish fails</td><td>Read the Hub log first. Verify Organizer Token status, internet connection and that the selected tournament is the intended one. Local tournament operation can continue while the Hub issue is investigated.</td></tr>
+            <tr><td>Regulations not public</td><td>Confirm the upload succeeded, a new Hub revision was published and the public Regulations tab is showing the latest revision. Check the attachment after publication.</td></tr>
+            <tr><td>Public pairing is old</td><td>Confirm the latest round was published to the Hub and refresh the public page. The website only shows the most recently published snapshot.</td></tr>
+            <tr><td>DGT board not detected</td><td>Check Windows device visibility, drivers, cabling and power, then run Connect / Detect again.</td></tr>
+          </tbody></table>
+          <h3>When reporting a bug</h3>
+          <p>Include the exact Chess-Publisher version, tournament format, round number, precise steps to reproduce, visible error/status text and the relevant log excerpt. If the issue concerns the public Hub, include the public tournament link but never include your Organizer Token.</p>
+        </section>
+
+        <section class="manual-section" id="contact-support">
+          <div class="manual-section-head"><span class="manual-section-number">19</span><div><h2>Contact, support and Organizer Token requests</h2><p>Direct project contact for organizers, arbiters, access requests and technical feedback.</p></div></div>
+          <div class="manual-contact-card">
+            <div>
+              <h3>Kyamran Bilyal</h3>
+              <p class="manual-contact-role">Arbiter and Organizer</p>
+              <p><a href="mailto:kyamranbilyal@gmail.com">kyamranbilyal@gmail.com</a></p>
+              <p><a href="https://t.me/chesspublisher" target="_blank" rel="noopener">Telegram @chesspublisher ↗</a></p>
+              <p><a href="https://github.com/kbilyal/ChessPublisher/issues" target="_blank" rel="noopener">Report a reproducible bug on GitHub Issues ↗</a></p>
+            </div>
+          </div>
+          <h3>Requesting an Organizer Token</h3>
+          <p>Email <a href="mailto:kyamranbilyal@gmail.com?subject=Chess-Publisher%20Organizer%20Token%20Request">kyamranbilyal@gmail.com</a> with the subject <b>Chess-Publisher Organizer Token Request</b>. Include your first name, last name and, when available, FIDE ID and club/organization.</p>
+          <div class="manual-note"><strong>Organizer access is personal.</strong> Each organizer should use their own issued token. Do not reuse another organizer's credential and do not share your token with participants.</div>
+          <p>For technical support, include the application version, tournament format, round number, exact steps to reproduce and the relevant status/error message. For project updates and release announcements, follow the official Chess-Publisher Telegram channel.</p>
+          <p>To make a voluntary contribution to the open-source project, see the <a href="support.html">Support Chess-Publisher</a> page.</p>
+        </section>
+
+        <p class="manual-footer-note">Chess-Publisher User Manual · Manual edition 2.0 · Online Tournament Hub beta guide included</p>
+      </article>
+    </div>
+  <section class="manual-section"><h2>Federation tournament directory</h2><p>The Online Tournament Hub groups public tournaments by federation. Use the federation index or selector on the Tournaments page to open a federation-specific list, for example Bulgaria (BUL). Federation views can be bookmarked and shared through the <code>?fed=XXX</code> URL parameter.</p></section></main>
+
+  <footer class="site-footer">
+    <div class="shell footer-grid">
+      <div class="footer-about"><a class="brand footer-brand" href="index.html"><img src="assets/chess-publisher-icon.png" alt="" width="34" height="34"><span>Chess-Publisher</span></a><p>Open-source chess tournament management software for Windows.</p></div>
+      <div><strong>Product</strong><a href="index.html#features">Features</a><a href="/tournaments">Tournaments</a><a href="index.html#screenshots">Screenshots</a><a href="user-manual.html">User Manual</a><a href="index.html#download">Download</a><a href="support.html">Support</a></div>
+      <div><strong>Project</strong><a href="https://github.com/kbilyal/ChessPublisher" target="_blank" rel="noopener">GitHub</a><a href="https://github.com/kbilyal/ChessPublisher/issues" target="_blank" rel="noopener">Issues</a><a href="support.html">Support the project</a><a href="https://github.com/kbilyal/ChessPublisher/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></div>
+      <div><strong>Documentation</strong><a href="user-manual.html">User Manual</a><a href="https://github.com/kbilyal/ChessPublisher#readme" target="_blank" rel="noopener">README</a><a href="https://github.com/kbilyal/ChessPublisher/blob/main/SECURITY.md" target="_blank" rel="noopener">Security</a><a href="https://github.com/kbilyal/ChessPublisher/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy</a></div>
+      <div><strong>Contact</strong><span class="footer-contact-name">Kyamran Bilyal</span><span class="footer-contact-role">Arbiter and Organizer</span><a href="mailto:kyamranbilyal@gmail.com">kyamranbilyal@gmail.com</a><a href="https://t.me/chesspublisher" target="_blank" rel="noopener">Telegram @chesspublisher ↗</a><a href="contact.html">Contact page</a></div>
+    </div>
+    <div class="shell footer-bottom"><span>© <span id="year"></span> Chess-Publisher</span><span>chess-publisher.org</span></div>
+  </footer>
+
+  <div class="lightbox" id="lightbox" hidden aria-hidden="true">
+    <button class="lightbox-close" type="button" aria-label="Close screenshot">×</button>
+    <img alt="Expanded Chess-Publisher screenshot">
+  </div>
+</body>
+</html>

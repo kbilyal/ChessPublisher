@@ -1,0 +1,26 @@
+{
+  "product": "Chess-Publisher",
+  "version": "1.06.00",
+  "date": "2026-11-18",
+  "channel": "stable",
+  "baseline": "r15 current working source",
+  "release_url": "https://github.com/kbilyal/ChessPublisher/releases/tag/v1.06.00",
+  "installer": {
+    "name": "Chess-Publisher-v1.06.00-2026-11-18.exe",
+    "size": 19292494,
+    "sha256": "d8bea8cfba8076f90c990365b29d601e1ecf0b2d6c7dad791e8c804febf7dbb1",
+    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.06.00/Chess-Publisher-v1.06.00-2026-11-18.exe"
+  },
+  "portable": {
+    "name": "Chess-Publisher-v1.06.00-2026-11-18.zip",
+    "size": 23860548,
+    "sha256": "07f4416b85c0d4c6a94cd3364a21bd4d3fe8d07ec31e1c74192bdb4e2ecf7ea7",
+    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.06.00/Chess-Publisher-v1.06.00-2026-11-18.zip"
+  },
+  "checksums": {
+    "name": "Chess-Publisher-v1.06.00-2026-11-18-SHA256.txt",
+    "size": 214,
+    "sha256": "0907a7c94d78fb9df238c9cd24121fc647b8ad0a2608a81b1a5a34a7506a6e7d",
+    "url": "https://github.com/kbilyal/ChessPublisher/releases/download/v1.06.00/Chess-Publisher-v1.06.00-2026-11-18-SHA256.txt"
+  }
+}

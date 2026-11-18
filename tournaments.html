@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#091526">
+  <meta name="description" content="Browse public chess tournaments published through Chess-Publisher: event information, starting lists, pairings with results, standings, schedules and regulations in a mobile-friendly format.">
+  <meta property="og:title" content="Tournaments — Chess-Publisher">
+  <meta property="og:description" content="Public tournament pages from Chess-Publisher, optimized for desktop and mobile.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://chess-publisher.org/tournaments">
+  <title>Tournaments — Chess-Publisher</title>
+  <link rel="icon" href="assets/chess-publisher-icon.png">
+  <link rel="stylesheet" href="styles.css?v=20260901-29">
+  <link rel="stylesheet" href="tournaments.css?v=20260902-36">
+  <script defer src="app.js?v=20260831-21"></script>
+  <script defer src="hub-config.js?v=20260831-23"></script>
+  <script defer src="rating-analysis.js?v=20260901-29"></script>
+  <script defer src="tournaments.js?v=20261116-calendar-v3"></script>
+  <script src="/hub-fide-event-id.js"></script>
+  <script src="/hub-useful-links.js"></script>
+</head>
+<body data-site-build="2026-09-02-v36-detail-polish-test">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="nav-shell">
+      <a class="brand" href="index.html" aria-label="Chess-Publisher home">
+        <img src="assets/chess-publisher-icon.png" alt="" width="38" height="38">
+        <span>Chess-Publisher</span>
+      </a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open navigation"><span></span><span></span><span></span></button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+        <a href="index.html#features">Features</a>
+        <a class="tournaments-nav-active" aria-current="page" href="/tournaments">Tournaments <sup class="nav-beta-index">BETA</sup></a>
+        <a href="index.html#screenshots">Screenshots</a>
+        <a href="user-manual.html">User Manual</a>
+        <a href="index.html#download">Download</a>
+        <a href="index.html#release-notes">Release Notes</a>
+        <a class="nav-support" href="support.html">Support</a>
+        <a href="contact.html">Contact</a>
+        <a class="nav-github" href="https://github.com/kbilyal/ChessPublisher/releases" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="section tournaments-directory-section" id="tournament-directory">
+      <div class="shell">
+        <div id="directoryView">
+          <div class="directory-heading directory-heading-compact">
+            <div class="directory-tools">
+              <label class="tournament-search"><span aria-hidden="true">⌕</span><input id="tournamentSearch" type="search" placeholder="Search tournament, city or federation" autocomplete="off"></label>
+              <label class="federation-select-wrap"><span>Federation</span><select id="federationSelect" aria-label="Select federation"><option value="">All federations</option></select></label>
+              <div class="filter-pills" role="group" aria-label="Tournament status filter">
+                <button class="filter-pill active" type="button" data-filter="all">All</button>
+                <button class="filter-pill" type="button" data-filter="live">Live</button>
+                <button class="filter-pill" type="button" data-filter="upcoming">Upcoming</button>
+                <button class="filter-pill" type="button" data-filter="completed">Completed</button>
+              </div>
+            </div>
+          </div>
+          <div class="directory-summary" id="directorySummary" aria-live="polite"></div>
+          <div id="tournamentList" class="tournament-list" aria-live="polite"></div>
+        </div>
+
+        <div id="tournamentDetail" class="tournament-detail" hidden aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="hub-toast" id="hubToast" role="status" aria-live="polite" hidden></div>
+
+  <footer class="site-footer tournaments-footer">
+    <div class="shell footer-grid">
+      <div class="footer-about"><a class="brand footer-brand" href="index.html"><img src="assets/chess-publisher-icon.png" alt="" width="34" height="34"><span>Chess-Publisher</span></a><p>Open-source chess tournament management software for Windows.</p></div>
+      <div><strong>Product</strong><a href="index.html#features">Features</a><a href="/tournaments">Tournaments</a><a href="user-manual.html">User Manual</a><a href="index.html#download">Download</a></div>
+      <div><strong>Project</strong><a href="https://github.com/kbilyal/ChessPublisher" target="_blank" rel="noopener">GitHub</a><a href="https://github.com/kbilyal/ChessPublisher/issues" target="_blank" rel="noopener">Issues</a><a href="support.html">Support the project</a></div>
+      <div><strong>Contact</strong><span class="footer-contact-name">Kyamran Bilyal</span><span class="footer-contact-role">Arbiter and Organizer</span><a href="mailto:kyamranbilyal@gmail.com">kyamranbilyal@gmail.com</a><a href="https://t.me/chesspublisher" target="_blank" rel="noopener">Telegram @chesspublisher ↗</a></div>
+    </div>
+    <div class="shell footer-bottom"><span>© <span id="year"></span> Chess-Publisher</span><span>chess-publisher.org</span></div>
+  </footer>
+</body>
+</html>

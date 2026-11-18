@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#091526">
+  <meta name="description" content="Coming in October 2026: Chess-Publisher brings desktop, web and mobile tournament management together with secure Arbiter / Organizer access, mobile registration and synchronized workflows.">
+  <meta property="og:title" content="Coming in October — Chess-Publisher Goes Fully Connected">
+  <meta property="og:description" content="Desktop, web and mobile tournament management are coming together in the next major Chess-Publisher update.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://chess-publisher.org/news-october-2026.html">
+  <meta property="og:image" content="https://chess-publisher.org/assets/chess-publisher-icon.png">
+  <title>Coming in October — Chess-Publisher Goes Fully Connected</title>
+  <link rel="icon" href="assets/chess-publisher-icon.png">
+  <link rel="stylesheet" href="styles.css?v=20260904-news">
+  <script defer src="app.js?v=20260904-news"></script>
+  <style>
+    :root {
+      --news-ink: #0a1730;
+      --news-muted: #5f6f86;
+      --news-line: #dfe7f1;
+      --news-blue: #0b63ce;
+      --news-blue-2: #2b88ed;
+      --news-soft: #f5f8fc;
+      --news-dark: #071426;
+      --news-card: #ffffff;
+      --news-shadow: 0 18px 55px rgba(7, 20, 38, .09);
+    }
+
+    .news-page { background: #fff; color: var(--news-ink); }
+    .news-shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+    .news-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 88px 0 78px;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(56,145,255,.19), transparent 30%),
+        radial-gradient(circle at 10% 82%, rgba(33,104,207,.12), transparent 26%),
+        linear-gradient(135deg, #061224 0%, #0a1b35 48%, #0b2449 100%);
+      color: #fff;
+    }
+    .news-hero:after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: .22;
+      background-image:
+        linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 90%);
+    }
+    .news-hero-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.14fr) minmax(320px, .86fr);
+      gap: 56px;
+      align-items: center;
+    }
+    .news-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 18px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      font-weight: 800;
+      font-size: .78rem;
+      color: #8fc6ff;
+    }
+    .news-eyebrow-dot {
+      width: 8px; height: 8px; border-radius: 999px; background: #4ba0ff;
+      box-shadow: 0 0 0 5px rgba(75,160,255,.13);
+    }
+    .news-hero h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(2.6rem, 5vw, 5.45rem);
+      line-height: .98;
+      letter-spacing: -.05em;
+      font-weight: 830;
+    }
+    .news-hero h1 span { color: #7dbaff; }
+    .news-hero-lead {
+      max-width: 720px;
+      margin: 26px 0 0;
+      font-size: clamp(1.08rem, 1.65vw, 1.35rem);
+      line-height: 1.65;
+      color: #cbd8e8;
+    }
+    .news-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+    .news-button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      min-height: 48px; padding: 0 20px; border-radius: 12px;
+      text-decoration: none; font-weight: 800; transition: .2s ease;
+    }
+    .news-button-primary { color:#fff; background: linear-gradient(135deg, var(--news-blue), var(--news-blue-2)); box-shadow: 0 10px 30px rgba(18,104,216,.3); }
+    .news-button-secondary { color:#e9f3ff; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.055); }
+    .news-button:hover { transform: translateY(-1px); }
+
+    .news-preview {
+      border: 1px solid rgba(255,255,255,.13);
+      background: rgba(255,255,255,.075);
+      backdrop-filter: blur(12px);
+      border-radius: 22px;
+      box-shadow: 0 24px 70px rgba(0,0,0,.24);
+      overflow: hidden;
+    }
+    .news-preview-top {
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .news-preview-brand { display:flex; align-items:center; gap:12px; font-weight:800; }
+    .news-preview-brand img { width:36px; height:36px; border-radius:9px; }
+    .news-badge {
+      display:inline-flex; align-items:center; gap:7px; border-radius:999px;
+      padding:7px 10px; font-size:.74rem; font-weight:800; color:#b9dbff;
+      background:rgba(58,141,239,.13); border:1px solid rgba(88,166,255,.2);
+    }
+    .news-preview-body { padding: 22px; }
+    .news-preview-body h3 { margin:0 0 14px; font-size:1.2rem; }
+    .news-mini-list { display:grid; gap:11px; }
+    .news-mini-item {
+      display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center;
+      padding:13px 14px; background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.08);
+      border-radius:13px;
+    }
+    .news-mini-item strong { display:block; font-size:.94rem; }
+    .news-mini-item span { display:block; margin-top:3px; color:#9db0c7; font-size:.78rem; }
+    .news-mini-status { color:#9dd3ff!important; font-weight:800; }
+    .news-device-row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px; }
+    .news-device-card {
+      padding:14px; border-radius:14px; border:1px solid rgba(255,255,255,.08);
+      background:linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.035));
+    }
+    .news-device-card b { display:block; margin-bottom:5px; }
+    .news-device-card span { color:#9db0c7; font-size:.8rem; line-height:1.45; }
+
+    .news-intro { padding: 82px 0 30px; }
+    .news-intro-grid { display:grid; grid-template-columns: .74fr 1.26fr; gap:70px; align-items:start; }
+    .news-kicker { margin: 0 0 12px; color: var(--news-blue); font-weight:800; text-transform:uppercase; letter-spacing:.12em; font-size:.77rem; }
+    .news-intro h2, .news-section h2 {
+      margin: 0; font-size: clamp(2rem, 3.5vw, 3.35rem); line-height:1.04; letter-spacing:-.035em;
+    }
+    .news-intro-copy p {
+      margin: 0 0 20px; font-size: 1.08rem; line-height:1.78; color: var(--news-muted);
+    }
+
+    .news-features { padding: 44px 0 78px; }
+    .news-feature-grid {
+      display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:18px;
+    }
+    .news-card {
+      border:1px solid var(--news-line); border-radius:18px; background:var(--news-card);
+      padding:24px; box-shadow:0 8px 28px rgba(7,20,38,.045);
+    }
+    .news-card-icon {
+      width:44px; height:44px; border-radius:12px; display:grid; place-items:center;
+      margin-bottom:18px; font-size:1.2rem; color:#fff;
+      background:linear-gradient(135deg,var(--news-blue),var(--news-blue-2));
+      box-shadow:0 8px 20px rgba(21,105,210,.22);
+    }
+    .news-card h3 { margin:0 0 9px; font-size:1.14rem; }
+    .news-card p { margin:0; color:var(--news-muted); line-height:1.63; }
+
+    .news-section { padding: 78px 0; }
+    .news-section.soft { background:var(--news-soft); border-block:1px solid #edf2f7; }
+    .news-section-grid { display:grid; grid-template-columns: 1fr 1fr; gap:58px; align-items:center; }
+    .news-copy p { color:var(--news-muted); line-height:1.78; font-size:1.04rem; }
+    .news-callout {
+      border:1px solid var(--news-line); border-radius:22px; background:#fff; padding:28px;
+      box-shadow:var(--news-shadow);
+    }
+    .news-callout small { display:block; margin-bottom:10px; text-transform:uppercase; letter-spacing:.12em; font-weight:800; color:var(--news-blue); }
+    .news-callout strong { display:block; font-size:1.55rem; line-height:1.25; }
+    .news-callout p { margin-bottom:0; }
+    .news-flow {
+      margin-top:22px; display:flex; flex-wrap:wrap; gap:9px; align-items:center;
+    }
+    .news-flow span {
+      border:1px solid var(--news-line); background:#fff; border-radius:999px; padding:9px 12px; font-weight:800; font-size:.86rem;
+    }
+    .news-flow i { color:#7a8ca3; font-style:normal; }
+
+    .news-scenarios { display:grid; gap:12px; margin-top:26px; }
+    .news-scenario { display:flex; gap:12px; align-items:flex-start; padding:14px 0; border-bottom:1px solid #e7edf4; }
+    .news-scenario:last-child { border-bottom:0; }
+    .news-scenario b {
+      flex:0 0 28px; width:28px; height:28px; border-radius:999px; display:grid; place-items:center;
+      color:#fff; background:var(--news-blue); font-size:.82rem;
+    }
+    .news-scenario span { color:var(--news-muted); line-height:1.55; }
+
+    .news-final { padding: 78px 0 94px; }
+    .news-final-panel {
+      overflow:hidden; border-radius:26px; padding:44px;
+      color:#fff; background:linear-gradient(135deg,#071426 0%,#0c2a54 100%);
+      box-shadow:0 24px 60px rgba(7,20,38,.16);
+    }
+    .news-final-grid { display:grid; grid-template-columns:1fr auto; gap:32px; align-items:center; }
+    .news-final h2 { margin:0 0 12px; font-size:clamp(2rem,3.7vw,3.3rem); letter-spacing:-.04em; }
+    .news-final p { margin:0; max-width:760px; color:#c6d5e7; font-size:1.08rem; line-height:1.65; }
+    .news-points { display:flex; flex-wrap:wrap; gap:9px; margin-top:22px; }
+    .news-points span { border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.055); border-radius:999px; padding:8px 11px; color:#dce9f7; font-size:.88rem; }
+
+    @media (max-width: 900px) {
+      .news-hero { padding: 68px 0 58px; }
+      .news-hero-grid, .news-intro-grid, .news-section-grid, .news-final-grid { grid-template-columns: 1fr; }
+      .news-hero-grid { gap:34px; }
+      .news-intro-grid { gap:28px; }
+      .news-feature-grid { grid-template-columns: 1fr 1fr; }
+      .news-final-grid { gap:22px; }
+    }
+    @media (max-width: 620px) {
+      .news-shell { width:min(100% - 28px, 1180px); }
+      .news-feature-grid, .news-device-row { grid-template-columns:1fr; }
+      .news-hero h1 { font-size: clamp(2.55rem, 13vw, 4rem); }
+      .news-hero-lead { font-size:1rem; }
+      .news-section, .news-intro { padding-top:58px; }
+      .news-features { padding-bottom:58px; }
+      .news-final-panel { padding:28px 22px; border-radius:20px; }
+      .news-preview-body { padding:16px; }
+    }
+  </style>
+</head>
+<body class="news-page" data-site-build="2026-09-04-news-october">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="nav-shell">
+      <a class="brand" href="index.html" aria-label="Chess-Publisher home">
+        <img src="assets/chess-publisher-icon.png" alt="" width="38" height="38">
+        <span>Chess-Publisher</span>
+      </a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open navigation"><span></span><span></span><span></span></button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+        <a href="https://web.chess-publisher.org">WEB Companion</a>
+        <a href="index.html#features">Features</a>
+        <a href="tournaments.html">Tournaments</a>
+        <a href="user-manual.html">User Manual</a>
+        <a href="index.html#download">Download</a>
+        <a href="support.html">Support</a>
+        <a href="contact.html">Contact</a>
+        <a href="news-october-2026.html" aria-current="page">News</a>
+        <a class="nav-github" href="https://github.com/kbilyal/ChessPublisher" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="news-hero">
+      <div class="news-shell news-hero-grid">
+        <div>
+          <div class="news-eyebrow"><span class="news-eyebrow-dot"></span> Coming in October · October 2026 Update</div>
+          <h1>Chess-Publisher<br><span>Goes Fully Connected.</span></h1>
+          <p class="news-hero-lead">A major Chess-Publisher update is planned for October 2026, introducing the next stage of connected tournament management across desktop, web and mobile. The October release is being built around full web integration, mobile-friendly player registration, secure access with a personal Arbiter / Organizer token, synchronized tournament workflows and controlled Pull Changes.</p>
+          <div class="news-hero-actions">
+            <a class="news-button news-button-primary" href="#whats-coming">Explore what’s coming <span aria-hidden="true">→</span></a>
+            <a class="news-button news-button-secondary" href="index.html#download">Current release</a>
+          </div>
+        </div>
+
+        <aside class="news-preview" aria-label="Upcoming connected tournament workspace preview">
+          <div class="news-preview-top">
+            <div class="news-preview-brand">
+              <img src="assets/chess-publisher-icon.png" alt="">
+              <span>WEB Companion</span>
+            </div>
+            <span class="news-badge">Planned October update</span>
+          </div>
+          <div class="news-preview-body">
+            <h3>My Tournaments</h3>
+            <div class="news-mini-list">
+              <div class="news-mini-item"><div><strong>Autumn Open 2026</strong><span>7 rounds · Online workspace</span></div><span class="news-mini-status">SYNCED</span></div>
+              <div class="news-mini-item"><div><strong>City Championship 2026</strong><span>Registration in progress</span></div><span class="news-mini-status">LIVE</span></div>
+              <div class="news-mini-item"><div><strong>Youth Grand Prix 2026</strong><span>Mobile registration ready</span></div><span class="news-mini-status">READY</span></div>
+            </div>
+            <div class="news-device-row">
+              <div class="news-device-card"><b>Mobile</b><span>Register players and handle essential tournament information on the go.</span></div>
+              <div class="news-device-card"><b>Desktop + Web</b><span>Move between local tournament work and the synchronized web workspace.</span></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="news-intro" id="whats-coming">
+      <div class="news-shell news-intro-grid">
+        <div>
+          <p class="news-kicker">The next stage</p>
+          <h2>Your tournament.<br>Your device.<br>Your workflow — anywhere.</h2>
+        </div>
+        <div class="news-intro-copy">
+          <p>The goal is simple: make tournament management faster, more flexible and available wherever an Arbiter or Organizer needs it — from the tournament hall, the registration desk, a laptop at home, or directly from a mobile phone.</p>
+          <p>Chess-Publisher is evolving from a desktop tournament application into a connected tournament management ecosystem, while keeping the familiar local workflow available.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="news-features">
+      <div class="news-shell news-feature-grid">
+        <article class="news-card">
+          <div class="news-card-icon">↔</div>
+          <h3>Full Web Integration</h3>
+          <p>Continue working with supported tournament data through the Chess-Publisher web platform while keeping the desktop environment part of the same workflow.</p>
+        </article>
+        <article class="news-card">
+          <div class="news-card-icon">☰</div>
+          <h3>Register on the Go</h3>
+          <p>A mobile-friendly environment is being designed for fast player registration, starting-list review and essential tournament management from a phone or tablet.</p>
+        </article>
+        <article class="news-card">
+          <div class="news-card-icon">✓</div>
+          <h3>Personal Arbiter / Organizer Token</h3>
+          <p>Secure personal access will connect authorized Arbiters and Organizers with their tournament workspace across supported devices.</p>
+        </article>
+        <article class="news-card">
+          <div class="news-card-icon">⟳</div>
+          <h3>Pull Changes</h3>
+          <p>A controlled synchronization workflow is planned so the latest tournament changes can be reviewed and brought back into the active workspace safely.</p>
+        </article>
+        <article class="news-card">
+          <div class="news-card-icon">☁</div>
+          <h3>Online Publishing</h3>
+          <p>Publish and update tournament information online without repeatedly moving files manually between computers and services.</p>
+        </article>
+        <article class="news-card">
+          <div class="news-card-icon">▦</div>
+          <h3>Multi-Tournament Workspace</h3>
+          <p>Access and manage multiple tournaments under the same authorized account, with a clear separation between tournament workspaces.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="news-section soft">
+      <div class="news-shell news-section-grid">
+        <div class="news-copy">
+          <p class="news-kicker">Desktop + Cloud + Web</p>
+          <h2>Connected without giving up the local workflow.</h2>
+          <p>The desktop application will remain fully usable as the primary local tournament environment. The cloud is not intended to replace local tournament management — it extends it with secure access, mobility and synchronized workflows.</p>
+          <p>A tournament can remain available locally while a synchronized copy provides authorized access through the web platform. The aim is to combine the reliability of desktop tournament management with the flexibility of a modern connected workspace.</p>
+        </div>
+        <div class="news-callout">
+          <small>One tournament — wherever you need it</small>
+          <strong>A connected ecosystem for tournament management and publishing.</strong>
+          <div class="news-flow" aria-label="Chess-Publisher ecosystem">
+            <span>Desktop</span><i>→</i><span>Cloud</span><i>→</i><span>Web</span><i>→</i><span>Public Tournament Portal</span>
+          </div>
+          <p>Tournament management, player registration, publishing and online presentation are moving toward becoming parts of the same workflow.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="news-section">
+      <div class="news-shell news-section-grid">
+        <div class="news-callout">
+          <small>Built for real tournament conditions</small>
+          <strong>The useful moments are the ones that happen away from the main tournament computer.</strong>
+          <div class="news-scenarios">
+            <div class="news-scenario"><b>1</b><span>A player arrives five minutes before Round 1 and needs to be registered quickly.</span></div>
+            <div class="news-scenario"><b>2</b><span>An Arbiter needs to review or update tournament information while away from the tournament laptop.</span></div>
+            <div class="news-scenario"><b>3</b><span>A different computer must be used unexpectedly without losing track of the current tournament workspace.</span></div>
+            <div class="news-scenario"><b>4</b><span>The Organizer needs current tournament information without waiting for manual file transfers.</span></div>
+          </div>
+        </div>
+        <div class="news-copy">
+          <p class="news-kicker">Less file handling</p>
+          <h2>Move the tournament forward, not the files around.</h2>
+          <p>Instead of exporting files, sending them to yourself and trying to determine which copy is the newest, Chess-Publisher is moving toward a synchronized tournament workspace.</p>
+          <p>The planned October workflow includes secure access, tournament upload, desktop/web synchronization, mobile-friendly registration, controlled Pull Changes, synchronization protection and online publishing.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="news-final">
+      <div class="news-shell">
+        <div class="news-final-panel">
+          <div class="news-final-grid">
+            <div>
+              <div class="news-eyebrow"><span class="news-eyebrow-dot"></span> October 2026</div>
+              <h2>The next major stage of Chess-Publisher.</h2>
+              <p>More mobility. Less file handling. Faster registration. Safer synchronization. One connected tournament environment.</p>
+              <div class="news-points">
+                <span>Desktop</span>
+                <span>Web</span>
+                <span>Mobile friendly</span>
+                <span>Personal token</span>
+                <span>Cloud sync</span>
+                <span>Online publishing</span>
+              </div>
+            </div>
+            <a class="news-button news-button-primary" href="index.html">Back to Chess-Publisher</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-grid">
+      <div class="footer-about">
+        <a class="brand footer-brand" href="index.html"><img src="assets/chess-publisher-icon.png" alt="" width="34" height="34"><span>Chess-Publisher</span></a>
+        <p>Open-source chess tournament management software.</p>
+      </div>
+      <div><strong>Product</strong><a href="index.html#features">Features</a><a href="tournaments.html">Tournaments</a><a href="index.html#download">Download</a></div>
+      <div><strong>Project</strong><a href="user-manual.html">User Manual</a><a href="support.html">Support</a><a href="contact.html">Contact</a></div>
+    </div>
+  </footer>
+</body>
+</html>
