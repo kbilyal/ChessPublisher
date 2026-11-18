@@ -97,7 +97,7 @@
 .release-notes-heading>div{max-width:760px}
 
 /* Tablet / narrow desktop: switch to one clean menu instead of wrapping labels. */
-@media(max-width:1240px){
+@media(max-width:1440px){
   :root{--nav-shell:min(100% - 32px,1180px)}
   .nav-shell{height:68px;gap:16px}
   .nav-toggle{display:block;margin-left:auto}
@@ -129,7 +129,7 @@
     white-space:nowrap;
   }
 }
-@media(min-width:1241px){
+@media(min-width:1441px){
   .nav-toggle{display:none!important}
   .site-nav{position:static}
 }
