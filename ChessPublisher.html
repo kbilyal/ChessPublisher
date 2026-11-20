@@ -41347,10 +41347,7 @@ window.cpBeta98R14 = { VERSION, initRegistrationResizing };
         return {route, status: REVIEW, reason: "Record the highest Standard rating from the FIDE list effective for the event."};
       }
       if (highest < 2400) return {route, status: ELIGIBLE};
-      if (highest === 2400) {
-        return {route, status: REVIEW, reason: "QC clarification required at exactly 2400. The Council resolution and public announcement differ."};
-      }
-      return {route, status: INELIGIBLE, reason: "The rating-cap route does not allow a player above 2400. Verify the FIDE Circuit route if applicable."};
+      return {route, status: INELIGIBLE, reason: "The rating-cap route requires every player to be below 2400. Verify the FIDE Circuit route if applicable."};
     }
     return {route, status: REVIEW, reason: "Select a route or record a QC reference for manual review."};
   }

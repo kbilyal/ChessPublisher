@@ -47,12 +47,12 @@ test("rating-only accepts exactly 12 hours and rejects more", () => {
 
 const capped = {purpose: "norm", route: "rating-cap", ratingDate: "2026-11-01"};
 
-for (const [highest, expected] of [[2399, "eligible"], [2400, "manual-review"], [2401, "ineligible"]]) {
+for (const [highest, expected] of [[2399, "eligible"], [2400, "ineligible"], [2401, "ineligible"]]) {
   test("45+30 non-Circuit threshold at " + highest, () => {
     const value = report("45+30", 2, {...capped, highest});
     assert.equal(value.rating, expected);
     assert.equal(value.evidence.highest, highest);
-    if (highest === 2400) assert.match(value.reasons.join(" "), /QC clarification/);
+    if (highest >= 2400) assert.match(value.reasons.join(" "), /below 2400/);
   });
 }
 
