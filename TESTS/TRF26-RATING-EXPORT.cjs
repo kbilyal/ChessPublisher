@@ -31,3 +31,25 @@ for (const invalid of ['', '2026/02/30']) {
   assert.ok(api.strictExchangeCheck(report(), {throughRound: 1}).errors.some(e => e.includes('132')));
 }
 console.log('TRF26 rating export regression passed');
+
+// Exercise the same final-place policy as the Standings screen.
+context.document.readyState = 'loading';
+context.document.addEventListener = () => {};
+context.getCurrentTournament = () => tournament;
+vm.runInNewContext(html.match(/<script data-cp-bundled-source="ChessPublisher-Beta69-Compliance.js">([\s\S]*?)<\/script>/)[1], context);
+const policy = context.window.cpBeta69;
+const standings = {ties: [], players: [{id:1, score:2}, {id:2, score:2}, {id:3, score:1}]};
+const key = policy.splitGroups(standings.players, [])[0].key;
+for (const [mode, saved, expected, descriptor] of [
+  ['same-place', {}, [1,1,3], ''],
+  ['drawing-lots', {}, [1,1,3], ''],
+  ['drawing-lots', {draws:{[key]:{values:{1:0.2,2:0.8}}}}, [2,1,3], 'OTHER_LOT'],
+  ['manual-order', {manual:{[key]:['2','1']}}, [2,1,3], 'OTHER_MANUAL']
+]) {
+  tournament.finalTieResolution = {mode, ...saved};
+  const {ranks, descriptors} = api.ratingRanks(standings, tournament, true);
+  assert.deepEqual(standings.players.map(p => ranks.get(p.id)), expected);
+  assert.equal(descriptors.join(','), descriptor);
+  assert.equal(api.ratingRanks(standings, tournament, false).ranks.get(2), 1);
+}
+console.log('TRF26 final-place policy regression passed');

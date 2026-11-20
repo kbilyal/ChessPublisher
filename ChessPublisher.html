@@ -11334,6 +11334,7 @@ function parseTRF26Players(text){
       }
     }
     else if(line.startsWith("142 ")) meta.rounds=line.slice(4).trim();
+    else if(/^(202|212) /.test(line)) meta.rankOrderRecord=line.trimEnd();
     else if(line.startsWith("162 ")) meta.scoring=line.slice(4).trim();
     else if(line.startsWith("182 ")) meta.software=line.slice(4).trim();
     else if(/^XXR\s+/i.test(line)) meta.rounds=line.replace(/^XXR\s+/i,"").trim();
@@ -30025,8 +30026,33 @@ function buildPairingEngineTRF(initialColor="w"){
     return cpTrfCustomDescriptor(typeof shortTieBreakLabel==="function"?shortTieBreakLabel(text):text);
   }
 
+  function cpTrfRatingRanks(standings,t,finalRound){
+    const policy=window.cpBeta69;
+    const ties=standings.ties||[];
+    const groups=policy.splitGroups(standings.players,ties);
+    const resolution=finalRound?t.finalTieResolution:null;
+    const mode=resolution?.mode;
+    const ranks=new Map(), descriptors=new Set();
+    for(const group of groups){
+      const hasDraw=mode===policy.MODES.LOTS && resolution.draws?.[group.key];
+      const hasOrder=mode===policy.MODES.MANUAL && resolution.manual?.[group.key];
+      if(group.tied && (hasDraw||hasOrder)){
+        const resolved=policy.applyPolicy({players:group.players.map(p=>({...p})),tieList:ties});
+        resolved.players.forEach((p,i)=>ranks.set(Number(p.id),group.baseRank+i));
+        descriptors.add(hasDraw?"OTHER_LOT":"OTHER_MANUAL");
+      }else{
+        for(const p of group.players) ranks.set(Number(p.id),group.baseRank);
+      }
+    }
+    return {ranks,descriptors:[...descriptors]};
+  }
+
   function cpTrf212Record(standings){
+    if(standings?.ratingOrderRecord) return standings.ratingOrderRecord;
     const descriptors=(standings?.ties||[]).map(cpTrfRankOrderDescriptor);
+    if(standings?.resolutionDescriptors){
+      return "212 "+["PTS",...new Set([...descriptors,...standings.resolutionDescriptors].filter(Boolean))].join(",");
+    }
     const players=standings?.players||[];
     let needsLot=false;
     for(let i=1;i<players.length;i++){
@@ -30607,7 +30633,17 @@ function buildPairingEngineTRF(initialColor="w"){
       reportPoints:cpTrfPointsThrough(p,through)
     }));
     const importedRankById=cpTrfImportedRankMap(check.t,through,rows);
-    const rankById=importedRankById||new Map(standings.players.map((p,i)=>[Number(p.id),i+1]));
+    let rankById=importedRankById;
+    if(version===26 && profile==="rating"){
+      if(importedRankById){
+        standings.ratingOrderRecord=check.t.pairings.trfImportMeta.rankOrderRecord;
+      }else if(window.cpBeta69){
+        const resolved=cpTrfRatingRanks(standings,check.t,through===check.announced);
+        rankById=resolved.ranks;
+        standings.resolutionDescriptors=resolved.descriptors;
+      }
+    }
+    if(!rankById) rankById=new Map(standings.players.map((p,i)=>[Number(p.id),i+1]));
     const lines=cpTrfTournamentLines(version,check.t,through,standings,strict,profile);
     // Strict TRF26 exchange contains only records/comments; no blank records.
     // Keep the legacy separator only for TRF16 compatibility output.
@@ -30843,6 +30879,7 @@ function buildPairingEngineTRF(initialColor="w"){
     tournamentLines:cpTrfTournamentLines,
     bye240:cpTrfBye240Records,
     scoring162:cpTrfScoring162,
+    ratingRanks:cpTrfRatingRanks,
     importedRankMap:cpTrfImportedRankMap,
     strictExchangeCheck:cpTrf26StrictExchangeCheck,
     setExchangeBadge:cpSetTrf26ComplianceBadge,
@@ -32183,6 +32220,7 @@ ${ties.length?ties.map((x,i)=>`${i+1}. ${tieBreakDisplayLabel(x)}`).join("\n"):"
       playerCount:(parsed.players||[]).length,
       importedRanks,
       roundDates:Array.isArray(meta.roundDates)?[...meta.roundDates]:[],
+      rankOrderRecord:meta.rankOrderRecord||"",
       trfVersion:Number(parsed.trfVersion)||0
     };
 
@@ -37604,7 +37642,10 @@ function ensureComplianceComments(text,range={}){
 function postProcessRatingTRF(text,{fromRound=1,toRound=999,includeLegacyPostProcessors=true}={}){
   let out=String(text||'');
   out=ensureBaku(out);
-  if(includeLegacyPostProcessors){out=ensureUnusual299(out,{fromRound,toRound});out=ensure212(out);}
+  if(includeLegacyPostProcessors){out=ensureUnusual299(out,{fromRound,toRound});
+    // The current rating builder has already checked the exact 202/212 record.
+    // Older reports without this full exchange header still use the legacy repair.
+    if(!(/^182 Chess-Publisher Version /m.test(out)&&/^222 /m.test(out)&&/^(202|212) /m.test(out)))out=ensure212(out);}
   out=ensureComplianceComments(out,{fromRound,toRound});
   return out;
 }

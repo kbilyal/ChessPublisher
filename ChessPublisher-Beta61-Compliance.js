@@ -36,7 +36,10 @@ function ensureComplianceComments(text,range={}){
 function postProcessRatingTRF(text,{fromRound=1,toRound=999,includeLegacyPostProcessors=true}={}){
   let out=String(text||'');
   out=ensureBaku(out);
-  if(includeLegacyPostProcessors){out=ensureUnusual299(out,{fromRound,toRound});out=ensure212(out);}
+  if(includeLegacyPostProcessors){out=ensureUnusual299(out,{fromRound,toRound});
+    // The current rating builder has already checked the exact 202/212 record.
+    // Older reports without this full exchange header still use the legacy repair.
+    if(!(/^182 Chess-Publisher Version /m.test(out)&&/^222 /m.test(out)&&/^(202|212) /m.test(out)))out=ensure212(out);}
   out=ensureComplianceComments(out,{fromRound,toRound});
   return out;
 }
