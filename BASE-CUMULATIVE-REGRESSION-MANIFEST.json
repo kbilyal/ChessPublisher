@@ -739,13 +739,13 @@
       ]
     },
     {
-      "id": "trf26-rating-132-profile-split",
+      "id": "trf26-rating-132-required",
       "critical": true,
       "file": "ChessPublisher.html",
       "markers": [
         "requireRoundDates=true",
-        "requireRoundDates:false",
-        "FIDE Rating export can continue"
+        "requireRoundDates:true",
+        "a valid date is required for FIDE Rating TRF26 record 132"
       ]
     },
     {

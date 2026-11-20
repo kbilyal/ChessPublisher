@@ -11324,7 +11324,15 @@ function parseTRF26Players(text){
     else if(line.startsWith("102 ")) meta.chiefArbiter=line.slice(4).trim();
     else if(line.startsWith("112 ")) meta.arbiter=line.slice(4).trim();
     else if(line.startsWith("122 ")) meta.timeControl=line.slice(4).trim();
-    else if(line.startsWith("132 ")) meta.roundDates=[...line.slice(4).matchAll(/(?:\d{4}|\d{2})[\/. -]\d{2}[\/. -]\d{2}/g)].map(m=>m[0].trim());
+    else if(line.startsWith("132 ")){
+      if(line.slice(4,91).trim()){
+        // Older non-positional imports may list the dates immediately after 132.
+        meta.roundDates=[...line.slice(4).matchAll(/(?:\d{4}|\d{2})[\/. -]\d{2}[\/. -]\d{2}/g)].map(m=>m[0]);
+      }else{
+        meta.roundDates=Array.from({length:Math.max(0,Math.ceil((line.length-91)/10))},
+          (_,i)=>line.slice(91+i*10,99+i*10).trim());
+      }
+    }
     else if(line.startsWith("142 ")) meta.rounds=line.slice(4).trim();
     else if(line.startsWith("162 ")) meta.scoring=line.slice(4).trim();
     else if(line.startsWith("182 ")) meta.software=line.slice(4).trim();
@@ -30045,9 +30053,8 @@ function buildPairingEngineTRF(initialColor="w"){
       if(Array.isArray(imported)){
         for(let r=1;r<=throughRound;r++){
           const raw=String(imported[r-1]||"").trim();
-          const m=raw.match(/^(?:\d{4}\/)?(\d{2})\/(\d{2})\/(\d{2})$/);
-          if(m) dates.set(r,`${m[1]}/${m[2]}/${m[3]}`);
-          else if(/^\d{2}\/\d{2}\/\d{2}$/.test(raw)) dates.set(r,raw);
+          const full=cpTrfStrictDate(raw)||(raw.length===8?cpTrfStrictDate("20"+raw):"");
+          if(full) dates.set(r,full.slice(2));
         }
       }
     }
@@ -30189,7 +30196,11 @@ function buildPairingEngineTRF(initialColor="w"){
         const colour=typeof getInitialTopColorForEngine==="function"?getInitialTopColorForEngine():"w";
         add("152",colour==="b"?"B":"W");
       }
-      lines.push(cpTrfScoring162());
+      if(profile==="rating"){
+        // TRF26 defaults apply without record 162. Only P can be configured here.
+        const pab=Number(getPabPoints());
+        if(Number.isFinite(pab)&&pab!==1) lines.push("162  P "+pab.toFixed(1));
+      }else lines.push(cpTrfScoring162());
       add("182",`Chess-Publisher Version ${productVersion}`);
       add("192",typeof trf26PairingTypeCode==="function"?trf26PairingTypeCode():"CUSTOM_SWISS");
       lines.push(cpTrf212Record(standings));
@@ -30320,25 +30331,40 @@ function buildPairingEngineTRF(initialColor="w"){
       }
       const allScheduleErrors=[...schedule.errors,...strictScheduleErrors];
       if(allScheduleErrors.length){
-        const contradictions=allScheduleErrors.filter(message=>/invalid date|before tournament start|after tournament end|scheduled later than|identical or earlier/i.test(String(message)));
+        const contradictions=allScheduleErrors.filter(message=>/duplicate Schedule entry|invalid date|before tournament start|after tournament end|scheduled later than|identical or earlier/i.test(String(message)));
         const incomplete=allScheduleErrors.filter(message=>!contradictions.includes(message));
-        // Missing round dates are not Rating-mandatory in TRF26/TRF16, so they
-        // remain a warning.  A date that is PRESENT but impossible or contradicts
-        // the tournament date range is a real data error and must block export.
         if(contradictions.length) errors.push(`Tournament Schedule contains invalid/contradictory round data: ${contradictions.join(" ")}`);
-        if(incomplete.length){
-          warnings.push(version===26
-            ? `TRF26 record 132 is incomplete. Round dates are mandatory for pairing/tie-break exchange; the rating report will contain only the dates that are actually known. ${incomplete.join(" ")}`
-            : `TRF16 record 132 is incomplete; the file will contain only the round dates that are actually known. ${incomplete.join(" ")}`);
-        }
+        if(incomplete.length && version===16) warnings.push(`TRF16 round schedule: ${incomplete.join(" ")}`);
       }
     }
 
     if(version===26 && strict){
+      const record=cpTrfRoundDateRecord(t,to);
+      for(let r=1;r<=to;r++){
+        if(!record.slice(91+(r-1)*10,99+(r-1)*10).trim())
+          errors.push(`Round ${r}: a valid date is required for FIDE Rating TRF26 record 132.`);
+      }
       const effectiveTc=String(t?.settings?.timeControl||"").trim()==="Custom"
         ? String(t?.settings?.customTimeControl||"").trim()
         : String(t?.settings?.timeControl||"").trim();
       const encoded=typeof trf26EncodedTimeControl==="function"?trf26EncodedTimeControl(effectiveTc):"";
+      if(preSave.fideRated==="Yes" && preSave.ratingType==="Standard"){
+        const clock=String(encoded||"").match(/^(\d+)(?:\+(\d+))?$/);
+        if(clock){
+          const seconds=Number(clock[1])+60*Number(clock[2]||0);
+          const ratings=new Map(state.rows.map(p=>[Number(p.id),
+            Number(window.cpBeta57?.officialRatingForReporting?.(p.sourcePlayer||p)??p.rating)||0]));
+          let affected=0;
+          for(const p of state.rows){
+            for(const rd of (p.rounds||[]).slice(0,to)){
+              if(!(Number(rd?.opp)>Number(p.id))||!["1","=","0"].includes(cpTrfRoundResultCode(rd))) continue;
+              const high=Math.max(ratings.get(Number(p.id)),ratings.get(Number(rd.opp))||0);
+              if(seconds<60*(high>=2400?120:high>=1800?90:60)) affected++;
+            }
+          }
+          if(affected) warnings.unshift(`FIDE Rating Regulations 1.1: ${affected} played game(s) fall below the minimum Standard time control at 60 moves. Review with the Rating Officer before submission.`);
+        }
+      }
       if(!encoded) errors.push(`Time Control '${effectiveTc||"<empty>"}' cannot be encoded in mandatory TRF26 record 222.`);
       const typeCode=typeof trf26PairingTypeCode==="function"?trf26PairingTypeCode():"";
       if(!typeCode) errors.push("TRF26 record 192 tournament type cannot be determined.");
@@ -30473,10 +30499,10 @@ function buildPairingEngineTRF(initialColor="w"){
           ? `missing/invalid date for Round${missingRoundDates.length===1?"":"s"} ${missingRoundDates.join(", ")}`
           : "record 132 is absent";
         if(requireRoundDates){
-          errors.push(`TRF26 record 132 is required for strict pairing/tie-break exchange (${detail}).`);
+          errors.push(`TRF26 record 132 is required for rating (${detail}).`);
         }else{
           warnings.push(
-            `TRF26 record 132 is incomplete (${detail}). FIDE Rating export can continue, `+
+            `TRF26 record 132 is incomplete (${detail}). This file is unsuitable for rating, `+
             `but a full strict pairing/tie-break exchange PASS cannot be issued without exact round dates.`
           );
         }
@@ -30514,6 +30540,7 @@ function buildPairingEngineTRF(initialColor="w"){
     }
 
     // Independent internal round reciprocity/score consistency layer.
+    const pabPoints=Number((records["162"]?.[0]?.text.match(/ P\s*(\d+(?:\.\d+)?)/)||[])[1]??1);
     const scoreById=new Map();
     for(const [id,line] of byStart){
       let score=0;
@@ -30522,7 +30549,8 @@ function buildPairingEngineTRF(initialColor="w"){
         const opp=Number(line.slice(base,base+4).trim())||0;
         const color=(line[base+5]||" ").toLowerCase();
         const result=(line[base+7]||" ").toUpperCase();
-        if(result==="1"||result==="+"||result==="W"||result==="F"||result==="U") score+=1;
+        if(result==="U") score+=pabPoints;
+        else if(result==="1"||result==="+"||result==="W"||result==="F") score+=1;
         else if(result==="="||result==="D"||result==="H") score+=0.5;
         if(opp>0){
           const other=byStart.get(opp);
@@ -30681,7 +30709,7 @@ function buildPairingEngineTRF(initialColor="w"){
       const result=cpBuildFideTRF(version,stableCheck.throughRound,{strict:true,prevalidated:stableCheck});
       if(version===26){
         cpSetTrf26ComplianceBadge("checking","Running strict TRF26 exchange validation…");
-        const exchange=cpTrf26StrictExchangeCheck(result.text,{throughRound:result.toRound,requireRoundDates:false});
+        const exchange=cpTrf26StrictExchangeCheck(result.text,{throughRound:result.toRound,requireRoundDates:true});
         if(!exchange.ok){
           cpSetTrf26ComplianceBadge("fail",exchange.errors.join(" | "));
           const strictError=new Error(exchange.errors.join(" | "));
@@ -30695,7 +30723,7 @@ function buildPairingEngineTRF(initialColor="w"){
         let externalMessage="Strict TRF26 structure/title/tie-break exchange metadata PASS.";
         try{
           if(typeof window.cpRunTrf26ExchangeChecker==="function"){
-            const external=await window.cpRunTrf26ExchangeChecker(result.text,result.toRound,{requireRoundDates:false});
+            const external=await window.cpRunTrf26ExchangeChecker(result.text,result.toRound,{requireRoundDates:true});
             if(external?.state==="fail"||external?.state==="error"){
               cpSetTrf26ComplianceBadge("fail",external.message||"Gacrux exchange checker failed.");
               const checkerError=new Error(external.message||"Gacrux TRF26 exchange checker failed.");
@@ -30705,15 +30733,8 @@ function buildPairingEngineTRF(initialColor="w"){
               throw checkerError;
             }
             if(external?.state==="pass"){
-              if(exchange.roundDatesComplete){
-                externalState="pass";
-                externalMessage=`TRF26 strict exchange + Gacrux Tie-Break Checker PASS through Round ${result.toRound}.`;
-              }else{
-                externalState="valid";
-                externalMessage=
-                  `FIDE Rating TRF26 structure and Gacrux tie-break verification PASS through Round ${result.toRound}; `+
-                  `record 132 round-date coverage is incomplete, so full strict exchange PASS is not issued.`;
-              }
+              externalState="pass";
+              externalMessage=`TRF26 strict exchange + Gacrux Tie-Break Checker PASS through Round ${result.toRound}.`;
             }else if(external?.message){
               result.warnings.push(`External TRF26 exchange checker: ${external.message}`);
             }
