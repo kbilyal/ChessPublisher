@@ -5,12 +5,16 @@ const {readFileSync} = require("node:fs");
 const {join} = require("node:path");
 const {test} = require("node:test");
 const {runInNewContext} = require("node:vm");
-const html = readFileSync(join(__dirname, "..", "ChessPublisher.html"), "utf8");
-const parser = html.slice(html.indexOf("function cpDetectTournamentTypeFromTimeControl"), html.indexOf("function cpGetEffectiveTimeControlFromUI"));
+const html = readFileSync(process.env.CP_ELIGIBILITY_HTML || join(__dirname, "..", "ChessPublisher.html"), "utf8");
+const parser = html.slice(html.indexOf("function cpDetectTournamentTypeFromTimeControl"), html.indexOf("function cpSyncTournamentTypeFromTimeControl"));
+const encoder = html.match(/^function trf26EncodedTimeControl\(value\)\{[\s\S]*?^\}/m)[0];
 const script = html.match(/<script id="cpFideEligibilityScript">([\s\S]*?)<\/script>/)[1];
-const context = {window: {}, document: {addEventListener() {}}};
-runInNewContext(parser + script, context);
-const {assess, assessNorm, ratingCategories} = context.window.cpFideEligibility;
+const context = {
+  window: {}, document: {addEventListener() {}},
+  validateRatedRoundSchedule: tournament => tournament.schedule
+};
+runInNewContext(parser + encoder + "\n" + script, context);
+const {assess, assessNorm, assessTournament, recordedReview, ratingCategories} = context.window.cpFideEligibility;
 
 function report(timeControl, rounds, review, startDate = "2026-11-15", ok = true) {
   const dateTimes = Array.from({length: rounds}, (_, i) => startDate + "T" + String(i + 8).padStart(2, "0") + ":00");
@@ -43,7 +47,7 @@ test("rating-only accepts exactly 12 hours and rejects more", () => {
 
 const capped = {purpose: "norm", route: "rating-cap", ratingDate: "2026-11-01"};
 
-for (const [highest, expected] of [[2399, "eligible"], [2400, "manual-review"], [2401, "manual-review"]]) {
+for (const [highest, expected] of [[2399, "eligible"], [2400, "manual-review"], [2401, "ineligible"]]) {
   test("45+30 non-Circuit threshold at " + highest, () => {
     const value = report("45+30", 2, {...capped, highest});
     assert.equal(value.rating, expected);
@@ -51,6 +55,35 @@ for (const [highest, expected] of [[2399, "eligible"], [2400, "manual-review"], 
     if (highest === 2400) assert.match(value.reasons.join(" "), /QC clarification/);
   });
 }
+
+test("Fast Classical controls keep the Standard rating list and TRF26 time-control format", () => {
+  for (const [input, encoded] of [["60+30", "3600+30"], ["45+30", "2700+30"], ["45′ + 30″", "2700+30"]]) {
+    assert.equal(context.cpDetectTournamentTypeFromTimeControl(input).type, "Standard");
+    assert.equal(context.trf26EncodedTimeControl(input), encoded);
+  }
+  assert.equal(report("45+30", 4, {...capped, purpose: "rating", highest: 2399}).daily[0].playingMinutes, 600);
+  assert.equal(report("45+30", 5, {...capped, purpose: "rating", highest: 2399}).rating, "ineligible");
+});
+
+test("recorded eligibility is invalidated by a changed clock, date, or unverified lineup", () => {
+  const tournament = {
+    settings: {timeControl: "45+30", startDate: "2026-11-15", fideRated: "Yes"},
+    schedule: {ok: true, dateTimes: ["2026-11-15T09:00"]},
+    players: [{fideId: "1234567", officialRating: 2300}],
+    fideCompliance: {}
+  };
+  const review = {...capped, highest: 2300};
+  tournament.fideCompliance.fastStandard = assessTournament(tournament, review);
+  assert.equal(assessTournament(tournament).rating, "eligible");
+  tournament.players[0].officialRating = 2401;
+  assert.match(assessTournament(tournament, review).reasons.join(" "), /exceeds the declared highest/);
+  assert.equal(assessTournament(tournament).rating, "manual-review");
+  tournament.settings.timeControl = "60+30";
+  assert.equal(recordedReview(tournament), null);
+  tournament.settings.timeControl = "45+30";
+  tournament.settings.startDate = "2026-11-16";
+  assert.equal(recordedReview(tournament), null);
+});
 
 test("45+30 Circuit route uses final-lineup confirmation and evidence", () => {
   const review = {purpose: "norm", route: "circuit", highest: 2600, circuit: "confirmed", reference: "Circuit record"};

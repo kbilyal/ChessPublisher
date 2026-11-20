@@ -2928,7 +2928,7 @@ button[onclick*="fileExportTournamentTunx"]{display:none!important;visibility:hi
       </div>
 
       <details id="cpFideEligibility" class="groupbox">
-        <summary>FIDE rating and norm eligibility</summary>
+        <summary>FIDE eligibility · Fast Classical, norms and matches</summary>
         <form id="cpFastStandard">
           <div class="form-grid-4">
             <label for="cpEligibilityPurpose">Event purpose</label>
@@ -2957,7 +2957,7 @@ button[onclick*="fileExportTournamentTunx"]{display:none!important;visibility:hi
             <label for="cpEligibilityReference">Circuit evidence or QC reference</label>
             <input id="cpEligibilityReference" name="reference">
           </div>
-          <button type="submit">Check and record Fast Standard eligibility</button>
+          <button type="submit">Check and record Fast Classical eligibility</button>
           <p id="cpEligibilityResult" role="status" style="white-space:pre-wrap"></p>
         </form>
         <form id="cpShortenedNorm">
@@ -7157,7 +7157,9 @@ function fillSelect(id,values,keep=true){
   if(old && [...s.options].some(o=>o.value===old)) s.value=old;
 }
 function populateStaticMenus(){
-  fillSelect("timeControl",timeControls,false);
+  fillSelect("timeControl",timeControls.map(control=>
+    ["45+30","60+30"].includes(control) ? [control,control+" (Fast Classical)"] : control
+  ),false);
   fillSelect("regTimeControl",timeControls,false);
   fillSelect("tournamentFormat",tournamentFormats,false);
   fillSelect("regFormat",tournamentFormats,false);
@@ -8131,6 +8133,11 @@ function cpDetectTournamentTypeFromTimeControl(raw){
 function cpGetEffectiveTimeControlFromUI(){
   const choice=val("timeControl");
   return choice==="Custom" ? val("customTimeControl").trim() : choice;
+}
+
+function cpFastClassicalControl(raw){
+  const control=cpDetectTournamentTypeFromTimeControl(raw);
+  return control.incrementSeconds===30 && [45,60].includes(control.baseMinutes) ? control : null;
 }
 
 function cpFormatDetectedMinutes(value){
@@ -16830,7 +16837,9 @@ function cpSmartScheduleProfile(tournament=getCurrentTournament()){
     lunchStartMinutes:base.lunchStartMinutes,
     lunchResumeMinutes:base.lunchResumeMinutes,
     preferredMorningRounds:base.preferredMorningRounds,
-    maxRoundsPerDay:base.maxRoundsPerDay,
+    maxRoundsPerDay:tournament?.settings?.fideRated==="Yes" && cpFastClassicalControl(raw)
+      && window.cpFideEligibility?.recordedReview(tournament)?.evidence.purpose!=="rating"
+      ? 2 : base.maxRoundsPerDay,
     secondSessionEarliestMinutes:base.secondSessionEarliestMinutes
   };
 }
@@ -20327,6 +20336,8 @@ function trf26TournamentTypeText(){
 function trf26EncodedTimeControl(value){
   const raw=String(value||"").trim();
   if(!raw) return "";
+  const fastControl=cpFastClassicalControl(raw);
+  if(fastControl) return `${fastControl.baseMinutes*60}+${fastControl.incrementSeconds}`;
 
   let m=raw.match(/^(\d+(?:\.\d+)?)\s*(?:min|m|')?\s*\+\s*(\d+(?:\.\d+)?)\s*(?:sec|s|")?$/i);
   if(m){
@@ -30364,6 +30375,13 @@ function buildPairingEngineTRF(initialColor="w"){
       }
     }
 
+    const fastClassical = strict && preSave.fideRated==="Yes" && preSave.ratingType==="Standard"
+      && cpFastClassicalControl(t.settings.timeControl)
+      ? window.cpFideEligibility?.assessTournament(t) : null;
+    if(fastClassical && ["ineligible","manual-review"].includes(fastClassical.rating)){
+      warnings.unshift(`FIDE Fast Classical ${fastClassical.timeControl} · ${fastClassical.rating==="ineligible" ? "Ineligible" : "Review required"}. ${fastClassical.reasons.join(" ")}`);
+    }
+
     if(version===26 && strict){
       const record=cpTrfRoundDateRecord(t,to);
       for(let r=1;r<=to;r++){
@@ -30374,7 +30392,7 @@ function buildPairingEngineTRF(initialColor="w"){
         ? String(t?.settings?.customTimeControl||"").trim()
         : String(t?.settings?.timeControl||"").trim();
       const encoded=typeof trf26EncodedTimeControl==="function"?trf26EncodedTimeControl(effectiveTc):"";
-      if(preSave.fideRated==="Yes" && preSave.ratingType==="Standard"){
+      if((!fastClassical || fastClassical.rating==="not-applicable") && preSave.fideRated==="Yes" && preSave.ratingType==="Standard"){
         const clock=String(encoded||"").match(/^(\d+)(?:\+(\d+))?$/);
         if(clock){
           const seconds=Number(clock[1])+60*Number(clock[2]||0);
@@ -41329,26 +41347,26 @@ window.cpBeta98R14 = { VERSION, initRegistrationResizing };
         return {route, status: REVIEW, reason: "Record the highest Standard rating from the FIDE list effective for the event."};
       }
       if (highest < 2400) return {route, status: ELIGIBLE};
-      const reason = highest === 2400
-        ? "QC clarification required at exactly 2400. The Council resolution and public announcement differ."
-        : "A verified Circuit route or QC review is required at 2401+.";
-      return {route, status: REVIEW, reason};
+      if (highest === 2400) {
+        return {route, status: REVIEW, reason: "QC clarification required at exactly 2400. The Council resolution and public announcement differ."};
+      }
+      return {route, status: INELIGIBLE, reason: "The rating-cap route does not allow a player above 2400. Verify the FIDE Circuit route if applicable."};
     }
     return {route, status: REVIEW, reason: "Select a route or record a QC reference for manual review."};
   }
 
   function assess({settings = {}, schedule, review = {}} = {}) {
-    const control = cpDetectTournamentTypeFromTimeControl(settings.timeControl);
+    const control = cpFastClassicalControl(settings.timeControl);
     const eventDate = dateKey(settings.startDate);
     const evidence = {
       purpose: review.purpose || "", route: review.route || "", highest: nonnegativeInteger(review.highest),
       ratingDate: dateKey(review.ratingDate), circuit: review.circuit || "", reference: String(review.reference || "").trim()
     };
     const report = {
-      rule: RULE, eventDate, timeControl: control.source, evidence,
+      rule: RULE, eventDate, timeControl: String(settings.timeControl || "").trim(), evidence,
       daily: [], route: evidence.route, rating: NA, norm: NA, reasons: []
     };
-    if (settings.fideRated !== "Yes" || control.incrementSeconds !== 30 || ![45, 60].includes(control.baseMinutes)) {
+    if (settings.fideRated !== "Yes" || !control) {
       report.reasons.push("This review applies to FIDE-rated 60+30 and 45+30 events.");
       return report;
     }
@@ -41468,6 +41486,43 @@ window.cpBeta98R14 = { VERSION, initRegistrationResizing };
     ].join("\n");
   }
 
+  function recordedReview(tournament) {
+    const saved = tournament.fideCompliance?.fastStandard;
+    if (!saved || saved.eventDate !== dateKey(tournament.settings.startDate)) return null;
+    const previous = cpFastClassicalControl(saved.timeControl);
+    const current = cpFastClassicalControl(tournament.settings.timeControl);
+    return current && previous?.baseMinutes === current.baseMinutes ? saved : null;
+  }
+
+  function assessTournament(tournament, review) {
+    const settings = tournament.settings;
+    const saved = recordedReview(tournament);
+    const report = assess({
+      settings, schedule: settings.fideRated === "Yes" && cpFastClassicalControl(settings.timeControl)
+        ? validateRatedRoundSchedule(tournament) : null,
+      review: review ?? saved?.evidence
+    });
+    if (report.rating === NA) return report;
+    const players = tournament.players || [];
+    const officialRatings = players.map(player => nonnegativeInteger(player.officialRating) ?? 0);
+    report.roster = players.map((player, i) =>
+      [String(player.fideId || player.localKey || ""), officialRatings[i]].join(":")
+    ).sort();
+
+    if (report.route === "rating-cap" && report.evidence.highest !== null
+        && officialRatings.some(rating => rating > report.evidence.highest)) {
+      report.reasons.push("A recorded FIDE rating exceeds the declared highest rating. Verify the roster and the event's Standard rating list.");
+    } else if (!review && saved?.roster && ["circuit", "rating-cap"].includes(report.route)
+        && JSON.stringify(saved.roster) !== JSON.stringify(report.roster)) {
+      report.reasons.push("The roster or official ratings changed. Recheck the selected 45+30 route.");
+    } else {
+      return report;
+    }
+    if (report.rating === ELIGIBLE) report.rating = REVIEW;
+    if (report.norm === ELIGIBLE) report.norm = REVIEW;
+    return report;
+  }
+
   function setup() {
     const panel = document.getElementById("cpFideEligibility");
     const form = document.getElementById("cpFastStandard");
@@ -41477,24 +41532,6 @@ window.cpBeta98R14 = { VERSION, initRegistrationResizing };
     const matchForm = document.getElementById("cpFideMatchReview");
     const matchResult = document.getElementById("cpMatchReviewResult");
     let loaded;
-
-    function rosterSnapshot(tournament) {
-      return (tournament.players || []).map(player => [
-        String(player.fideId || player.localKey || ""), Number(player.officialRating) || 0
-      ].join(":")).sort();
-    }
-
-    function currentReport(tournament, review, savedRoster) {
-      const report = assess({settings: tournament.settings, schedule: validateRatedRoundSchedule(tournament), review});
-      report.roster = rosterSnapshot(tournament);
-      if (savedRoster && ["circuit", "rating-cap"].includes(report.route)
-          && report.rating === ELIGIBLE && JSON.stringify(savedRoster) !== JSON.stringify(report.roster)) {
-        report.reasons.push("The roster or official ratings changed. Recheck the selected 45+30 route.");
-        report.rating = REVIEW;
-        if (report.norm === ELIGIBLE) report.norm = REVIEW;
-      }
-      return report;
-    }
 
     function showHistory(compliance, report) {
       history.replaceChildren();
@@ -41534,11 +41571,11 @@ window.cpBeta98R14 = { VERSION, initRegistrationResizing };
     panel.addEventListener("toggle", () => {
       if (!panel.open || !(loaded = getCurrentTournament())) return;
       const compliance = cpEnsureFideCompliance(loaded);
-      const saved = compliance.fastStandard;
+      const saved = recordedReview(loaded);
       form.reset();
       normForm.reset();
       for (const [key, value] of Object.entries(saved?.evidence || {})) form.elements.namedItem(key).value = value ?? "";
-      const report = currentReport(loaded, saved?.evidence, saved?.roster);
+      const report = assessTournament(loaded);
       result.textContent = displayReport(report);
       showHistory(compliance, report);
       matchForm.reset();
@@ -41561,7 +41598,7 @@ window.cpBeta98R14 = { VERSION, initRegistrationResizing };
     form.addEventListener("submit", event => {
       const review = readSubmission(event);
       if (!review) return;
-      const report = currentReport(loaded, review);
+      const report = assessTournament(loaded, review);
       const compliance = cpEnsureFideCompliance(loaded);
       compliance.fastStandard = {...report, checkedAt: new Date().toISOString()};
       result.textContent = displayReport(report);
@@ -41579,7 +41616,7 @@ window.cpBeta98R14 = { VERSION, initRegistrationResizing };
       const compliance = cpEnsureFideCompliance(loaded);
       const prior = nonnegativeInteger(fields.prior);
       const reference = fields.reference.trim();
-      const report = currentReport(loaded, compliance.fastStandard?.evidence, compliance.fastStandard?.roster);
+      const report = assessTournament(loaded);
       const status = assessNorm(report, prior, reference);
       const entry = {fideId, title, prior, reference, status, checkedAt: new Date().toISOString()};
       const past = compliance.shortenedNormHistory || [];
@@ -41603,7 +41640,7 @@ window.cpBeta98R14 = { VERSION, initRegistrationResizing };
     standard: Object.freeze({available: true}), rapid: Object.freeze({available: true}),
     blitz: Object.freeze({available: true}), freestyle: Object.freeze({available: false})
   });
-  window.cpFideEligibility = Object.freeze({assess, assessNorm, assessMatch, ratingCategories});
+  window.cpFideEligibility = Object.freeze({assess, assessTournament, recordedReview, assessNorm, assessMatch, ratingCategories});
   document.addEventListener("DOMContentLoaded", setup, {once: true});
 })();
 </script>
